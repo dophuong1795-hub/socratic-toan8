@@ -12,23 +12,44 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
-# Hàm gọi Gemini và in thẳng lỗi thật nếu có sự cố
+# Tự động lấy danh sách model Gemini hỗ trợ tạo văn bản và hình ảnh trong tài khoản
+@st.cache_resource
+def get_working_model():
+    # Danh sách các tên model chuẩn ưu tiên
+    priority_models = [
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-1.5-pro",
+        "gemini-pro"
+    ]
+    try:
+        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        # Thử tìm theo danh sách ưu tiên trước
+        for pm in priority_models:
+            for am in available_models:
+                if pm in am:
+                    return am
+        # Nếu không có tên ưu tiên, lấy model đầu tiên hỗ trợ
+        if available_models:
+            return available_models[0]
+    except Exception:
+        pass
+    return "models/gemini-2.5-flash"
+
+ACTIVE_MODEL_NAME = get_working_model()
+
+# Hàm gọi Gemini sinh phản hồi
 def generate_ai_response(contents, system_instruction=None):
-    # Danh sách các tên gọi hợp lệ của Gemini 1.5 Flash
-    candidate_models = ["models/gemini-1.5-flash", "gemini-1.5-flash", "models/gemini-1.5-flash-latest"]
-    last_error = ""
-    for m in candidate_models:
-        try:
-            if system_instruction:
-                model = genai.GenerativeModel(model_name=m, system_instruction=system_instruction)
-            else:
-                model = genai.GenerativeModel(model_name=m)
-            response = model.generate_content(contents)
-            return response.text
-        except Exception as e:
-            last_error = str(e)
-            continue
-    return f"Lỗi kết nối chi tiết: {last_error}"
+    try:
+        if system_instruction:
+            model = genai.GenerativeModel(model_name=ACTIVE_MODEL_NAME, system_instruction=system_instruction)
+        else:
+            model = genai.GenerativeModel(model_name=ACTIVE_MODEL_NAME)
+        response = model.generate_content(contents)
+        return response.text
+    except Exception as e:
+        return f"Lỗi phản hồi: {str(e)}"
 
 st.title("📐 Học toán cùng cô Phương: Hình học 8")
 
@@ -114,14 +135,14 @@ with tab2:
                 Bạn là Giám khảo chấm thi Toán THCS tại Việt Nam.
                 Đề bài: "{topic}".
                 Hãy đọc ảnh chụp bài làm tự luận viết tay và chấm điểm theo Rubric (Thang 10):
-                1. Hình vẽ (2.0 điểm): Vẽ đúng tam giác/tứ giác, ký hiệu góc, trung điểm.
-                2. Lập luận chứng minh (6.0 điểm): Căn cứ định lý, dấu hiệu nhận biết, tính logic.
-                3. Trình bày & Kết luận (2.0 điểm): Trình bày mạch lạc, kết luận đúng.
+                1. Hình vẽ (2.0 điểm): Vẽ đúng tam giác/tứ giác, ký hiệu góc, trung điểm, tính trực quan.
+                2. Lập luận chứng minh (6.0 điểm): Căn cứ định lý, tính chất, dấu hiệu nhận biết, tính logic chặt chẽ.
+                3. Trình bày & Kết luận (2.0 điểm): Trình bày mạch lạc, danh pháp chuẩn xác, kết luận đúng yêu cầu.
                 
                 ĐỊNH DẠNG TRẢ VỀ:
                 - Tổng điểm: .../10 điểm
                 - Chi tiết: Hình vẽ (.../2.0), Lập luận (.../6.0), Trình bày (.../2.0)
-                - Lỗi sai cụ thể cần sửa: (nếu có)
+                - Lỗi sai cụ thể cần sửa: (nêu rõ bước nào, dòng nào)
                 - Nhận xét khích lệ sư phạm:
                 """
                 res_text = generate_ai_response([RUBRIC, hw_img])
