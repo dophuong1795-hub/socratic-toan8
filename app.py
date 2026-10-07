@@ -14,7 +14,6 @@ if not api_key:
 genai.configure(api_key=api_key)
 MODEL_NAME = "gemini-3.8-flash"
 
-# Prompt Socratic: Tự động phân chia bước theo bài và xuất kèm bài giải mẫu hoàn chỉnh khi kết thúc
 GAME_SYSTEM_PROMPT = """
 Bạn là Trợ lý Sư phạm Game Hóa Hình học 8 theo phương pháp Socratic.
 Nhiệm vụ: Phân tích bài toán trong ảnh, chia sơ đồ chứng minh thành các bước tư duy nhỏ (2 đến 4 bước tùy độ khó).
@@ -23,7 +22,7 @@ Tạo thử thách trắc nghiệm 4 lựa chọn cho bước hiện tại.
 
 BẮT BUỘC TRẢ VỀ DUY NHẤT 01 MÃ JSON HỢP LỆ (Không có bất kỳ ký tự nào khác ngoài JSON):
 {
-  "total_steps": 2, // Tổng số bước cần thiết của bài (2, 3 hoặc 4 bước)
+  "total_steps": 2,
   "feedback": "Nhận xét ngắn 1 câu về bước làm trước của học sinh",
   "question": "Nội dung câu hỏi thử thách cho bước này",
   "options": [
@@ -34,8 +33,8 @@ BẮT BUỘC TRẢ VỀ DUY NHẤT 01 MÃ JSON HỢP LỆ (Không có bất kỳ
   ],
   "correct_index": 0,
   "explanation": "Giải thích ngắn vì sao đúng và liên kết sang bước tiếp theo",
-  "is_finished": false, // Đặt true nếu bước này là bước kết thúc chứng minh
-  "full_solution": "" // ĐỂ TRỐNG nếu chưa xong. Khi is_finished = true, hãy viết bài giải hoàn chỉnh chuẩn mực sư phạm từng bước có ký hiệu toán học đầy đủ vào đây!
+  "is_finished": false,
+  "full_solution": ""
 }
 """
 
@@ -128,14 +127,12 @@ with tab1:
 
             st.markdown(f"**Giải thích hướng đi:** {card.get('explanation', '')}")
 
-            # ĐIỀU KIỆN HOÀN THÀNH TOÀN BỘ BÀI TOÁN
             is_done = card.get("is_finished") or (current >= total)
             
             if is_done:
                 st.balloons()
                 st.success("🏆 **XUẤT SẮC! Em đã vượt qua toàn bộ thử thách tư duy!**")
                 
-                # Tạo phần thưởng bài giải mẫu nếu chưa có
                 if not st.session_state.reward_solution:
                     sol = card.get("full_solution", "")
                     if not sol:
@@ -146,33 +143,4 @@ with tab1:
                                 inputs_sol = [p_sol]
                                 if st.session_state.problem_image:
                                     inputs_sol.insert(0, st.session_state.problem_image)
-                                res_sol = model.generate_content(inputs_sol)
-                                sol = res_sol.text
-                            except Exception:
-                                sol = "Chúc mừng em đã hoàn thành bài giải xuất sắc!"
-                    st.session_state.reward_solution = sol
-
-                # HIỂN THỊ PHẦN THƯỞNG BÀI GIẢI MẪU
-                st.markdown("---")
-                st.markdown("### 🎁 **PHẦN THƯỞNG DÀNH CHO EM: BÀI GIẢI MẪU HOÀN CHỈNH**")
-                st.markdown("*(Em hãy đọc kỹ, đối chiếu với các bước vừa suy luận và trình bày thật đẹp vào vở nhé!)*")
-                st.info(st.session_state.reward_solution)
-                
-                st.success("📝 **Bước tiếp theo:** Sau khi ghi bài vào vở xong, em hãy bấm chuyển sang tab **'Nộp bài tập & Chấm tự động'** ở phía trên để chụp ảnh vở nộp cho cô nhé!")
-            else:
-                if st.button("➡️ Sang thử thách tiếp theo", type="primary"):
-                    with st.spinner("Đang chuẩn bị bước suy luận tiếp theo..."):
-                        try:
-                            model = genai.GenerativeModel(model_name=MODEL_NAME, system_instruction=GAME_SYSTEM_PROMPT)
-                            prompt_next = f"Học sinh vừa chọn đúng bước {current}: {correct_text}. Tạo thử thách trắc nghiệm cho bước {current + 1} / {total}. Nếu đây là bước cuối cùng, hãy set is_finished = true và viết bài giải hoàn chỉnh vào full_solution."
-                            
-                            inputs = [prompt_next]
-                            if st.session_state.problem_image:
-                                inputs.insert(0, st.session_state.problem_image)
-                                
-                            res = model.generate_content(inputs)
-                            st.session_state.current_card = extract_json(res.text)
-                            st.session_state.game_step += 1
-                            st.session_state.answered = False
-                            st.session_state.user_selected_idx = None
-                            st.rerun()
+                                res_sol = model.generate
