@@ -1,146 +1,168 @@
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image
-import json
-import re
 
 st.set_page_config(page_title="Học toán cùng cô Phương - Hình học 8", page_icon="📐", layout="centered")
 
+# Lấy khóa API bảo mật từ Streamlit Secrets
 api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
     st.error("Chưa cấu hình API Key trong mục Secrets của Streamlit!")
     st.stop()
 
 genai.configure(api_key=api_key)
+
 MODEL_NAME = "gemini-3.8-flash"
 
-GAME_SYSTEM_PROMPT = """
-Bạn là Trợ lý Sư phạm Game Hóa Hình học 8 theo phương pháp Socratic.
-Nhiệm vụ: Phân tích bài toán trong ảnh, chia sơ đồ chứng minh thành các bước tư duy nhỏ (2 đến 4 bước tùy độ khó).
-Tạo thử thách trắc nghiệm 4 lựa chọn cho bước hiện tại.
-ĐẶC BIỆT: Nếu là bước cuối cùng (hoặc is_finished = true), hãy viết kèm một bài giải hoàn chỉnh, mẫu mực sư phạm từng bước làm phần thưởng.
+# Prompt sư phạm Socratic đa tương tác (Trắc nghiệm + Đúng/Sai + Câu hỏi ngắn)
+SYSTEM_SOCRATIC = """
+Bạn là Giáo viên Toán THCS tại Việt Nam chuyên hướng dẫn học sinh giải Hình học 8 theo phương pháp giàn giáo Socratic tương tác đa dạng.
 
-BẮT BUỘC TRẢ VỀ DUY NHẤT 01 MÃ JSON HỢP LỆ (Không có bất kỳ ký tự nào khác ngoài JSON):
-{
-  "total_steps": 2,
-  "feedback": "Nhận xét ngắn 1 câu về bước làm trước của học sinh",
-  "question": "Nội dung câu hỏi thử thách cho bước này",
-  "options": [
-    "Phương án 1",
-    "Phương án 2",
-    "Phương án 3",
-    "Phương án 4"
-  ],
-  "correct_index": 0,
-  "explanation": "Giải thích ngắn vì sao đúng và liên kết sang bước tiếp theo",
-  "is_finished": false,
-  "full_solution": ""
-}
+QUY TẮC PHẢN HỒI:
+1. TUYỆT ĐỐI KHÔNG giải hộ hay viết sẵn bài chứng minh hoàn chỉnh.
+2. Với mỗi bước suy luận, bạn hãy:
+   - Nhận xét ngắn gọn câu trả lời hoặc hình vẽ của học sinh (1 câu).
+   - Đưa ra 01 câu hỏi tương tác tiếp theo thuộc một trong các dạng sau để học sinh dễ chọn và suy nghĩ:
+     + Dạng 1 (Trắc nghiệm 4 lựa chọn): Gợi ý bước suy luận tiếp theo với 4 phương án A, B, C, D rõ ràng.
+     + Dạng 2 (Đúng / Sai): Đưa ra một nhận định về cặp cạnh/góc hoặc dấu hiệu nhận biết để học sinh kiểm tra đúng hay sai.
+     + Dạng 3 (Trả lời ngắn): Yêu cầu điền tên định lý, dấu hiệu hoặc đoạn thẳng còn thiếu.
+3. KHI HỌC SINH ĐÃ SUY LUẬN ĐỦ CÁC BƯỚC HOÀN THÀNH BÀI:
+   - Hãy chúc mừng học sinh và dặn: "Em đã nắm trọn vẹn sơ đồ chứng minh! Hãy ghi hoàn chỉnh bài giải vào vở và chuyển sang tab 'Nộp bài tập & Chấm tự động' bên cạnh để cô chấm điểm nhé!"
+4. Giữ nguyên ký hiệu toán học đỉnh, đoạn thẳng (A, B, C, D, E, F...).
 """
 
-def extract_json(text):
-    clean_text = text.strip()
-    match = re.search(r'\{.*\}', clean_text, re.DOTALL)
-    if match:
-        clean_text = match.group(0)
-    return json.loads(clean_text)
+st.title("📐 Học toán cùng cô Phương: Hình học 8")
 
-st.title("📐 Đấu trường Hình học 8: Cô Phương")
+# Khởi tạo trạng thái tab nếu chưa có
+if "active_tab" not in st.session_state:
+    st.session_state.active_tab = "tab1"
 
-tab1, tab2 = st.tabs(["🎮 Vượt chướng ngại vật (Gợi mở)", "📝 Nộp bài tập & Chấm tự động"])
+tab1, tab2 = st.tabs(["💬 Hướng dẫn tương tác Socratic", "📝 Nộp bài tập & Chấm tự động"])
 
-# ================= TAB 1: GAME TƯƠNG TÁC CÓ PHẦN THƯỞNG =================
+# ================= TAB 1: TƯƠNG TÁC TỪNG BƯỚC =================
 with tab1:
-    if "game_step" not in st.session_state:
-        st.session_state.game_step = 1
-    if "total_steps" not in st.session_state:
-        st.session_state.total_steps = 3
-    if "current_card" not in st.session_state:
-        st.session_state.current_card = None
-    if "answered" not in st.session_state:
-        st.session_state.answered = False
-    if "user_selected_idx" not in st.session_state:
-        st.session_state.user_selected_idx = None
-    if "problem_image" not in st.session_state:
-        st.session_state.problem_image = None
-    if "reward_solution" not in st.session_state:
-        st.session_state.reward_solution = None
-
-    with st.expander("📸 Đề bài / Hình vẽ bài toán", expanded=(st.session_state.current_card is None)):
-        up_img = st.file_uploader("Tải ảnh bài tập cần gợi ý lên đây:", type=["jpg", "png", "jpeg"], key="game_img")
-        if up_img:
-            st.session_state.problem_image = Image.open(up_img)
-            st.image(st.session_state.problem_image, caption="Hình vẽ bài tập đang giải", width=350)
-        
-        if st.session_state.problem_image and st.session_state.current_card is None:
-            if st.button("🚀 Bắt đầu giải bài cùng cô!", type="primary"):
-                with st.spinner("Cô đang phân tích hình vẽ và tạo thử thách bước 1..."):
-                    try:
-                        model = genai.GenerativeModel(model_name=MODEL_NAME, system_instruction=GAME_SYSTEM_PROMPT)
-                        prompt_start = "Hãy tạo câu hỏi thử thách Bước 1 cho bài toán trong ảnh."
-                        res = model.generate_content([st.session_state.problem_image, prompt_start])
-                        card_data = extract_json(res.text)
-                        st.session_state.current_card = card_data
-                        st.session_state.total_steps = card_data.get("total_steps", 3)
-                        st.session_state.game_step = 1
-                        st.session_state.answered = False
-                        st.session_state.reward_solution = None
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Lỗi khởi tạo: {str(e)}")
-
-    card = st.session_state.current_card
-    if card:
-        st.write("---")
-        total = st.session_state.total_steps
-        current = st.session_state.game_step
-        progress_val = min(int((current / total) * 100), 100)
-        st.progress(progress_val)
-        st.caption(f"🎯 **Thử thách: Bước {current} / {total}**")
-
-        if card.get("feedback"):
-            st.info(f"💡 {card['feedback']}")
-
-        st.markdown(f"### {card.get('question', '')}")
-
-        opts = card.get("options", [])
-        correct = card.get("correct_index", 0)
-
-        if not st.session_state.answered:
-            st.write("👉 **Em hãy chọn phương án đúng nhất:**")
-            for idx, opt in enumerate(opts):
-                label = f"{chr(65+idx)}. {opt}"
-                if st.button(label, key=f"btn_opt_{idx}", use_container_width=True):
-                    st.session_state.answered = True
-                    st.session_state.user_selected_idx = idx
-                    st.rerun()
-        else:
-            chosen = st.session_state.user_selected_idx
-            chosen_text = opts[chosen] if (chosen is not None and chosen < len(opts)) else ""
-            correct_text = opts[correct] if correct < len(opts) else ""
-
-            if chosen == correct:
-                st.success(f"🎉 **Chính xác!** Em đã chọn: **{chosen_text}**")
-            else:
-                st.error(f"❌ **Chưa chính xác.** Em đã chọn: **{chosen_text}**")
-                st.info(f"Đáp án đúng là: **{chr(65+correct)}. {correct_text}**")
-
-            st.markdown(f"**Giải thích hướng đi:** {card.get('explanation', '')}")
-
-            is_done = card.get("is_finished") or (current >= total)
-            
-            if is_done:
-                st.balloons()
-                st.success("🏆 **XUẤT SẮC! Em đã vượt qua toàn bộ thử thách tư duy!**")
+    st.caption("AI đồng hành gợi mở từng bước qua trắc nghiệm, đúng/sai và câu hỏi ngắn.")
+    
+    if "messages" not in st.session_state:
+        st.session_state.messages = [{
+            "role": "assistant",
+            "content": "Chào em! Em đang gặp khó khăn ở bài toán chứng minh hay hình vẽ nào? Hãy tải ảnh đề bài/hình vẽ lên hoặc gửi câu hỏi để cô trò mình cùng tháo gỡ từng bước nhé!"
+        }]
+    
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+            if "img" in msg and msg["img"] is not None:
+                st.image(msg["img"], width=300)
                 
-                if not st.session_state.reward_solution:
-                    sol = card.get("full_solution", "")
-                    if not sol:
-                        with st.spinner("Đang mở khóa phần thưởng bài giải chi tiết..."):
-                            try:
-                                model = genai.GenerativeModel(model_name=MODEL_NAME)
-                                p_sol = "Hãy trình bày bài giải mẫu hoàn chỉnh, chuẩn mực sư phạm môn Toán 8 từng bước rõ ràng cho bài toán này để học sinh đối chiếu ghi vào vở."
-                                inputs_sol = [p_sol]
-                                if st.session_state.problem_image:
-                                    inputs_sol.insert(0, st.session_state.problem_image)
-                                res_sol = model.generate
+    up_chat_img = st.file_uploader("📸 Tải ảnh đề bài/hình vẽ tay lên đây:", type=["jpg", "png", "jpeg"], key="chat_up")
+    
+    # Khu vực gửi câu trả lời tương tác nhanh
+    st.write("---")
+    st.markdown("**✍️ Nhập phản hồi của em (hoặc chọn nhanh A / B / C / D / Đúng / Sai):**")
+    
+    col_a, col_b, col_c, col_d, col_tf1, col_tf2 = st.columns(6)
+    quick_choice = None
+    if col_a.button("Đáp án A"):
+        quick_choice = "Em chọn đáp án A"
+    if col_b.button("Đáp án B"):
+        quick_choice = "Em chọn đáp án B"
+    if col_c.button("Đáp án C"):
+        quick_choice = "Em chọn đáp án C"
+    if col_d.button("Đáp án D"):
+        quick_choice = "Em chọn đáp án D"
+    if col_tf1.button("ĐÚNG"):
+        quick_choice = "Em chọn: ĐÚNG"
+    if col_tf2.button("SAI"):
+        quick_choice = "Em chọn: SAI"
+
+    chat_text_input = st.chat_input("Nhập câu trả lời ngắn hoặc thắc mắc của em tại đây...")
+    
+    final_prompt = quick_choice if quick_choice else chat_text_input
+
+    if final_prompt:
+        chat_img = Image.open(up_chat_img) if up_chat_img else None
+        st.session_state.messages.append({"role": "user", "content": final_prompt, "img": chat_img})
+        
+        with st.chat_message("user"):
+            st.markdown(final_prompt)
+            if chat_img:
+                st.image(chat_img, width=300)
+                
+        with st.chat_message("assistant"):
+            with st.spinner("Cô đang phân tích câu trả lời của em..."):
+                try:
+                    model = genai.GenerativeModel(model_name=MODEL_NAME, system_instruction=SYSTEM_SOCRATIC)
+                    input_payload = []
+                    if chat_img:
+                        input_payload.append(chat_img)
+                    input_payload.append(final_prompt)
+                    
+                    response = model.generate_content(input_payload)
+                    reply_text = response.text
+                except Exception as e:
+                    reply_text = f"Lỗi phản hồi: {str(e)}"
+                    
+                st.markdown(reply_text)
+                st.session_state.messages.append({"role": "assistant", "content": reply_text})
+                st.rerun()
+
+    # Nút xác nhận khi học sinh đã nắm được bài
+    st.write("---")
+    st.info("💡 **Khi em đã hiểu cách chứng minh và hoàn thành vào vở:** Hãy bấm nút bên dưới để chuyển sang nộp bài!")
+    if st.button("✅ Em đã làm xong bài vào vở! Chuyển sang Nộp bài ➔"):
+        st.success("Tuyệt vời! Em hãy chuyển sang tab **'📝 Nộp bài tập & Chấm tự động'** ở phía trên màn hình để chụp ảnh vở nộp bài nhé.")
+
+# ================= TAB 2: NỘP BÀI & CHẤM ĐIỂM =================
+with tab2:
+    st.caption("Chấm tự luận tự động bằng AI theo Rubric sư phạm chuẩn môn Toán THCS.")
+    
+    c1, c2 = st.columns(2)
+    with c1:
+        s_name = st.text_input("Họ và tên học sinh:")
+    with c2:
+        s_class = st.selectbox("Lớp:", ["8A1", "8A2", "8A9", "8A13"])
+        
+    topic = st.selectbox("Chọn dạng bài tập nộp:", [
+        "Bài 1: Hình thang cân (Học sinh chụp kèm cả đề bài)",
+        "Bài 2: Hình bình hành (Học sinh chụp kèm cả đề bài)",
+        "Bài 3: Hình chữ nhật (Học sinh chụp kèm cả đề bài)",
+        "Bài 4: Hình thoi (Học sinh chụp kèm cả đề bài)",
+        "Bài 5: Hình vuông (Học sinh chụp kèm cả đề bài)",
+        "Bài 6: Bài tập tổng hợp (Học sinh chụp kèm cả đề bài)"
+    ])
+    
+    up_hw = st.file_uploader("📸 Chụp ảnh bài giải viết tay trong vở:", type=["jpg", "png", "jpeg"], key="hw_up")
+    
+    if st.button("🚀 Nộp bài & Nhận kết quả chấm"):
+        if not s_name:
+            st.warning("Em hãy điền Họ và tên trước khi nộp nhé!")
+        elif not up_hw:
+            st.warning("Em chưa tải ảnh bài làm lên!")
+        else:
+            with st.spinner("Hệ thống đang chấm bài theo Rubric..."):
+                hw_img = Image.open(up_hw)
+                RUBRIC = f"""
+                Bạn là Giám khảo chấm thi Toán THCS tại Việt Nam.
+                Đề bài: "{topic}".
+                Hãy đọc ảnh chụp bài làm tự luận viết tay và chấm điểm theo Rubric (Thang 10):
+                1. Hình vẽ (2.0 điểm): Vẽ đúng tam giác/tứ giác, ký hiệu góc, trung điểm, tính trực quan.
+                2. Lập luận chứng minh (6.0 điểm): Căn cứ định lý, tính chất, dấu hiệu nhận biết, tính logic chặt chẽ.
+                3. Trình bày & Kết luận (2.0 điểm): Trình bày mạch lạc, danh pháp chuẩn xác, kết luận đúng yêu cầu.
+                
+                ĐỊNH DẠNG TRẢ VỀ:
+                - Tổng điểm: .../10 điểm
+                - Chi tiết: Hình vẽ (.../2.0), Lập luận (.../6.0), Trình bày (.../2.0)
+                - Lỗi sai cụ thể cần sửa: (nêu rõ bước nào, dòng nào)
+                - Nhận xét khích lệ sư phạm:
+                """
+                try:
+                    model = genai.GenerativeModel(model_name=MODEL_NAME)
+                    response = model.generate_content([RUBRIC, hw_img])
+                    res_text = response.text
+                except Exception as e:
+                    res_text = f"Lỗi chấm bài: {str(e)}"
+                    
+                st.success("Đã hoàn tất chấm bài!")
+                st.markdown(f"### Kết quả của: **{s_name}** - Lớp **{s_class}**")
+                st.markdown(res_text)
