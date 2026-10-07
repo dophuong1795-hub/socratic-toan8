@@ -12,19 +12,23 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
-# Hàm gọi Gemini an toàn tránh lỗi NotFound 404
+# Hàm gọi Gemini và in thẳng lỗi thật nếu có sự cố
 def generate_ai_response(contents, system_instruction=None):
-    candidate_models = ["gemini-1.5-flash-latest", "gemini-1.5-flash-001", "gemini-1.5-pro-latest"]
+    # Danh sách các tên gọi hợp lệ của Gemini 1.5 Flash
+    candidate_models = ["models/gemini-1.5-flash", "gemini-1.5-flash", "models/gemini-1.5-flash-latest"]
+    last_error = ""
     for m in candidate_models:
         try:
             if system_instruction:
                 model = genai.GenerativeModel(model_name=m, system_instruction=system_instruction)
             else:
                 model = genai.GenerativeModel(model_name=m)
-            return model.generate_content(contents).text
-        except Exception:
+            response = model.generate_content(contents)
+            return response.text
+        except Exception as e:
+            last_error = str(e)
             continue
-    return "Hệ thống đang bận hoặc không thể kết nối tới mô hình. Vui lòng thử lại sau ít giây!"
+    return f"Lỗi kết nối chi tiết: {last_error}"
 
 st.title("📐 Học toán cùng cô Phương: Hình học 8")
 
@@ -110,14 +114,14 @@ with tab2:
                 Bạn là Giám khảo chấm thi Toán THCS tại Việt Nam.
                 Đề bài: "{topic}".
                 Hãy đọc ảnh chụp bài làm tự luận viết tay và chấm điểm theo Rubric (Thang 10):
-                1. Hình vẽ (2.0 điểm): Vẽ đúng tam giác/tứ giác, ký hiệu góc, trung điểm, tính trực quan.
-                2. Lập luận chứng minh (6.0 điểm): Căn cứ định lý, tính chất, dấu hiệu nhận biết, tính logic chặt chẽ.
-                3. Trình bày & Kết luận (2.0 điểm): Trình bày mạch lạc, danh pháp chuẩn xác, kết luận đúng yêu cầu.
+                1. Hình vẽ (2.0 điểm): Vẽ đúng tam giác/tứ giác, ký hiệu góc, trung điểm.
+                2. Lập luận chứng minh (6.0 điểm): Căn cứ định lý, dấu hiệu nhận biết, tính logic.
+                3. Trình bày & Kết luận (2.0 điểm): Trình bày mạch lạc, kết luận đúng.
                 
                 ĐỊNH DẠNG TRẢ VỀ:
                 - Tổng điểm: .../10 điểm
                 - Chi tiết: Hình vẽ (.../2.0), Lập luận (.../6.0), Trình bày (.../2.0)
-                - Lỗi sai cụ thể cần sửa: (nêu rõ bước nào, dòng nào)
+                - Lỗi sai cụ thể cần sửa: (nếu có)
                 - Nhận xét khích lệ sư phạm:
                 """
                 res_text = generate_ai_response([RUBRIC, hw_img])
