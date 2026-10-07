@@ -12,44 +12,17 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
-# Tự động lấy danh sách model Gemini hỗ trợ tạo văn bản và hình ảnh trong tài khoản
-@st.cache_resource
-def get_working_model():
-    # Danh sách các tên model chuẩn ưu tiên
-    priority_models = [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash",
-        "gemini-1.5-pro",
-        "gemini-pro"
-    ]
-    try:
-        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        # Thử tìm theo danh sách ưu tiên trước
-        for pm in priority_models:
-            for am in available_models:
-                if pm in am:
-                    return am
-        # Nếu không có tên ưu tiên, lấy model đầu tiên hỗ trợ
-        if available_models:
-            return available_models[0]
-    except Exception:
-        pass
-    return "models/gemini-2.5-flash"
+# Chỉ định trực tiếp mô hình chuẩn mới nhất của Google
+MODEL_NAME = "gemini-3.8-flash"
 
-ACTIVE_MODEL_NAME = get_working_model()
-
-# Hàm gọi Gemini sinh phản hồi
-def generate_ai_response(contents, system_instruction=None):
-    try:
-        if system_instruction:
-            model = genai.GenerativeModel(model_name=ACTIVE_MODEL_NAME, system_instruction=system_instruction)
-        else:
-            model = genai.GenerativeModel(model_name=ACTIVE_MODEL_NAME)
-        response = model.generate_content(contents)
-        return response.text
-    except Exception as e:
-        return f"Lỗi phản hồi: {str(e)}"
+# Lời nhắc sư phạm Socratic cho Tab 1
+SYSTEM_SOCRATIC = """
+Bạn là Giáo viên Toán THCS tại Việt Nam chuyên bồi dưỡng tư duy Hình học 8 theo phương pháp Socratic.
+Quy tắc:
+1. TUYỆT ĐỐI KHÔNG giải hộ bài toán, không viết sẵn bài chứng minh dài dòng.
+2. Sử dụng tiếng Việt chuẩn mực sư phạm, giữ đúng ký hiệu đỉnh, đoạn thẳng, góc, song song, vuông góc (A, B, C, D, M, N...).
+3. Mỗi phản hồi chỉ gồm 1-2 câu: Nhận xét hình vẽ/câu trả lời của học sinh và đặt 01 câu hỏi tư duy suy luận ngược hoặc gợi ý vẽ thêm điểm đối xứng, đường trung bình.
+"""
 
 st.title("📐 Học toán cùng cô Phương: Hình học 8")
 
@@ -59,14 +32,6 @@ tab1, tab2 = st.tabs(["💬 Gia sư Socratic (Hỏi đáp gợi mở)", "📝 N�
 # ================= TAB 1: GIA SƯ SOCRATIC =================
 with tab1:
     st.caption("AI đóng vai trò trợ lý gợi mở, không giải hộ, hướng dẫn suy luận ngược theo SGK.")
-    
-    SYSTEM_SOCRATIC = """
-    Bạn là Giáo viên Toán THCS tại Việt Nam chuyên bồi dưỡng tư duy Hình học 8 theo phương pháp Socratic.
-    Quy tắc:
-    1. TUYỆT ĐỐI KHÔNG giải hộ bài toán, không viết sẵn bài chứng minh dài dòng.
-    2. Sử dụng tiếng Việt chuẩn mực sư phạm, giữ đúng ký hiệu đỉnh, đoạn thẳng, góc, song song, vuông góc (A, B, C, D, M, N...).
-    3. Mỗi phản hồi chỉ gồm 1-2 câu: Nhận xét hình vẽ/câu trả lời của học sinh và đặt 01 câu hỏi tư duy suy luận ngược hoặc gợi ý vẽ thêm điểm đối xứng, đường trung bình.
-    """
     
     if "messages" not in st.session_state:
         st.session_state.messages = [{
@@ -93,14 +58,20 @@ with tab1:
                 
         with st.chat_message("assistant"):
             with st.spinner("Cô đang quan sát hình vẽ và gợi ý..."):
-                input_payload = []
-                if chat_img:
-                    input_payload.append(chat_img)
-                input_payload.append(user_prompt)
-                
-                res_text = generate_ai_response(input_payload, system_instruction=SYSTEM_SOCRATIC)
-                st.markdown(res_text)
-                st.session_state.messages.append({"role": "assistant", "content": res_text})
+                try:
+                    model = genai.GenerativeModel(model_name=MODEL_NAME, system_instruction=SYSTEM_SOCRATIC)
+                    input_payload = []
+                    if chat_img:
+                        input_payload.append(chat_img)
+                    input_payload.append(user_prompt)
+                    
+                    response = model.generate_content(input_payload)
+                    reply_text = response.text
+                except Exception as e:
+                    reply_text = f"Lỗi phản hồi: {str(e)}"
+                    
+                st.markdown(reply_text)
+                st.session_state.messages.append({"role": "assistant", "content": reply_text})
 
 # ================= TAB 2: NỘP BÀI & CHẤM ĐIỂM =================
 with tab2:
@@ -145,7 +116,13 @@ with tab2:
                 - Lỗi sai cụ thể cần sửa: (nêu rõ bước nào, dòng nào)
                 - Nhận xét khích lệ sư phạm:
                 """
-                res_text = generate_ai_response([RUBRIC, hw_img])
+                try:
+                    model = genai.GenerativeModel(model_name=MODEL_NAME)
+                    response = model.generate_content([RUBRIC, hw_img])
+                    res_text = response.text
+                except Exception as e:
+                    res_text = f"Lỗi chấm bài: {str(e)}"
+                    
                 st.success("Đã hoàn tất chấm bài!")
                 st.markdown(f"### Kết quả của: **{s_name}** - Lớp **{s_class}**")
                 st.markdown(res_text)
