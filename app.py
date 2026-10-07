@@ -12,31 +12,41 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
-# Chỉ định trực tiếp mô hình chuẩn mới nhất của Google
 MODEL_NAME = "gemini-3.8-flash"
 
-# Lời nhắc sư phạm Socratic cho Tab 1
+# Prompt sư phạm Socratic đa tương tác (Trắc nghiệm + Đúng/Sai + Câu hỏi ngắn)
 SYSTEM_SOCRATIC = """
-Bạn là Giáo viên Toán THCS tại Việt Nam chuyên bồi dưỡng tư duy Hình học 8 theo phương pháp Socratic.
-Quy tắc:
-1. TUYỆT ĐỐI KHÔNG giải hộ bài toán, không viết sẵn bài chứng minh dài dòng.
-2. Sử dụng tiếng Việt chuẩn mực sư phạm, giữ đúng ký hiệu đỉnh, đoạn thẳng, góc, song song, vuông góc (A, B, C, D, M, N...).
-3. Mỗi phản hồi chỉ gồm 1-2 câu: Nhận xét hình vẽ/câu trả lời của học sinh và đặt 01 câu hỏi tư duy suy luận ngược hoặc gợi ý vẽ thêm điểm đối xứng, đường trung bình.
+Bạn là Giáo viên Toán THCS tại Việt Nam chuyên hướng dẫn học sinh giải Hình học 8 theo phương pháp giàn giáo Socratic tương tác đa dạng.
+
+QUY TẮC PHẢN HỒI:
+1. TUYỆT ĐỐI KHÔNG giải hộ hay viết sẵn bài chứng minh hoàn chỉnh.
+2. Với mỗi bước suy luận, bạn hãy:
+   - Nhận xét ngắn gọn câu trả lời hoặc hình vẽ của học sinh (1 câu).
+   - Đưa ra 01 câu hỏi tương tác tiếp theo thuộc một trong các dạng sau để học sinh dễ chọn và suy nghĩ:
+     + Dạng 1 (Trắc nghiệm 4 lựa chọn): Gợi ý bước suy luận tiếp theo với 4 phương án A, B, C, D rõ ràng.
+     + Dạng 2 (Đúng / Sai): Đưa ra một nhận định về cặp cạnh/góc hoặc dấu hiệu nhận biết để học sinh kiểm tra đúng hay sai.
+     + Dạng 3 (Trả lời ngắn): Yêu cầu điền tên định lý, dấu hiệu hoặc đoạn thẳng còn thiếu.
+3. KHI HỌC SINH ĐÃ SUY LUẬN ĐỦ CÁC BƯỚC HOÀN THÀNH BÀI:
+   - Hãy chúc mừng học sinh và dặn: "Em đã nắm trọn vẹn sơ đồ chứng minh! Hãy ghi hoàn chỉnh bài giải vào vở và chuyển sang tab 'Nộp bài tập & Chấm tự động' bên cạnh để cô chấm điểm nhé!"
+4. Giữ nguyên ký hiệu toán học đỉnh, đoạn thẳng (A, B, C, D, E, F...).
 """
 
 st.title("📐 Học toán cùng cô Phương: Hình học 8")
 
-# Chia 2 tab: Gia sư gợi mở & Nộp bài tự động chấm
-tab1, tab2 = st.tabs(["💬 Gia sư Socratic (Hỏi đáp gợi mở)", "📝 Nộp bài tập & Chấm tự động"])
+# Khởi tạo trạng thái tab nếu chưa có
+if "active_tab" not in st.session_state:
+    st.session_state.active_tab = "tab1"
 
-# ================= TAB 1: GIA SƯ SOCRATIC =================
+tab1, tab2 = st.tabs(["💬 Hướng dẫn tương tác Socratic", "📝 Nộp bài tập & Chấm tự động"])
+
+# ================= TAB 1: TƯƠNG TÁC TỪNG BƯỚC =================
 with tab1:
-    st.caption("AI đóng vai trò trợ lý gợi mở, không giải hộ, hướng dẫn suy luận ngược theo SGK.")
+    st.caption("AI đồng hành gợi mở từng bước qua trắc nghiệm, đúng/sai và câu hỏi ngắn.")
     
     if "messages" not in st.session_state:
         st.session_state.messages = [{
             "role": "assistant",
-            "content": "Chào em! Em đang gặp khó khăn ở bài toán chứng minh hay hình vẽ nào? Hãy chụp ảnh đề bài hoặc gửi giả thiết để cô trò mình cùng tháo gỡ nhé!"
+            "content": "Chào em! Em đang gặp khó khăn ở bài toán chứng minh hay hình vẽ nào? Hãy tải ảnh đề bài/hình vẽ lên hoặc gửi câu hỏi để cô trò mình cùng tháo gỡ từng bước nhé!"
         }]
     
     for msg in st.session_state.messages:
@@ -47,23 +57,46 @@ with tab1:
                 
     up_chat_img = st.file_uploader("📸 Tải ảnh đề bài/hình vẽ tay lên đây:", type=["jpg", "png", "jpeg"], key="chat_up")
     
-    if user_prompt := st.chat_input("Nhập câu hỏi hoặc câu trả lời của em..."):
+    # Khu vực gửi câu trả lời tương tác nhanh
+    st.write("---")
+    st.markdown("**✍️ Nhập phản hồi của em (hoặc chọn nhanh A / B / C / D / Đúng / Sai):**")
+    
+    col_a, col_b, col_c, col_d, col_tf1, col_tf2 = st.columns(6)
+    quick_choice = None
+    if col_a.button("Đáp án A"):
+        quick_choice = "Em chọn đáp án A"
+    if col_b.button("Đáp án B"):
+        quick_choice = "Em chọn đáp án B"
+    if col_c.button("Đáp án C"):
+        quick_choice = "Em chọn đáp án C"
+    if col_d.button("Đáp án D"):
+        quick_choice = "Em chọn đáp án D"
+    if col_tf1.button("ĐÚNG"):
+        quick_choice = "Em chọn: ĐÚNG"
+    if col_tf2.button("SAI"):
+        quick_choice = "Em chọn: SAI"
+
+    chat_text_input = st.chat_input("Nhập câu trả lời ngắn hoặc thắc mắc của em tại đây...")
+    
+    final_prompt = quick_choice if quick_choice else chat_text_input
+
+    if final_prompt:
         chat_img = Image.open(up_chat_img) if up_chat_img else None
-        st.session_state.messages.append({"role": "user", "content": user_prompt, "img": chat_img})
+        st.session_state.messages.append({"role": "user", "content": final_prompt, "img": chat_img})
         
         with st.chat_message("user"):
-            st.markdown(user_prompt)
+            st.markdown(final_prompt)
             if chat_img:
                 st.image(chat_img, width=300)
                 
         with st.chat_message("assistant"):
-            with st.spinner("Cô đang quan sát hình vẽ và gợi ý..."):
+            with st.spinner("Cô đang phân tích câu trả lời của em..."):
                 try:
                     model = genai.GenerativeModel(model_name=MODEL_NAME, system_instruction=SYSTEM_SOCRATIC)
                     input_payload = []
                     if chat_img:
                         input_payload.append(chat_img)
-                    input_payload.append(user_prompt)
+                    input_payload.append(final_prompt)
                     
                     response = model.generate_content(input_payload)
                     reply_text = response.text
@@ -72,10 +105,17 @@ with tab1:
                     
                 st.markdown(reply_text)
                 st.session_state.messages.append({"role": "assistant", "content": reply_text})
+                st.rerun()
+
+    # Nút xác nhận khi học sinh đã nắm được bài
+    st.write("---")
+    st.info("💡 **Khi em đã hiểu cách chứng minh và hoàn thành vào vở:** Hãy bấm nút bên dưới để chuyển sang nộp bài!")
+    if st.button("✅ Em đã làm xong bài vào vở! Chuyển sang Nộp bài ➔"):
+        st.success("Tuyệt vời! Em hãy chuyển sang tab **'📝 Nộp bài tập & Chấm tự động'** ở phía trên màn hình để chụp ảnh vở nộp bài nhé.")
 
 # ================= TAB 2: NỘP BÀI & CHẤM ĐIỂM =================
 with tab2:
-    st.caption("Chấm tự luận tự động bằng AI theo Rubric sư phạm chuẩn.")
+    st.caption("Chấm tự luận tự động bằng AI theo Rubric sư phạm chuẩn môn Toán THCS.")
     
     c1, c2 = st.columns(2)
     with c1:
