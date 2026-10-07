@@ -2,6 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 import json
+import re
 
 st.set_page_config(page_title="Học toán cùng cô Phương - Hình học 8", page_icon="📐", layout="centered")
 
@@ -13,7 +14,6 @@ if not api_key:
 genai.configure(api_key=api_key)
 MODEL_NAME = "gemini-3.8-flash"
 
-# Prompt buộc AI trả về cấu trúc JSON phục vụ thiết kế giao diện Game
 GAME_SYSTEM_PROMPT = """
 Bạn là Trợ lý Game Hóa Hình học 8 theo phương pháp Socratic.
 Nhiệm vụ: Dựa vào đề bài/hình vẽ hoặc câu trả lời trước đó, hãy tạo ra 01 THỬ THÁCH TIẾP THEO cho học sinh.
@@ -22,7 +22,7 @@ BẠN BẮT BUỘC PHẢI TRẢ VỀ DUY NHẤT MỘT ĐOẠN ĐỊNH DẠNG JSO
 {
   "feedback": "Nhận xét ngắn 1 câu về bước làm trước (nếu là câu đầu tiên thì ghi lời chào ngắn)",
   "question": "Nội dung câu hỏi thử thách tiếp theo (ngắn gọn, tập trung vào 1 suy luận cụ thể)",
-  "question_type": "multiple_choice" (hoặc "true_false" hoặc "completed"),
+  "question_type": "multiple_choice",
   "options": [
     "Phương án 1",
     "Phương án 2",
@@ -31,9 +31,16 @@ BẠN BẮT BUỘC PHẢI TRẢ VỀ DUY NHẤT MỘT ĐOẠN ĐỊNH DẠNG JSO
   ],
   "correct_index": 0,
   "explanation": "Giải thích ngắn vì sao đáp án này đúng và hướng tư duy tiếp theo",
-  "is_finished": false (Đặt true nếu học sinh đã hoàn thành toàn bộ sơ đồ chứng minh bài toán)
+  "is_finished": false
 }
 """
+
+def extract_json(text):
+    clean_text = text.strip()
+    match = re.search(r'\{.*\}', clean_text, re.DOTALL)
+    if match:
+        clean_text = match.group(0)
+    return json.loads(clean_text)
 
 st.title("📐 Đấu trường Hình học 8: Cô Phương")
 
@@ -41,7 +48,6 @@ tab1, tab2 = st.tabs(["🎮 Vượt chướng ngại vật (Gợi mở)", "📝 
 
 # ================= TAB 1: GAME TƯƠNG TÁC =================
 with tab1:
-    # Khởi tạo trạng thái game
     if "game_step" not in st.session_state:
         st.session_state.game_step = 1
     if "current_card" not in st.session_state:
@@ -53,7 +59,6 @@ with tab1:
     if "problem_image" not in st.session_state:
         st.session_state.problem_image = None
 
-    # Khung tải đề bài / hình vẽ ban đầu
     with st.expander("📸 Đề bài / Hình vẽ bài toán", expanded=(st.session_state.current_card is None)):
         up_img = st.file_uploader("Tải ảnh bài tập cần gợi ý lên đây:", type=["jpg", "png", "jpeg"], key="game_img")
         if up_img:
@@ -67,50 +72,47 @@ with tab1:
                         model = genai.GenerativeModel(model_name=MODEL_NAME, system_instruction=GAME_SYSTEM_PROMPT)
                         prompt_start = "Hãy tạo câu hỏi thử thách bước 1 dạng trắc nghiệm 4 lựa chọn cho bài toán trong ảnh."
                         res = model.generate_content([st.session_state.problem_image, prompt_start])
-                        # Lọc chuỗi json
-                        raw_text = res.text.strip().replace("```json", "").replace("```", "")
-                        st.session_state.current_card = json.loads(raw_text)
+                        st.session_state.current_card = extract_json(res.text)
                         st.session_state.answered = False
                         st.rerun()
                     except Exception as e:
                         st.error(f"Lỗi khởi tạo: {str(e)}")
 
-    # GIAO DIỆN CHƠI TƯƠNG TÁC (CHỈ HIỂN THỊ 1 THẺ DUY NHẤT)
     card = st.session_state.current_card
     if card:
         st.write("---")
-        # Thanh tiến trình bước làm
         st.progress(min(st.session_state.game_step * 25, 100))
         st.caption(f"🎯 **Thử thách bước {st.session_state.game_step}**")
 
         if card.get("feedback"):
             st.info(f"💡 {card['feedback']}")
 
-        # Hộp câu hỏi
-        st.markdown(f"### {card['question']}")
+        st.markdown(f"### {card.get('question', '')}")
 
-        # Nếu chưa bấm chọn đáp án: hiển thị danh sách nút lựa chọn
+        opts = card.get("options", [])
+        correct = card.get("correct_index", 0)
+
         if not st.session_state.answered:
             st.write("👉 **Em hãy chọn phương án đúng nhất:**")
-            for idx, opt in enumerate(card.get("options", [])):
-                if st.button(f"{chr(65+idx)}. {opt}", key=f"btn_opt_{idx}", use_container_width=True):
+            for idx, opt in enumerate(opts):
+                label = f"{chr(65+idx)}. {opt}"
+                if st.button(label, key=f"btn_opt_{idx}", use_container_width=True):
                     st.session_state.answered = True
                     st.session_state.user_selected_idx = idx
                     st.rerun()
         else:
-            # Khi đã chọn: hiển thị kết quả Đúng/Sai và giải thích
             chosen = st.session_state.user_selected_idx
-            correct = card.get("correct_index", 0)
+            chosen_text = opts[chosen] if (chosen is not None and chosen < len(opts)) else ""
+            correct_text = opts[correct] if correct < len(opts) else ""
 
             if chosen == correct:
-                st.success(f"🎉 **Chính xác! Em đã chọn: [chosen]}**")
+                st.success(f"🎉 **Chính xác!** Em đã chọn: **{chosen_text}**")
             else:
-                st.error(f"❌ **Chưa chính xác. Em đã chọn: [chosen]}**")
-                st.info(f"Đáp án đúng là: **{chr(65+correct)}. {card['options'][correct]}**")
+                st.error(f"❌ **Chưa chính xác.** Em đã chọn: **{chosen_text}**")
+                st.info(f"Đáp án đúng là: **{chr(65+correct)}. {correct_text}**")
 
             st.markdown(f"**Giải thích hướng đi:** {card.get('explanation', '')}")
 
-            # Kiểm tra xem bài đã xong chưa
             if card.get("is_finished") or st.session_state.game_step >= 4:
                 st.balloons()
                 st.success("🏆 **Tuyệt vời! Em đã hoàn thành đủ sơ đồ chứng minh!** Hãy trình bày hoàn chỉnh vào vở và nộp bài ở tab bên cạnh nhé.")
@@ -119,15 +121,14 @@ with tab1:
                     with st.spinner("Đang chuẩn bị bước suy luận tiếp theo..."):
                         try:
                             model = genai.GenerativeModel(model_name=MODEL_NAME, system_instruction=GAME_SYSTEM_PROMPT)
-                            prompt_next = f"Học sinh vừa vượt qua bước {st.session_state.game_step} với đáp án: {card['options'][correct]}. Hãy tạo câu hỏi trắc nghiệm hoặc đúng/sai cho bước {st.session_state.game_step + 1} tiếp theo."
+                            prompt_next = f"Học sinh vừa vượt qua bước {st.session_state.game_step} với đáp án đúng: {correct_text}. Hãy tạo câu hỏi trắc nghiệm cho bước {st.session_state.game_step + 1} tiếp theo."
                             
                             inputs = [prompt_next]
                             if st.session_state.problem_image:
                                 inputs.insert(0, st.session_state.problem_image)
                                 
                             res = model.generate_content(inputs)
-                            raw_text = res.text.strip().replace("```json", "").replace("```", "")
-                            st.session_state.current_card = json.loads(raw_text)
+                            st.session_state.current_card = extract_json(res.text)
                             st.session_state.game_step += 1
                             st.session_state.answered = False
                             st.session_state.user_selected_idx = None
@@ -135,11 +136,11 @@ with tab1:
                         except Exception as e:
                             st.error(f"Lỗi tạo bước tiếp: {str(e)}")
 
-        # Nút làm lại bài toán từ đầu
         if st.button("🔄 Làm lại bài từ đầu"):
             st.session_state.game_step = 1
             st.session_state.current_card = None
             st.session_state.answered = False
+            st.session_state.user_selected_idx = None
             st.rerun()
 
 # ================= TAB 2: NỘP BÀI & CHẤM ĐIỂM =================
