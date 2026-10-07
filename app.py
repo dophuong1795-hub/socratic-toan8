@@ -12,6 +12,20 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
+# Hàm gọi Gemini an toàn tránh lỗi NotFound 404
+def generate_ai_response(contents, system_instruction=None):
+    candidate_models = ["gemini-1.5-flash-latest", "gemini-1.5-flash-001", "gemini-1.5-pro-latest"]
+    for m in candidate_models:
+        try:
+            if system_instruction:
+                model = genai.GenerativeModel(model_name=m, system_instruction=system_instruction)
+            else:
+                model = genai.GenerativeModel(model_name=m)
+            return model.generate_content(contents).text
+        except Exception:
+            continue
+    return "Hệ thống đang bận hoặc không thể kết nối tới mô hình. Vui lòng thử lại sau ít giây!"
+
 st.title("📐 Học toán cùng cô Phương: Hình học 8")
 
 # Chia 2 tab: Gia sư gợi mở & Nộp bài tự động chấm
@@ -54,13 +68,14 @@ with tab1:
                 
         with st.chat_message("assistant"):
             with st.spinner("Cô đang quan sát hình vẽ và gợi ý..."):
-                model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=SYSTEM_SOCRATIC)
-                inputs = [user_prompt]
+                input_payload = []
                 if chat_img:
-                    inputs.append(chat_img)
-                res = model.generate_content(inputs)
-                st.markdown(res.text)
-                st.session_state.messages.append({"role": "assistant", "content": res.text})
+                    input_payload.append(chat_img)
+                input_payload.append(user_prompt)
+                
+                res_text = generate_ai_response(input_payload, system_instruction=SYSTEM_SOCRATIC)
+                st.markdown(res_text)
+                st.session_state.messages.append({"role": "assistant", "content": res_text})
 
 # ================= TAB 2: NỘP BÀI & CHẤM ĐIỂM =================
 with tab2:
@@ -95,18 +110,17 @@ with tab2:
                 Bạn là Giám khảo chấm thi Toán THCS tại Việt Nam.
                 Đề bài: "{topic}".
                 Hãy đọc ảnh chụp bài làm tự luận viết tay và chấm điểm theo Rubric (Thang 10):
-                1. Hình vẽ (2.0 điểm): Vẽ đúng tam giác/tứ giác, ký hiệu góc, trung điểm.
-                2. Lập luận chứng minh (6.0 điểm): Căn cứ định lý, dấu hiệu nhận biết, tính logic.
-                3. Trình bày & Kết luận (2.0 điểm): Trình bày mạch lạc, kết luận đúng.
+                1. Hình vẽ (2.0 điểm): Vẽ đúng tam giác/tứ giác, ký hiệu góc, trung điểm, tính trực quan.
+                2. Lập luận chứng minh (6.0 điểm): Căn cứ định lý, tính chất, dấu hiệu nhận biết, tính logic chặt chẽ.
+                3. Trình bày & Kết luận (2.0 điểm): Trình bày mạch lạc, danh pháp chuẩn xác, kết luận đúng yêu cầu.
                 
                 ĐỊNH DẠNG TRẢ VỀ:
                 - Tổng điểm: .../10 điểm
                 - Chi tiết: Hình vẽ (.../2.0), Lập luận (.../6.0), Trình bày (.../2.0)
-                - Lỗi sai cụ thể cần sửa: (nếu có)
+                - Lỗi sai cụ thể cần sửa: (nêu rõ bước nào, dòng nào)
                 - Nhận xét khích lệ sư phạm:
                 """
-                model = genai.GenerativeModel("gemini-1.5-flash")
-                res = model.generate_content([RUBRIC, hw_img])
+                res_text = generate_ai_response([RUBRIC, hw_img])
                 st.success("Đã hoàn tất chấm bài!")
                 st.markdown(f"### Kết quả của: **{s_name}** - Lớp **{s_class}**")
-                st.markdown(res.text)
+                st.markdown(res_text)
