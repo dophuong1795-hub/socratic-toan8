@@ -6,7 +6,7 @@ import re
 import pandas as pd
 from datetime import datetime
 
-# Cấu hình trang hiển thị
+# Cấu hình trang hiển thị chuẩn
 st.set_page_config(
     page_title="Đấu Trường Hình Học 8 - Cô Phương",
     page_icon="📐",
@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ================= CSS TÙY CHỈNH =================
+# ================= CSS TÙY CHỈNH GIAO DIỆN HIỆN ĐẠI =================
 st.markdown("""
 <style>
     .block-container {
@@ -41,15 +41,6 @@ st.markdown("""
         font-size: 14px;
         margin: 6px 0 0 0;
         opacity: 0.95;
-    }
-    .quiz-container {
-        background: #ffffff;
-        border: 2px solid #E2E8F0;
-        border-radius: 18px;
-        padding: 20px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
-        margin-top: 15px;
-        margin-bottom: 20px;
     }
     .step-badge {
         display: inline-block;
@@ -110,9 +101,9 @@ Tạo câu hỏi trắc nghiệm 4 lựa chọn cho bước hiện tại.
 
 QUY TẮC KÝ HIỆU TOÁN HỌC:
 - Các tên đỉnh, đoạn thẳng, tam giác viết in hoa bình thường (AB, CD, tam giác ABC), không kẹp dấu $ vào từng chữ cái.
-- Chỉ dùng dấu $...$ cho công thức hoặc ký hiệu đặc biệt.
+- Chỉ dùng ký hiệu thông thường hoặc LaTeX đơn giản nếu thật sự cần thiết.
 
-BẮT BUỘC TRẢ VỀ DUY NHẤT 01 MÃ JSON HỢP LỆ:
+BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU ĐÂY:
 {
   "total_steps": 2,
   "feedback": "Nhận xét ngắn 1 câu về câu trả lời trước đó",
@@ -125,7 +116,30 @@ BẮT BUỘC TRẢ VỀ DUY NHẤT 01 MÃ JSON HỢP LỆ:
 }
 """
 
-def call_ai(inputs, system_prompt=None):
+# Hàm gọi Gemini cưỡng chế trả về chuẩn JSON không lỗi cú pháp
+def call_gemini_json(inputs, system_prompt):
+    try:
+        model = genai.GenerativeModel(
+            model_name=MODEL_NAME,
+            system_instruction=system_prompt,
+            generation_config={"response_mime_type": "application/json"}
+        )
+        res = model.generate_content(inputs)
+        return json.loads(res.text)
+    except Exception as e:
+        # Cơ chế dự phòng làm sạch chuỗi thủ công nếu model trả về có bọc markdown
+        try:
+            model = genai.GenerativeModel(model_name=MODEL_NAME, system_instruction=system_prompt)
+            res = model.generate_content(inputs)
+            clean = re.sub(r"^```json\s*|^```\s*|```$", "", res.text.strip(), flags=re.MULTILINE)
+            match = re.search(r"\{.*\}", clean, re.DOTALL)
+            if match:
+                return json.loads(match.group(0))
+        except Exception:
+            pass
+        raise e
+
+def call_gemini_text(inputs, system_prompt=None):
     try:
         if system_prompt:
             model = genai.GenerativeModel(model_name=MODEL_NAME, system_instruction=system_prompt)
@@ -136,16 +150,11 @@ def call_ai(inputs, system_prompt=None):
     except Exception as e:
         return f"Lỗi: {str(e)}"
 
-def parse_card_json(raw_text):
-    match = re.search(r'\{.*\}', raw_text.strip(), re.DOTALL)
-    clean = match.group(0) if match else raw_text
-    return json.loads(clean)
-
-# Khởi tạo lưu trữ kết quả nộp bài
+# Lưu trữ lịch sử nộp bài
 if "submission_history" not in st.session_state:
     st.session_state.submission_history = []
 
-# Banner tiêu đề
+# ================= BANNER TIÊU ĐỀ =================
 st.markdown("""
 <div class="hero-banner">
     <h1>📐 ĐẤU TRƯỜNG HÌNH HỌC 8</h1>
@@ -181,9 +190,8 @@ with tab1:
         if st.session_state.img_data and st.session_state.card is None:
             if st.button("🚀 Bắt đầu nhận Thử thách Bước 1!", type="primary", use_container_width=True):
                 with st.spinner("Cô đang quan sát hình vẽ để tạo thử thách..."):
-                    raw = call_ai([st.session_state.img_data, "Tạo câu hỏi thử thách Bước 1 cho bài toán trong ảnh."], GAME_PROMPT)
                     try:
-                        c_data = parse_card_json(raw)
+                        c_data = call_gemini_json([st.session_state.img_data, "Tạo câu hỏi thử thách Bước 1 cho bài toán trong ảnh."], GAME_PROMPT)
                         st.session_state.card = c_data
                         st.session_state.total_steps = c_data.get("total_steps", 3)
                         st.session_state.step = 1
@@ -244,7 +252,7 @@ with tab1:
                     if not sol:
                         with st.spinner("Đang mở khóa bài giải mẫu phần thưởng..."):
                             p_sol = "Hãy viết bài giải hoàn chỉnh, mẫu mực sư phạm môn Toán 8 từng bước rõ ràng cho bài toán này để học sinh đối chiếu ghi vào vở."
-                            sol = call_ai([st.session_state.img_data, p_sol])
+                            sol = call_gemini_text([st.session_state.img_data, p_sol])
                     st.session_state.reward = sol
 
                 st.markdown("""
@@ -261,9 +269,8 @@ with tab1:
                 if st.button("➡️ Sang thử thách tiếp theo", type="primary", use_container_width=True):
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. Nếu đây là bước kết luận bài toán, hãy đặt is_finished = true và viết bài giải mẫu vào full_solution."
-                        raw_next = call_ai([st.session_state.img_data, p_next], GAME_PROMPT)
                         try:
-                            st.session_state.card = parse_card_json(raw_next)
+                            st.session_state.card = call_gemini_json([st.session_state.img_data, p_next], GAME_PROMPT)
                             st.session_state.step += 1
                             st.session_state.answered = False
                             st.session_state.selected_idx = None
@@ -293,7 +300,7 @@ with tab2:
     with c1:
         s_name = st.text_input("Họ và tên học sinh:")
     with c2:
-        s_class = st.selectbox("Lớp:", ["8A11", "8A12","8A13", "8A14", "8A15","8A16","8A17","8A18"])
+        s_class = st.selectbox("Lớp:", ["8A1", "8A2", "8A9", "8A13"])
 
     topic = st.selectbox("Chọn dạng bài tập nộp:", [
         "Bài 1: Hình thang cân (Chụp kèm đề bài)",
@@ -326,13 +333,11 @@ with tab2:
                 - Tổng điểm: [Ghi điểm số]/10
                 - Nhận xét chi tiết:
                 """
-                score_res = call_ai([RUBRIC, hw_img])
+                score_res = call_gemini_text([RUBRIC, hw_img])
                 
-                # Trích xuất điểm số để lưu vào bảng
                 score_match = re.search(r"(\d+(\.\d+)?)/10", score_res)
                 extracted_score = score_match.group(1) if score_match else "Chưa xác định"
 
-                # Ghi dữ liệu vào danh sách nộp bài
                 sub_record = {
                     "Thời gian": datetime.now().strftime("%d/%m/%Y %H:%M"),
                     "Họ và tên": s_name,
@@ -358,7 +363,6 @@ with tab3:
         df = pd.DataFrame(st.session_state.submission_history)
         st.dataframe(df, use_container_width=True)
 
-        # Chuyển đổi DataFrame sang định dạng CSV có hỗ trợ tiếng Việt UTF-8 BOM
         csv_data = df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
 
         st.write("---")
