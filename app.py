@@ -1,10 +1,11 @@
 import streamlit as st
-from google import genai
-from google.genai import types
+import requests
 from PIL import Image
 import json
 import re
 import random
+import base64
+import io
 import pandas as pd
 from datetime import datetime
 
@@ -86,7 +87,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Lấy danh sách khóa từ Secrets (hỗ trợ cả GEMINI_KEYS và GEMINI_API_KEY)
+# Lấy danh sách khóa từ Secrets
 raw_keys = st.secrets.get("GEMINI_KEYS") or [st.secrets.get("GEMINI_API_KEY")]
 if not raw_keys or not raw_keys[0]:
     st.error("Chưa cấu hình API Key trong Secrets của Streamlit!")
@@ -118,41 +119,65 @@ BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU ĐÂY:
 }
 """
 
-# HÀM THỰC THI XOAY VÒNG KEY TƯƠNG THÍCH HOÀN TOÀN VỚI KHÓA AQ
-def execute_gemini_request(contents, system_prompt=None, is_json=False):
+# HÀM GỌI GEMINI REST API CHẤP NHẬN MÃ KHÓA AQ QUA HEADER X-GOOG-API-KEY
+def execute_gemini_request(inputs, system_prompt=None, is_json=False):
     shuffled_keys = AVAILABLE_KEYS.copy()
     random.shuffle(shuffled_keys)
     last_err = None
 
+    # Chuẩn bị dữ liệu gửi đi (ảnh + text)
+    parts = []
+    if system_prompt:
+        parts.append({"text": f"HƯỚNG DẪN HỆ THỐNG:\n{system_prompt}\n---\n"})
+
+    for item in inputs:
+        if isinstance(item, str):
+            parts.append({"text": item})
+        elif isinstance(item, Image.Image):
+            buffered = io.BytesIO()
+            # Chuyển đổi định dạng ảnh sang PNG chuẩn base64
+            img_format = item.format if item.format else "PNG"
+            item.save(buffered, format=img_format)
+            img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+            parts.append({
+                "inline_data": {
+                    "mime_type": f"image/{img_format.lower()}",
+                    "data": img_b64
+                }
+            })
+
+    payload = {"contents": [{"parts": parts}]}
+    if is_json:
+        payload["generationConfig"] = {"responseMimeType": "application/json"}
+
+    # Thử xoay vòng qua danh sách khóa
     for key in shuffled_keys:
         try:
-            client = genai.Client(api_key=key)
-            config_params = {}
-            if system_prompt:
-                config_params["system_instruction"] = system_prompt
-            if is_json:
-                config_params["response_mime_type"] = "application/json"
-            
-            config = types.GenerateContentConfig(**config_params) if config_params else None
-            
-            response = client.models.generate_content(
-                model=MODEL_NAME,
-                contents=contents,
-                config=config
-            )
-            
-            if is_json:
-                clean = re.sub(r"^```json\s*|^```\s*|```$", "", response.text.strip(), flags=re.MULTILINE)
-                match = re.search(r"\{.*\}", clean, re.DOTALL)
-                return json.loads(match.group(0) if match else clean)
-            return response.text
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent"
+            headers = {
+                "Content-Type": "application/json",
+                "x-goog-api-key": key
+            }
+            resp = requests.post(url, headers=headers, json=payload, timeout=50)
+
+            if resp.status_code == 200:
+                res_data = resp.json()
+                text_out = res_data["candidates"][0]["content"]["parts"][0]["text"]
+                if is_json:
+                    clean = re.sub(r"^```json\s*|^```\s*|```$", "", text_out.strip(), flags=re.MULTILINE)
+                    match = re.search(r"\{.*\}", clean, re.DOTALL)
+                    return json.loads(match.group(0) if match else clean)
+                return text_out
+            else:
+                last_err = resp.text
+                continue
         except Exception as e:
             last_err = e
-            continue  # Nếu key này gặp trục trặc, tự động chuyển ngay sang key kế tiếp
+            continue
 
     if is_json:
-        raise last_err
-    return f"Lỗi: {str(last_err)}"
+        raise Exception(f"Lỗi phản hồi API: {last_err}")
+    return f"Lỗi: {last_err}"
 
 if "submission_history" not in st.session_state:
     st.session_state.submission_history = []
@@ -210,12 +235,12 @@ with tab1:
         curr = st.session_state.step
         progress_val = min(int((curr / total) * 100), 100)
         st.progress(progress_val)
-        
+
         st.markdown(f'<span class="step-badge">CỬA ẢI: BƯỚC {curr} / {total}</span>', unsafe_allow_html=True)
         fb = card.get("feedback", "")
         if fb:
             st.info(f"💡 {fb}")
-            
+
         st.markdown(f"#### 🎯 {card.get('question', '')}")
         st.write("")
 
@@ -264,7 +289,7 @@ with tab1:
                     <p style="color: #166534; font-size: 14px;">Em hãy đối chiếu các bước suy luận và trình bày thật đẹp vào vở nhé!</p>
                 </div>
                 """, unsafe_allow_html=True)
-                
+
                 st.markdown(st.session_state.reward)
                 st.success("📝 **Bước tiếp theo:** Hãy chuyển sang tab **'Nộp Bài Tập & Chấm Điểm'** ở trên để chụp ảnh bài vở nộp cô chấm nhé!")
             else:
@@ -337,7 +362,7 @@ with tab2:
                 - Nhận xét chi tiết:
                 """
                 score_res = execute_gemini_request([RUBRIC, hw_img])
-                
+
                 score_match = re.search(r"(\d+(\.\d+)?)/10", score_res)
                 extracted_score = score_match.group(1) if score_match else "Chưa xác định"
 
