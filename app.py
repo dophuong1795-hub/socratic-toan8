@@ -4,7 +4,117 @@ from PIL import Image
 import json
 import re
 
-st.set_page_config(page_title="Đấu trường Toán 8 - Cô Phương", page_icon="📐", layout="centered")
+# Cấu hình trang hiển thị chuẩn
+st.set_page_config(
+    page_title="Đấu Trường Hình Học 8 - Cô Phương",
+    page_icon="📐",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
+
+# ================= CSS TÙY CHỈNH GIAO DIỆN HIỆN ĐẠI =================
+st.markdown("""
+<style>
+    /* Ẩn header mặc định và padding thừa */
+    .block-container {
+        padding-top: 1.5rem !important;
+        padding-bottom: 3rem !important;
+        max-width: 760px !important;
+    }
+    
+    /* Banner tiêu đề phong cách game giáo dục */
+    .hero-banner {
+        background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
+        border-radius: 20px;
+        padding: 24px 20px;
+        color: white;
+        text-align: center;
+        box-shadow: 0 10px 25px rgba(79, 70, 229, 0.25);
+        margin-bottom: 24px;
+    }
+    .hero-banner h1 {
+        font-size: 26px !important;
+        font-weight: 800 !important;
+        margin: 0 !important;
+        color: white !important;
+        letter-spacing: -0.5px;
+    }
+    .hero-banner p {
+        font-size: 14px;
+        margin: 6px 0 0 0;
+        opacity: 0.95;
+    }
+
+    /* Thẻ câu hỏi nổi bật (Quiz Card) */
+    .quiz-card {
+        background: #ffffff;
+        border: 2px solid #E2E8F0;
+        border-radius: 18px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        margin-top: 15px;
+        margin-bottom: 20px;
+    }
+    .step-badge {
+        display: inline-block;
+        background-color: #EEF2FF;
+        color: #4F46E5;
+        font-weight: 700;
+        font-size: 13px;
+        padding: 4px 14px;
+        border-radius: 999px;
+        margin-bottom: 12px;
+        border: 1px solid #C7D2FE;
+    }
+
+    /* Tùy chỉnh nút bấm phương án lựa chọn A, B, C, D */
+    div[data-testid="stButton"] button {
+        border-radius: 14px !important;
+        border: 2px solid #E2E8F0 !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        padding: 12px 18px !important;
+        background-color: #F8FAFC !important;
+        color: #1E293B !important;
+        transition: all 0.2s ease !important;
+        text-align: left !important;
+        display: flex !important;
+        justify-content: flex-start !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
+    }
+    div[data-testid="stButton"] button:hover {
+        background-color: #EEF2FF !important;
+        border-color: #6366F1 !important;
+        color: #4F46E5 !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 4px 10px rgba(99, 102, 241, 0.15) !important;
+    }
+
+    /* Tùy biến nút chính (Primary) */
+    div[data-testid="stButton"] button[kind="primary"] {
+        background: linear-gradient(135deg, #4F46E5, #6366F1) !important;
+        color: white !important;
+        border: none !important;
+        text-align: center !important;
+        justify-content: center !important;
+        font-size: 16px !important;
+        box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35) !important;
+    }
+    div[data-testid="stButton"] button[kind="primary"]:hover {
+        opacity: 0.95 !important;
+        transform: translateY(-2px) !important;
+    }
+
+    /* Hộp kết quả và phần thưởng */
+    .reward-box {
+        background: #F0FDF4;
+        border: 2px solid #86EFAC;
+        border-radius: 16px;
+        padding: 20px;
+        margin-top: 15px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # Lấy khóa API từ Secrets
 api_key = st.secrets.get("GEMINI_API_KEY")
@@ -15,16 +125,15 @@ if not api_key:
 genai.configure(api_key=api_key)
 MODEL_NAME = "gemini-3.8-flash"
 
-# Prompt Game Hóa: Buộc AI chia nấc thang tư duy và trả về dữ liệu nút bấm
 GAME_PROMPT = """
-Bạn là Trợ lý Game Hóa Hình học 8 (Cô Phương).
+Bạn là Trợ lý Sư phạm Game Hóa Hình học 8 (Cô Phương).
 Nhiệm vụ: Phân tích ảnh đề bài/hình vẽ, chia bài toán thành 2 đến 4 bước thử thách tư duy nhỏ.
 Tạo câu hỏi trắc nghiệm 4 lựa chọn cho bước hiện tại.
 ĐẶC BIỆT: Nếu là bước cuối cùng (hoặc is_finished = true), hãy viết kèm một bài giải hoàn chỉnh, mẫu mực sư phạm từng bước làm phần thưởng.
 
-BẮT BUỘC TRẢ VỀ DUY NHẤT 01 MÃ JSON HỢP LỆ (Không có bất kỳ ký tự nào ngoài JSON):
+BẮT BUỘC TRẢ VỀ DUY NHẤT 01 MÃ JSON HỢP LỆ (Không có bất kỳ chữ nào ngoài JSON):
 {
-  "total_steps": 3,
+  "total_steps": 2,
   "feedback": "Nhận xét ngắn 1 câu về câu trả lời trước đó của học sinh",
   "question": "Nội dung câu hỏi thử thách cho bước này",
   "options": [
@@ -56,9 +165,15 @@ def parse_card_json(raw_text):
     clean = match.group(0) if match else raw_text
     return json.loads(clean)
 
-st.title("📐 Đấu trường Hình học 8: Cô Phương")
+# ================= BANNER TIÊU ĐỀ MỚI =================
+st.markdown("""
+<div class="hero-banner">
+    <h1>📐 ĐẤU TRƯỜNG HÌNH HỌC 8</h1>
+    <p>Học toán gợi mở cùng cô Phương • Chinh phục thử thách từng bước</p>
+</div>
+""", unsafe_allow_html=True)
 
-tab1, tab2 = st.tabs(["🎮 Vượt chướng ngại vật (Thử thách)", "📝 Nộp bài tập & Chấm tự động"])
+tab1, tab2 = st.tabs(["🎮 Vượt Chướng Ngại Vật (Gợi mở)", "📝 Nộp Bài Tập & Chấm Điểm"])
 
 # ================= TAB 1: GIAO DIỆN GAME TƯƠNG TÁC =================
 with tab1:
@@ -77,15 +192,15 @@ with tab1:
     if "reward" not in st.session_state:
         st.session_state.reward = None
 
-    # Vùng tải đề bài (tự thu gọn khi đã bắt đầu chơi)
+    # Khung nạp đề bài ban đầu (tự đóng khi bắt đầu chơi)
     with st.expander("📸 Đề bài / Hình vẽ bài toán", expanded=(st.session_state.card is None)):
-        up_img = st.file_uploader("Chụp/tải ảnh đề bài lên đây:", type=["jpg", "png", "jpeg"], key="up_game_img")
+        up_img = st.file_uploader("Tải/chụp ảnh bài tập cần gợi ý lên đây:", type=["jpg", "png", "jpeg"], key="up_game_img")
         if up_img:
             st.session_state.img_data = Image.open(up_img)
-            st.image(st.session_state.img_data, caption="Hình vẽ bài toán", width=380)
+            st.image(st.session_state.img_data, caption="Hình vẽ bài toán đang giải", use_column_width=True)
 
         if st.session_state.img_data and st.session_state.card is None:
-            if st.button("🚀 Bắt đầu nhận thử thách Bước 1!", type="primary", use_container_width=True):
+            if st.button("🚀 Bắt đầu nhận Thử thách Bước 1!", type="primary", use_container_width=True):
                 with st.spinner("Cô đang quan sát hình vẽ để tạo thử thách..."):
                     raw = call_ai([st.session_state.img_data, "Tạo câu hỏi thử thách Bước 1 cho bài toán trong ảnh."], GAME_PROMPT)
                     try:
@@ -99,27 +214,35 @@ with tab1:
                     except Exception as err:
                         st.error(f"Lỗi nạp thử thách: {err}")
 
-    # GIAO DIỆN THẺ BÀI TRÒ CHƠI
+    # GIAO DIỆN THẺ GAME THỬ THÁCH
     card = st.session_state.card
     if card:
-        st.write("---")
         total = st.session_state.total_steps
         curr = st.session_state.step
         progress_val = min(int((curr / total) * 100), 100)
+        
         st.progress(progress_val)
-        st.caption(f"🎯 **Cửa ải hiện tại: Bước {curr} / {total}**")
-
-        if card.get("feedback"):
-            st.info(f"💡 {card['feedback']}")
-
-        st.markdown(f"### {card.get('question', '')}")
+        
+        # Thẻ câu hỏi
+        fb = card.get("feedback", "")
+        fb_html = f"<div style='color: #4F46E5; font-weight: 600; margin-bottom: 8px;'>💡 {fb}</div>" if fb else ""
+        
+        st.markdown(f"""
+        <div class="quiz-card">
+            <span class="step-badge">CỬA ẢI: BƯỚC {curr} / {total}</span>
+            {fb_html}
+            <div style="font-size: 18px; font-weight: 700; color: #0F172A; line-height: 1.5;">
+                {card.get('question', '')}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         opts = card.get("options", [])
         correct = card.get("correct_index", 0)
 
         # Trạng thái 1: Chưa chọn -> hiển thị 4 nút bấm
         if not st.session_state.answered:
-            st.write("👉 **Em hãy bấm chọn một đáp án đúng nhất:**")
+            st.markdown("<p style='font-weight: 600; color: #475569;'>👉 Em hãy bấm chọn một đáp án đúng nhất:</p>", unsafe_allow_html=True)
             for idx, opt in enumerate(opts):
                 label = f"{chr(65+idx)}. {opt}"
                 if st.button(label, key=f"btn_choice_{idx}", use_container_width=True):
@@ -138,9 +261,9 @@ with tab1:
                 st.error(f"❌ **Chưa chính xác.** Em đã chọn: **{sel_text}**")
                 st.info(f"Đáp án đúng là: **{chr(65+correct)}. {correct_text}**")
 
-            st.markdown(f"**Giải thích:** {card.get('explanation', '')}")
+            st.markdown(f"**💡 Hướng suy luận:** {card.get('explanation', '')}")
 
-            # Kiểm tra nếu hoàn thành toàn bộ cửa ải
+            # Kiểm tra hoàn thành tất cả các bước
             is_finish = card.get("is_finished") or (curr >= total)
 
             if is_finish:
@@ -155,14 +278,19 @@ with tab1:
                             sol = call_ai([st.session_state.img_data, p_sol])
                     st.session_state.reward = sol
 
-                st.markdown("---")
-                st.markdown("### 🎁 **PHẦN THƯỞNG DÀNH CHO EM: BÀI GIẢI MẪU HOÀN CHỈNH**")
-                st.markdown("*(Em hãy đối chiếu các bước lập luận và ghi cẩn thận vào vở nhé!)*")
+                st.markdown(f"""
+                <div class="reward-box">
+                    <h3 style="color: #15803D; margin-top:0;">🎁 PHẦN THƯỞNG: BÀI GIẢI MẪU HOÀN CHỈNH</h3>
+                    <p style="color: #166534; font-size: 14px;">Em hãy đối chiếu các bước suy luận và trình bày thật đẹp vào vở nhé!</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
                 st.info(st.session_state.reward)
-                st.success("📝 **Sau khi ghi vào vở xong:** Hãy chuyển sang tab **'Nộp bài tập & Chấm tự động'** ở trên để chụp ảnh nộp cô chấm điểm nhé!")
+                st.success("📝 **Bước tiếp theo:** Hãy chuyển sang tab **'Nộp Bài Tập & Chấm Điểm'** ở trên để chụp ảnh bài vở nộp cô chấm nhé!")
             else:
+                st.write("")
                 if st.button("➡️ Sang thử thách tiếp theo", type="primary", use_container_width=True):
-                    with st.spinner("Đang mở ải tiếp theo..."):
+                    with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. Nếu đây là bước kết luận bài toán, hãy đặt is_finished = true và viết bài giải mẫu vào full_solution."
                         raw_next = call_ai([st.session_state.img_data, p_next], GAME_PROMPT)
                         try:
@@ -186,7 +314,11 @@ with tab1:
 
 # ================= TAB 2: NỘP BÀI & CHẤM ĐIỂM =================
 with tab2:
-    st.caption("Chấm tự luận tự động bằng AI theo Rubric chuẩn môn Toán THCS.")
+    st.markdown("""
+    <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 15px; border-radius: 14px; margin-bottom: 20px;">
+        <span style="font-weight: 700; color: #334155;">📋 Chấm tự luận bằng AI theo Rubric chuẩn môn Toán THCS</span>
+    </div>
+    """, unsafe_allow_html=True)
 
     c1, c2 = st.columns(2)
     with c1:
