@@ -3,16 +3,18 @@ import google.generativeai as genai
 from PIL import Image
 import json
 import re
+import pandas as pd
+from datetime import datetime
 
-# Cấu hình trang hiển thị chuẩn
+# Cấu hình trang hiển thị
 st.set_page_config(
-    page_title="Đấu Trường Hình Học 8 - Cô Mai Phương",
+    page_title="Đấu Trường Hình Học 8 - Cô Phương",
     page_icon="📐",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-# ================= CSS TÙY CHỈNH GIAO DIỆN HIỆN ĐẠI =================
+# ================= CSS TÙY CHỈNH =================
 st.markdown("""
 <style>
     .block-container {
@@ -20,7 +22,6 @@ st.markdown("""
         padding-bottom: 3rem !important;
         max-width: 760px !important;
     }
-    
     .hero-banner {
         background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
         border-radius: 20px;
@@ -35,15 +36,12 @@ st.markdown("""
         font-weight: 800 !important;
         margin: 0 !important;
         color: white !important;
-        letter-spacing: -0.5px;
     }
     .hero-banner p {
         font-size: 14px;
         margin: 6px 0 0 0;
         opacity: 0.95;
     }
-
-    /* Khung câu hỏi bao bọc */
     .quiz-container {
         background: #ffffff;
         border: 2px solid #E2E8F0;
@@ -64,8 +62,6 @@ st.markdown("""
         margin-bottom: 12px;
         border: 1px solid #C7D2FE;
     }
-
-    /* Nút bấm phương án A, B, C, D */
     div[data-testid="stButton"] button {
         border-radius: 14px !important;
         border: 2px solid #E2E8F0 !important;
@@ -75,25 +71,18 @@ st.markdown("""
         background-color: #F8FAFC !important;
         color: #1E293B !important;
         transition: all 0.2s ease !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
     }
     div[data-testid="stButton"] button:hover {
         background-color: #EEF2FF !important;
         border-color: #6366F1 !important;
         color: #4F46E5 !important;
         transform: translateY(-2px) !important;
-        box-shadow: 0 4px 10px rgba(99, 102, 241, 0.15) !important;
     }
-
     div[data-testid="stButton"] button[kind="primary"] {
         background: linear-gradient(135deg, #4F46E5, #6366F1) !important;
         color: white !important;
         border: none !important;
-        text-align: center !important;
-        font-size: 16px !important;
-        box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35) !important;
     }
-
     .reward-box {
         background: #F0FDF4;
         border: 2px solid #86EFAC;
@@ -120,22 +109,17 @@ Tạo câu hỏi trắc nghiệm 4 lựa chọn cho bước hiện tại.
 ĐẶC BIỆT: Nếu là bước cuối cùng (hoặc is_finished = true), hãy viết kèm một bài giải hoàn chỉnh, mẫu mực sư phạm từng bước làm phần thưởng.
 
 QUY TẮC KÝ HIỆU TOÁN HỌC:
-- Các tên đỉnh, đoạn thẳng, tam giác thông thường thì viết chữ in hoa thẳng tự nhiên (Ví dụ: đoạn thẳng AB, CD, tam giác ABC, tứ giác MNPQ), KHÔNG bọc dấu $ vào từng chữ cái rời rạc.
-- Chỉ dùng dấu $...$ cho các công thức hoặc ký hiệu đặc biệt (như $AB \\parallel CD$, $\\widehat{A} = 45^\\circ$, $AM = \\frac{1}{2}BC$).
+- Các tên đỉnh, đoạn thẳng, tam giác viết in hoa bình thường (AB, CD, tam giác ABC), không kẹp dấu $ vào từng chữ cái.
+- Chỉ dùng dấu $...$ cho công thức hoặc ký hiệu đặc biệt.
 
-BẮT BUỘC TRẢ VỀ DUY NHẤT 01 MÃ JSON HỢP LỆ (Không có bất kỳ ký tự nào ngoài JSON):
+BẮT BUỘC TRẢ VỀ DUY NHẤT 01 MÃ JSON HỢP LỆ:
 {
   "total_steps": 2,
-  "feedback": "Nhận xét ngắn 1 câu về câu trả lời trước đó của học sinh",
-  "question": "Nội dung câu hỏi thử thách cho bước này",
-  "options": [
-    "Phương án A",
-    "Phương án B",
-    "Phương án C",
-    "Phương án D"
-  ],
+  "feedback": "Nhận xét ngắn 1 câu về câu trả lời trước đó",
+  "question": "Nội dung câu hỏi thử thách",
+  "options": ["Phương án A", "Phương án B", "Phương án C", "Phương án D"],
   "correct_index": 0,
-  "explanation": "Giải thích ngắn vì sao đúng và gợi ý bước tiếp theo",
+  "explanation": "Giải thích ngắn vì sao đúng",
   "is_finished": false,
   "full_solution": ""
 }
@@ -157,7 +141,11 @@ def parse_card_json(raw_text):
     clean = match.group(0) if match else raw_text
     return json.loads(clean)
 
-# ================= BANNER TIÊU ĐỀ =================
+# Khởi tạo lưu trữ kết quả nộp bài
+if "submission_history" not in st.session_state:
+    st.session_state.submission_history = []
+
+# Banner tiêu đề
 st.markdown("""
 <div class="hero-banner">
     <h1>📐 ĐẤU TRƯỜNG HÌNH HỌC 8</h1>
@@ -165,9 +153,9 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-tab1, tab2 = st.tabs(["🎮 Vượt Chướng Ngại Vật (Gợi mở)", "📝 Nộp Bài Tập & Chấm Điểm"])
+tab1, tab2, tab3 = st.tabs(["🎮 Vượt Chướng Ngại Vật", "📝 Nộp Bài Tập & Chấm Điểm", "📊 Bảng Điểm & Xuất Google Sheets"])
 
-# ================= TAB 1: GIAO DIỆN GAME TƯƠNG TÁC =================
+# ================= TAB 1: GAME TƯƠNG TÁC =================
 with tab1:
     if "step" not in st.session_state:
         st.session_state.step = 1
@@ -184,7 +172,6 @@ with tab1:
     if "reward" not in st.session_state:
         st.session_state.reward = None
 
-    # Khung nạp đề bài ban đầu (tự thu gọn khi đã bắt đầu làm)
     with st.expander("📸 Đề bài / Hình vẽ bài toán", expanded=(st.session_state.card is None)):
         up_img = st.file_uploader("Tải/chụp ảnh bài tập cần gợi ý lên đây:", type=["jpg", "png", "jpeg"], key="up_game_img")
         if up_img:
@@ -206,34 +193,27 @@ with tab1:
                     except Exception as err:
                         st.error(f"Lỗi nạp thử thách: {err}")
 
-    # GIAO DIỆN THẺ GAME THỬ THÁCH
     card = st.session_state.card
     if card:
         total = st.session_state.total_steps
         curr = st.session_state.step
         progress_val = min(int((curr / total) * 100), 100)
-        
         st.progress(progress_val)
         
-        # Thẻ câu hỏi kết hợp Markdown chuẩn để biên dịch đúng LaTeX
         st.markdown(f'<span class="step-badge">CỬA ẢI: BƯỚC {curr} / {total}</span>', unsafe_allow_html=True)
-        
         fb = card.get("feedback", "")
         if fb:
             st.info(f"💡 {fb}")
             
-        # Hiển thị câu hỏi qua st.markdown thuần túy để giải mã đúng mọi ký hiệu $...$
         st.markdown(f"#### 🎯 {card.get('question', '')}")
         st.write("")
 
         opts = card.get("options", [])
         correct = card.get("correct_index", 0)
 
-        # Trạng thái 1: Chưa chọn -> hiển thị các nút bấm
         if not st.session_state.answered:
             st.markdown("**👉 Em hãy bấm chọn một đáp án đúng nhất:**")
             for idx, opt in enumerate(opts):
-                # Làm sạch dấu $ trong nhãn nút bấm nếu có để tránh vỡ chữ nút
                 clean_opt = opt.replace("$", "")
                 label = f"{chr(65+idx)}. {clean_opt}"
                 if st.button(label, key=f"btn_choice_{idx}", use_container_width=True):
@@ -241,20 +221,18 @@ with tab1:
                     st.session_state.selected_idx = idx
                     st.rerun()
         else:
-            # Trạng thái 2: Đã chọn -> báo kết quả
             sel = st.session_state.selected_idx
             sel_text = opts[sel] if (sel is not None and sel < len(opts)) else ""
             correct_text = opts[correct] if correct < len(opts) else ""
 
             if sel == correct:
-                st.success(f"🎉 **Chính xác!** Em đã chọn đáp án đúng.")
+                st.success("🎉 **Chính xác!** Em đã chọn đáp án đúng.")
             else:
-                st.error(f"❌ **Chưa chính xác.**")
+                st.error("❌ **Chưa chính xác.**")
                 st.markdown(f"Đáp án đúng là: **{chr(65+correct)}. {correct_text}**")
 
             st.markdown(f"**💡 Hướng suy luận:** {card.get('explanation', '')}")
 
-            # Kiểm tra hoàn thành tất cả các bước
             is_finish = card.get("is_finished") or (curr >= total)
 
             if is_finish:
@@ -344,13 +322,54 @@ with tab2:
                 2. Lập luận chứng minh (6.0 điểm): Căn cứ định lý, tính chất, dấu hiệu nhận biết, logic.
                 3. Trình bày & Kết luận (2.0 điểm): Rõ ràng, kết luận chuẩn.
 
-                ĐỊNH DẠNG TRẢ VỀ:
-                - Tổng điểm: .../10 điểm
-                - Chi tiết: Hình vẽ (.../2.0), Lập luận (.../6.0), Trình bày (.../2.0)
-                - Lỗi sai cụ thể cần sửa:
-                - Lời khen/động viên sư phạm:
+                ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ:
+                - Tổng điểm: [Ghi điểm số]/10
+                - Nhận xét chi tiết:
                 """
                 score_res = call_ai([RUBRIC, hw_img])
-                st.success("Đã hoàn tất chấm bài!")
+                
+                # Trích xuất điểm số để lưu vào bảng
+                score_match = re.search(r"(\d+(\.\d+)?)/10", score_res)
+                extracted_score = score_match.group(1) if score_match else "Chưa xác định"
+
+                # Ghi dữ liệu vào danh sách nộp bài
+                sub_record = {
+                    "Thời gian": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                    "Họ và tên": s_name,
+                    "Lớp": s_class,
+                    "Bài tập": topic,
+                    "Điểm số": extracted_score,
+                    "Nhận xét của AI": score_res.replace("\n", " ")
+                }
+                st.session_state.submission_history.append(sub_record)
+
+                st.success("Đã hoàn tất chấm bài và lưu kết quả vào sổ điểm!")
                 st.markdown(f"### Kết quả của: **{s_name}** - Lớp **{s_class}**")
                 st.markdown(score_res)
+
+# ================= TAB 3: BẢNG ĐIỂM & XUẤT GOOGLE SHEETS =================
+with tab3:
+    st.markdown("### 📊 Sổ Theo Dõi Điểm & Xuất Google Sheets")
+    st.caption("Danh sách học sinh đã nộp bài tập và điểm số được chấm tự động.")
+
+    if len(st.session_state.submission_history) == 0:
+        st.info("Chưa có học sinh nào nộp bài trong phiên làm việc này.")
+    else:
+        df = pd.DataFrame(st.session_state.submission_history)
+        st.dataframe(df, use_container_width=True)
+
+        # Chuyển đổi DataFrame sang định dạng CSV có hỗ trợ tiếng Việt UTF-8 BOM
+        csv_data = df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
+
+        st.write("---")
+        st.markdown("**📥 Tải file để mở thẳng trên Google Sheets hoặc Excel:**")
+        st.download_button(
+            label="📗 Tải file bảng điểm (.CSV cho Google Sheets)",
+            data=csv_data,
+            file_name=f"Bang_Diem_HinhHoc8_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+            mime="text/csv",
+            type="primary",
+            use_container_width=True
+        )
+
+        st.info("💡 **Cách mở trên Google Sheets:** Mở `sheets.google.com` ➔ Chọn **Tệp (File)** ➔ **Mở (Open)** ➔ Chọn **Tải lên (Upload)** file vừa tải về là toàn bộ bảng điểm sẽ hiển thị đầy đủ, không bị lỗi font chữ tiếng Việt.")
