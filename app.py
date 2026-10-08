@@ -3,10 +3,11 @@ import google.generativeai as genai
 from PIL import Image
 import json
 import re
+import random
 import pandas as pd
 from datetime import datetime
 
-# Cấu hình trang hiển thị chuẩn
+# Cấu hình hiển thị trang
 st.set_page_config(
     page_title="Đấu Trường Hình Học 8 - Cô Phương",
     page_icon="📐",
@@ -84,14 +85,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Lấy khóa API từ Secrets
-api_key = st.secrets.get("GEMINI_API_KEY")
-if not api_key:
-    st.error("Chưa cấu hình API Key trong mục Secrets của Streamlit!")
+# Lấy danh sách khóa từ Secrets (hỗ trợ cả danh sách GEMINI_KEYS lẫn key đơn GEMINI_API_KEY)
+raw_keys = st.secrets.get("GEMINI_KEYS") or [st.secrets.get("GEMINI_API_KEY")]
+if not raw_keys or not raw_keys[0]:
+    st.error("Chưa cấu hình API Key trong Secrets của Streamlit!")
     st.stop()
 
-genai.configure(api_key=api_key)
-MODEL_NAME = "gemini-3.8-flash"
+AVAILABLE_KEYS = [k for k in raw_keys if k]
+MODEL_NAME = "gemini-2.5-flash"
 
 GAME_PROMPT = """
 Bạn là Trợ lý Sư phạm Game Hóa Hình học 8 (Cô Phương).
@@ -116,41 +117,37 @@ BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU ĐÂY:
 }
 """
 
-# Hàm gọi Gemini cưỡng chế trả về chuẩn JSON không lỗi cú pháp
-def call_gemini_json(inputs, system_prompt):
-    try:
-        model = genai.GenerativeModel(
-            model_name=MODEL_NAME,
-            system_instruction=system_prompt,
-            generation_config={"response_mime_type": "application/json"}
-        )
-        res = model.generate_content(inputs)
-        return json.loads(res.text)
-    except Exception as e:
-        # Cơ chế dự phòng làm sạch chuỗi thủ công nếu model trả về có bọc markdown
+# HÀM TỰ ĐỘNG XOAY VÒNG KHÓA VÀ DỰ PHÒNG KHI BỊ NGHẼN HOẶC 429
+def execute_gemini_request(inputs, system_prompt=None, is_json=False):
+    shuffled_keys = AVAILABLE_KEYS.copy()
+    random.shuffle(shuffled_keys)
+    last_err = None
+
+    for key in shuffled_keys:
         try:
-            model = genai.GenerativeModel(model_name=MODEL_NAME, system_instruction=system_prompt)
+            genai.configure(api_key=key)
+            config = {"response_mime_type": "application/json"} if is_json else None
+            
+            if system_prompt:
+                model = genai.GenerativeModel(model_name=MODEL_NAME, system_instruction=system_prompt, generation_config=config)
+            else:
+                model = genai.GenerativeModel(model_name=MODEL_NAME, generation_config=config)
+                
             res = model.generate_content(inputs)
-            clean = re.sub(r"^```json\s*|^```\s*|```$", "", res.text.strip(), flags=re.MULTILINE)
-            match = re.search(r"\{.*\}", clean, re.DOTALL)
-            if match:
-                return json.loads(match.group(0))
-        except Exception:
-            pass
-        raise e
+            
+            if is_json:
+                clean = re.sub(r"^```json\s*|^```\s*|```$", "", res.text.strip(), flags=re.MULTILINE)
+                match = re.search(r"\{.*\}", clean, re.DOTALL)
+                return json.loads(match.group(0) if match else clean)
+            return res.text
+        except Exception as e:
+            last_err = e
+            continue
 
-def call_gemini_text(inputs, system_prompt=None):
-    try:
-        if system_prompt:
-            model = genai.GenerativeModel(model_name=MODEL_NAME, system_instruction=system_prompt)
-        else:
-            model = genai.GenerativeModel(model_name=MODEL_NAME)
-        res = model.generate_content(inputs)
-        return res.text
-    except Exception as e:
-        return f"Lỗi: {str(e)}"
+    if is_json:
+        raise last_err
+    return f"Lỗi: {str(last_err)}"
 
-# Lưu trữ lịch sử nộp bài
 if "submission_history" not in st.session_state:
     st.session_state.submission_history = []
 
@@ -191,7 +188,7 @@ with tab1:
             if st.button("🚀 Bắt đầu nhận Thử thách Bước 1!", type="primary", use_container_width=True):
                 with st.spinner("Cô đang quan sát hình vẽ để tạo thử thách..."):
                     try:
-                        c_data = call_gemini_json([st.session_state.img_data, "Tạo câu hỏi thử thách Bước 1 cho bài toán trong ảnh."], GAME_PROMPT)
+                        c_data = execute_gemini_request([st.session_state.img_data, "Tạo câu hỏi thử thách Bước 1 cho bài toán trong ảnh."], GAME_PROMPT, is_json=True)
                         st.session_state.card = c_data
                         st.session_state.total_steps = c_data.get("total_steps", 3)
                         st.session_state.step = 1
@@ -252,7 +249,7 @@ with tab1:
                     if not sol:
                         with st.spinner("Đang mở khóa bài giải mẫu phần thưởng..."):
                             p_sol = "Hãy viết bài giải hoàn chỉnh, mẫu mực sư phạm môn Toán 8 từng bước rõ ràng cho bài toán này để học sinh đối chiếu ghi vào vở."
-                            sol = call_gemini_text([st.session_state.img_data, p_sol])
+                            sol = execute_gemini_request([st.session_state.img_data, p_sol])
                     st.session_state.reward = sol
 
                 st.markdown("""
@@ -270,7 +267,7 @@ with tab1:
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. Nếu đây là bước kết luận bài toán, hãy đặt is_finished = true và viết bài giải mẫu vào full_solution."
                         try:
-                            st.session_state.card = call_gemini_json([st.session_state.img_data, p_next], GAME_PROMPT)
+                            st.session_state.card = execute_gemini_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
                             st.session_state.step += 1
                             st.session_state.answered = False
                             st.session_state.selected_idx = None
@@ -333,7 +330,7 @@ with tab2:
                 - Tổng điểm: [Ghi điểm số]/10
                 - Nhận xét chi tiết:
                 """
-                score_res = call_gemini_text([RUBRIC, hw_img])
+                score_res = execute_gemini_request([RUBRIC, hw_img])
                 
                 score_match = re.search(r"(\d+(\.\d+)?)/10", score_res)
                 extracted_score = score_match.group(1) if score_match else "Chưa xác định"
