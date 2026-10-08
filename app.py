@@ -119,13 +119,12 @@ BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU ĐÂY:
 }
 """
 
-# HÀM GỌI GEMINI REST API CHẤP NHẬN MÃ KHÓA AQ QUA HEADER X-GOOG-API-KEY
+# HÀM GỌI GEMINI REST API CHẤP NHẬN MÃ KHÓA QUA URL PARAMETER
 def execute_gemini_request(inputs, system_prompt=None, is_json=False):
     shuffled_keys = AVAILABLE_KEYS.copy()
     random.shuffle(shuffled_keys)
     last_err = None
 
-    # Chuẩn bị dữ liệu gửi đi (ảnh + text)
     parts = []
     if system_prompt:
         parts.append({"text": f"HƯỚNG DẪN HỆ THỐNG:\n{system_prompt}\n---\n"})
@@ -135,7 +134,6 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
             parts.append({"text": item})
         elif isinstance(item, Image.Image):
             buffered = io.BytesIO()
-            # Chuyển đổi định dạng ảnh sang PNG chuẩn base64
             img_format = item.format if item.format else "PNG"
             item.save(buffered, format=img_format)
             img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
@@ -150,13 +148,10 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
     if is_json:
         payload["generationConfig"] = {"responseMimeType": "application/json"}
 
-    # Thử xoay vòng qua danh sách khóa
-   for key in shuffled_keys:
+    for key in shuffled_keys:
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent?key={key}"
-            headers = {
-                "Content-Type": "application/json"
-            }
+            headers = {"Content-Type": "application/json"}
             resp = requests.post(url, headers=headers, json=payload, timeout=50)
 
             if resp.status_code == 200:
