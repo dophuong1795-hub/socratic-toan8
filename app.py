@@ -1,5 +1,6 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from PIL import Image
 import json
 import re
@@ -7,7 +8,7 @@ import random
 import pandas as pd
 from datetime import datetime
 
-# Cấu hình hiển thị trang
+# Cấu hình giao diện Streamlit
 st.set_page_config(
     page_title="Đấu Trường Hình Học 8 - Cô Phương",
     page_icon="📐",
@@ -85,7 +86,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Lấy danh sách khóa từ Secrets (hỗ trợ cả danh sách GEMINI_KEYS lẫn key đơn GEMINI_API_KEY)
+# Lấy danh sách khóa từ Secrets (hỗ trợ cả GEMINI_KEYS và GEMINI_API_KEY)
 raw_keys = st.secrets.get("GEMINI_KEYS") or [st.secrets.get("GEMINI_API_KEY")]
 if not raw_keys or not raw_keys[0]:
     st.error("Chưa cấu hình API Key trong Secrets của Streamlit!")
@@ -117,32 +118,37 @@ BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU ĐÂY:
 }
 """
 
-# HÀM TỰ ĐỘNG XOAY VÒNG KHÓA VÀ DỰ PHÒNG KHI BỊ NGHẼN HOẶC 429
-def execute_gemini_request(inputs, system_prompt=None, is_json=False):
+# HÀM THỰC THI XOAY VÒNG KEY TƯƠNG THÍCH HOÀN TOÀN VỚI KHÓA AQ
+def execute_gemini_request(contents, system_prompt=None, is_json=False):
     shuffled_keys = AVAILABLE_KEYS.copy()
     random.shuffle(shuffled_keys)
     last_err = None
 
     for key in shuffled_keys:
         try:
-            genai.configure(api_key=key)
-            config = {"response_mime_type": "application/json"} if is_json else None
-            
+            client = genai.Client(api_key=key)
+            config_params = {}
             if system_prompt:
-                model = genai.GenerativeModel(model_name=MODEL_NAME, system_instruction=system_prompt, generation_config=config)
-            else:
-                model = genai.GenerativeModel(model_name=MODEL_NAME, generation_config=config)
-                
-            res = model.generate_content(inputs)
+                config_params["system_instruction"] = system_prompt
+            if is_json:
+                config_params["response_mime_type"] = "application/json"
+            
+            config = types.GenerateContentConfig(**config_params) if config_params else None
+            
+            response = client.models.generate_content(
+                model=MODEL_NAME,
+                contents=contents,
+                config=config
+            )
             
             if is_json:
-                clean = re.sub(r"^```json\s*|^```\s*|```$", "", res.text.strip(), flags=re.MULTILINE)
+                clean = re.sub(r"^```json\s*|^```\s*|```$", "", response.text.strip(), flags=re.MULTILINE)
                 match = re.search(r"\{.*\}", clean, re.DOTALL)
                 return json.loads(match.group(0) if match else clean)
-            return res.text
+            return response.text
         except Exception as e:
             last_err = e
-            continue
+            continue  # Nếu key này gặp trục trặc, tự động chuyển ngay sang key kế tiếp
 
     if is_json:
         raise last_err
@@ -297,7 +303,7 @@ with tab2:
     with c1:
         s_name = st.text_input("Họ và tên học sinh:")
     with c2:
-        s_class = st.selectbox("Lớp:", ["8A13", "8A18"])
+        s_class = st.selectbox("Lớp:", ["8A1", "8A2", "8A9", "8A13"])
 
     topic = st.selectbox("Chọn dạng bài tập nộp:", [
         "Bài 1: Hình thang cân (Chụp kèm đề bài)",
