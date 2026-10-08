@@ -151,12 +151,11 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
         payload["generationConfig"] = {"responseMimeType": "application/json"}
 
     # Thử xoay vòng qua danh sách khóa
-    for key in shuffled_keys:
+   for key in shuffled_keys:
         try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent?key={key}"
             headers = {
-                "Content-Type": "application/json",
-                "x-goog-api-key": key
+                "Content-Type": "application/json"
             }
             resp = requests.post(url, headers=headers, json=payload, timeout=50)
 
