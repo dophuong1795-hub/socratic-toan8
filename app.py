@@ -297,7 +297,7 @@ with tab2:
     with c1:
         s_name = st.text_input("Họ và tên học sinh:")
     with c2:
-        s_class = st.selectbox("Lớp:", ["8A1", "8A2", "8A9", "8A13"])
+        s_class = st.selectbox("Lớp:", ["8A13", "8A18"])
 
     topic = st.selectbox("Chọn dạng bài tập nộp:", [
         "Bài 1: Hình thang cân (Chụp kèm đề bài)",
