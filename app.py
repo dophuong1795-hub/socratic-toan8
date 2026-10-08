@@ -6,7 +6,7 @@ import re
 
 # Cấu hình trang hiển thị chuẩn
 st.set_page_config(
-    page_title="Đấu Trường Hình Học 8 - Cô Phương",
+    page_title="Đấu Trường Hình Học 8 - Cô Mai Phương",
     page_icon="📐",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -15,22 +15,20 @@ st.set_page_config(
 # ================= CSS TÙY CHỈNH GIAO DIỆN HIỆN ĐẠI =================
 st.markdown("""
 <style>
-    /* Ẩn header mặc định và padding thừa */
     .block-container {
         padding-top: 1.5rem !important;
         padding-bottom: 3rem !important;
         max-width: 760px !important;
     }
     
-    /* Banner tiêu đề phong cách game giáo dục */
     .hero-banner {
         background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
         border-radius: 20px;
-        padding: 24px 20px;
+        padding: 22px 20px;
         color: white;
         text-align: center;
         box-shadow: 0 10px 25px rgba(79, 70, 229, 0.25);
-        margin-bottom: 24px;
+        margin-bottom: 22px;
     }
     .hero-banner h1 {
         font-size: 26px !important;
@@ -45,13 +43,13 @@ st.markdown("""
         opacity: 0.95;
     }
 
-    /* Thẻ câu hỏi nổi bật (Quiz Card) */
-    .quiz-card {
+    /* Khung câu hỏi bao bọc */
+    .quiz-container {
         background: #ffffff;
         border: 2px solid #E2E8F0;
         border-radius: 18px;
         padding: 20px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
         margin-top: 15px;
         margin-bottom: 20px;
     }
@@ -67,7 +65,7 @@ st.markdown("""
         border: 1px solid #C7D2FE;
     }
 
-    /* Tùy chỉnh nút bấm phương án lựa chọn A, B, C, D */
+    /* Nút bấm phương án A, B, C, D */
     div[data-testid="stButton"] button {
         border-radius: 14px !important;
         border: 2px solid #E2E8F0 !important;
@@ -77,9 +75,6 @@ st.markdown("""
         background-color: #F8FAFC !important;
         color: #1E293B !important;
         transition: all 0.2s ease !important;
-        text-align: left !important;
-        display: flex !important;
-        justify-content: flex-start !important;
         box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
     }
     div[data-testid="stButton"] button:hover {
@@ -90,22 +85,15 @@ st.markdown("""
         box-shadow: 0 4px 10px rgba(99, 102, 241, 0.15) !important;
     }
 
-    /* Tùy biến nút chính (Primary) */
     div[data-testid="stButton"] button[kind="primary"] {
         background: linear-gradient(135deg, #4F46E5, #6366F1) !important;
         color: white !important;
         border: none !important;
         text-align: center !important;
-        justify-content: center !important;
         font-size: 16px !important;
         box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35) !important;
     }
-    div[data-testid="stButton"] button[kind="primary"]:hover {
-        opacity: 0.95 !important;
-        transform: translateY(-2px) !important;
-    }
 
-    /* Hộp kết quả và phần thưởng */
     .reward-box {
         background: #F0FDF4;
         border: 2px solid #86EFAC;
@@ -131,7 +119,11 @@ Nhiệm vụ: Phân tích ảnh đề bài/hình vẽ, chia bài toán thành 2 
 Tạo câu hỏi trắc nghiệm 4 lựa chọn cho bước hiện tại.
 ĐẶC BIỆT: Nếu là bước cuối cùng (hoặc is_finished = true), hãy viết kèm một bài giải hoàn chỉnh, mẫu mực sư phạm từng bước làm phần thưởng.
 
-BẮT BUỘC TRẢ VỀ DUY NHẤT 01 MÃ JSON HỢP LỆ (Không có bất kỳ chữ nào ngoài JSON):
+QUY TẮC KÝ HIỆU TOÁN HỌC:
+- Các tên đỉnh, đoạn thẳng, tam giác thông thường thì viết chữ in hoa thẳng tự nhiên (Ví dụ: đoạn thẳng AB, CD, tam giác ABC, tứ giác MNPQ), KHÔNG bọc dấu $ vào từng chữ cái rời rạc.
+- Chỉ dùng dấu $...$ cho các công thức hoặc ký hiệu đặc biệt (như $AB \\parallel CD$, $\\widehat{A} = 45^\\circ$, $AM = \\frac{1}{2}BC$).
+
+BẮT BUỘC TRẢ VỀ DUY NHẤT 01 MÃ JSON HỢP LỆ (Không có bất kỳ ký tự nào ngoài JSON):
 {
   "total_steps": 2,
   "feedback": "Nhận xét ngắn 1 câu về câu trả lời trước đó của học sinh",
@@ -165,7 +157,7 @@ def parse_card_json(raw_text):
     clean = match.group(0) if match else raw_text
     return json.loads(clean)
 
-# ================= BANNER TIÊU ĐỀ MỚI =================
+# ================= BANNER TIÊU ĐỀ =================
 st.markdown("""
 <div class="hero-banner">
     <h1>📐 ĐẤU TRƯỜNG HÌNH HỌC 8</h1>
@@ -192,7 +184,7 @@ with tab1:
     if "reward" not in st.session_state:
         st.session_state.reward = None
 
-    # Khung nạp đề bài ban đầu (tự đóng khi bắt đầu chơi)
+    # Khung nạp đề bài ban đầu (tự thu gọn khi đã bắt đầu làm)
     with st.expander("📸 Đề bài / Hình vẽ bài toán", expanded=(st.session_state.card is None)):
         up_img = st.file_uploader("Tải/chụp ảnh bài tập cần gợi ý lên đây:", type=["jpg", "png", "jpeg"], key="up_game_img")
         if up_img:
@@ -223,28 +215,27 @@ with tab1:
         
         st.progress(progress_val)
         
-        # Thẻ câu hỏi
-        fb = card.get("feedback", "")
-        fb_html = f"<div style='color: #4F46E5; font-weight: 600; margin-bottom: 8px;'>💡 {fb}</div>" if fb else ""
+        # Thẻ câu hỏi kết hợp Markdown chuẩn để biên dịch đúng LaTeX
+        st.markdown(f'<span class="step-badge">CỬA ẢI: BƯỚC {curr} / {total}</span>', unsafe_allow_html=True)
         
-        st.markdown(f"""
-        <div class="quiz-card">
-            <span class="step-badge">CỬA ẢI: BƯỚC {curr} / {total}</span>
-            {fb_html}
-            <div style="font-size: 18px; font-weight: 700; color: #0F172A; line-height: 1.5;">
-                {card.get('question', '')}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        fb = card.get("feedback", "")
+        if fb:
+            st.info(f"💡 {fb}")
+            
+        # Hiển thị câu hỏi qua st.markdown thuần túy để giải mã đúng mọi ký hiệu $...$
+        st.markdown(f"#### 🎯 {card.get('question', '')}")
+        st.write("")
 
         opts = card.get("options", [])
         correct = card.get("correct_index", 0)
 
-        # Trạng thái 1: Chưa chọn -> hiển thị 4 nút bấm
+        # Trạng thái 1: Chưa chọn -> hiển thị các nút bấm
         if not st.session_state.answered:
-            st.markdown("<p style='font-weight: 600; color: #475569;'>👉 Em hãy bấm chọn một đáp án đúng nhất:</p>", unsafe_allow_html=True)
+            st.markdown("**👉 Em hãy bấm chọn một đáp án đúng nhất:**")
             for idx, opt in enumerate(opts):
-                label = f"{chr(65+idx)}. {opt}"
+                # Làm sạch dấu $ trong nhãn nút bấm nếu có để tránh vỡ chữ nút
+                clean_opt = opt.replace("$", "")
+                label = f"{chr(65+idx)}. {clean_opt}"
                 if st.button(label, key=f"btn_choice_{idx}", use_container_width=True):
                     st.session_state.answered = True
                     st.session_state.selected_idx = idx
@@ -256,10 +247,10 @@ with tab1:
             correct_text = opts[correct] if correct < len(opts) else ""
 
             if sel == correct:
-                st.success(f"🎉 **Chính xác!** Em đã chọn: **{sel_text}**")
+                st.success(f"🎉 **Chính xác!** Em đã chọn đáp án đúng.")
             else:
-                st.error(f"❌ **Chưa chính xác.** Em đã chọn: **{sel_text}**")
-                st.info(f"Đáp án đúng là: **{chr(65+correct)}. {correct_text}**")
+                st.error(f"❌ **Chưa chính xác.**")
+                st.markdown(f"Đáp án đúng là: **{chr(65+correct)}. {correct_text}**")
 
             st.markdown(f"**💡 Hướng suy luận:** {card.get('explanation', '')}")
 
@@ -278,14 +269,14 @@ with tab1:
                             sol = call_ai([st.session_state.img_data, p_sol])
                     st.session_state.reward = sol
 
-                st.markdown(f"""
+                st.markdown("""
                 <div class="reward-box">
                     <h3 style="color: #15803D; margin-top:0;">🎁 PHẦN THƯỞNG: BÀI GIẢI MẪU HOÀN CHỈNH</h3>
                     <p style="color: #166534; font-size: 14px;">Em hãy đối chiếu các bước suy luận và trình bày thật đẹp vào vở nhé!</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                st.info(st.session_state.reward)
+                st.markdown(st.session_state.reward)
                 st.success("📝 **Bước tiếp theo:** Hãy chuyển sang tab **'Nộp Bài Tập & Chấm Điểm'** ở trên để chụp ảnh bài vở nộp cô chấm nhé!")
             else:
                 st.write("")
