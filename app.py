@@ -104,10 +104,8 @@ if not API_KEY:
 
 # Danh sách mô hình thị giác (Vision) miễn phí ổn định nhất trên OpenRouter
 MODELS_LIST = [
-    "qwen/qwen3.8-27b:free",
     "google/gemma-4-31b-it:free",
     "google/gemma-4-26b-a4b-it:free",
-    "dots-studio/dots-3-note-preview:free",
     "openrouter/free"
 ]
 
