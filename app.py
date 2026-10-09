@@ -112,13 +112,17 @@ st.markdown("""
         border-left: 5px solid #4F46E5;
         padding: 18px 20px;
         border-radius: 10px;
-        line-height: 1.85;
+        line-height: 1.8;
         font-size: 15px;
         color: #1E293B;
         margin-top: 14px;
     }
-    .solution-box p {
-        margin-bottom: 10px;
+    .solution-box ul {
+        margin: 0;
+        padding-left: 20px;
+    }
+    .solution-box li {
+        margin-bottom: 8px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -131,18 +135,64 @@ if not API_KEY:
 
 MODEL_NAME = "google/gemma-4-26b-a4b-it:free"
 
+# ================= HÀM SỬA SVG CHÍNH XÁC TỌA ĐỘ ĐIỂM =================
+def fix_svg_labels(svg_code: str) -> str:
+    """Tự động khớp tên điểm vào đúng tọa độ của từng điểm tròn đỏ trong SVG"""
+    if not svg_code or "<svg" not in svg_code:
+        return ""
+    
+    clean_svg = re.search(r"<svg[\s\S]*?</svg>", svg_code)
+    if not clean_svg:
+        return ""
+    svg_str = clean_svg.group(0)
+
+    # 1. Tìm tất cả các điểm circle cx, cy
+    circles = re.findall(r'<circle[^>]*cx=["\']([\d\.]+)["\'][^>]*cy=["\']([\d\.]+)["\']', svg_str)
+    if not circles:
+        circles = re.findall(r'<circle[^>]*cy=["\']([\d\.]+)["\'][^>]*cx=["\']([\d\.]+)["\']', svg_str)
+        circles = [(c[1], c[0]) for c in circles]
+
+    # 2. Tìm tất cả các nhãn chữ cái in hoa (A, B, C, P, Q, M...)
+    raw_texts = re.findall(r'>([A-Z])<', svg_str)
+    if not raw_texts:
+        raw_texts = re.findall(r'([A-Z])', "".join(re.findall(r'<text[^>]*>([^<]+)</text>', svg_str)))
+
+    # Loại bỏ các thẻ text lỗi bị dồn cục ban đầu
+    svg_str = re.sub(r'<text[\s\S]*?</text>', '', svg_str)
+
+    # 3. Tạo lại các thẻ text chuẩn gắn thẳng vào tọa độ của từng điểm
+    new_labels = []
+    default_letters = ["A", "B", "C", "P", "Q", "M", "H", "K", "D", "E"]
+    labels_to_use = raw_texts if len(raw_texts) >= len(circles) else default_letters
+
+    for idx, (cx, cy) in enumerate(circles):
+        letter = labels_to_use[idx] if idx < len(labels_to_use) else f"P{idx}"
+        fx, fy = float(cx), float(cy)
+        # Tính toán độ lệch chữ để chữ không đè lên điểm
+        offset_x = -12 if fx > 150 else 10
+        offset_y = -10 if fy > 120 else 16
+        new_labels.append(
+            f'<text x="{fx + offset_x:.1f}" y="{fy + offset_y:.1f}" font-family="Arial, sans-serif" font-weight="bold" font-size="14" fill="#1E293B">{letter}</text>'
+        )
+
+    # Chèn các thẻ text chuẩn vào trước thẻ đóng </svg>
+    svg_str = svg_str.replace("</svg>", f"{''.join(new_labels)}</svg>")
+    svg_str = re.sub(r'width="[^"]+"', 'width="280"', svg_str)
+    svg_str = re.sub(r'height="[^"]+"', 'height="220"', svg_str)
+    return svg_str
+
 # ================= BỘ LỌC CHUẨN HÓA TOÁN HỌC & TRÌNH BÀY =================
 def clean_math_text(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
     
-    # 1. Loại bỏ các lệnh LaTeX logic gây lỗi hiển thị
+    # 1. Xóa sạch rác LaTeX và tiếng Anh
     text = re.sub(r"\\implies|implies", " suy ra ", text, flags=re.IGNORECASE)
     text = re.sub(r"\\because|because", " vì ", text, flags=re.IGNORECASE)
-    text = re.sub(r"\\therefore|therefore", " do đó ", text, flags=re.IGNORECASE)
+    text = re.sub(r"\\therefore|therefore", " suy ra ", text, flags=re.IGNORECASE)
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
 
-    # 2. Sửa lỗi chính tả tiếng Việt
+    # 2. Sửa lỗi chính tả
     text = re.sub(r"\btư giác\b", "tứ giác", text, flags=re.IGNORECASE)
     text = re.sub(r"\bTư giác\b", "Tứ giác", text)
 
@@ -176,37 +226,53 @@ def clean_math_text(text: str) -> str:
     
     return text.strip()
 
-def format_solution_to_html(raw_solution: str) -> str:
-    """Tự động phân đoạn, thụt dòng và làm đẹp bài giải"""
-    text = clean_math_text(raw_solution)
-    # Tách các ý chính a), b)
-    text = re.sub(r"(\*\*[a-z]\)|\b[a-z]\))\s*", r"\n\n<b>\1 </b>", text)
-    # Tách các gạch đầu dòng dấu sao hoặc dấu chấm
-    text = re.sub(r"\s*(\*|\•)\s*", r"<br>• ", text)
-    # Tách đoạn suy luận nếu viết dính
-    text = re.sub(r"(?<=[.!?])\s+(?=(?:Xét|Do đó|Suy ra|Ta có|Mà)\b)", r"<br>• ", text)
-    # Thay ngắt dòng thành HTML <br>
-    formatted = text.replace("\n\n", "<br><br>").replace("\n", "<br>")
-    return formatted
+def format_solution_to_clean_html(raw_solution: str) -> str:
+    """Loại bỏ hoàn toàn các dòng bullet rỗng và căn chỉnh bài giải đẹp mắt"""
+    cleaned = clean_math_text(raw_solution)
+    
+    # Chia nhỏ theo dòng và loại bỏ dòng rỗng
+    raw_lines = re.split(r'[\r\n]+', cleaned)
+    valid_lines = []
+    
+    for l in raw_lines:
+        s = l.strip()
+        # Bỏ các dòng rỗng hoặc chỉ có dấu chấm, dấu sao
+        if not s or s in ["*", "•", "-", ".", "**", "***"]:
+            continue
+        # Bỏ ký tự sao, bullet ở đầu dòng
+        s = re.sub(r"^[\*\•\-\s]+", "", s).strip()
+        if not s:
+            continue
+        valid_lines.append(s)
+
+    # Ghép lại thành cấu trúc HTML rõ ràng từng mục
+    html_items = []
+    for item in valid_lines:
+        if re.match(r"^(\*\*?[a-z]\)|[a-z]\))\s*", item, flags=re.IGNORECASE):
+            html_items.append(f"<br><strong style='color:#4F46E5; font-size:16px;'>{item}</strong>")
+        elif "BÀI GIẢI" in item.upper():
+            html_items.append(f"<strong style='color:#1E293B; font-size:16px;'>{item}</strong>")
+        else:
+            html_items.append(f"<div style='margin-left: 14px; margin-bottom: 6px;'>• {item}</div>")
+
+    return "".join(html_items)
 
 GAME_PROMPT = """
 Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương. 
-Học sinh lớp 8 (13-14 tuổi), học bộ sách Kết nối tri thức.
+Học sinh lớp 8 (13-14 tuổi), bộ sách Kết nối tri thức.
 
 QUY TẮC CÂU HỎI:
 1. Thân thiện, ngắn gọn, dễ hiểu.
 2. Dùng đúng thuật ngữ SGK: 'cạnh huyền', 'đường trung tuyến', 'cạnh góc vuông'.
-3. Câu hỏi tối đa 2 câu. Mỗi lựa chọn tối đa 1 dòng. KHÔNG ghi A., B. ở đầu options.
+3. Câu hỏi tối đa 2 câu. Mỗi lựa chọn tối đa 1 dòng. KHÔNG ghi A., B. ở options.
 
 QUY TẮC TRÌNH BÀY BÀI GIẢI (KHI is_finished = true):
 1. full_solution:
-   - Trình bày dạng từng dòng gạch đầu dòng rõ ràng.
-   - Xuống dòng riêng biệt cho mỗi bước suy luận, mở ngoặc ghi rõ lý do định lý.
-   - Tuyệt đối không dùng ký hiệu LaTeX phức tạp như \\implies, \\because.
-2. svg_code: Sinh mã SVG gọn gàng (viewBox="0 0 300 240", width="300", height="240"):
-   - Vẽ các đoạn thẳng nét đen (stroke="#1E293B" stroke-width="2.5").
-   - Các điểm đỉnh có chấm tròn đỏ (r="4" fill="#EF4444").
-   - QUAN TRỌNG NHẤT VỀ TÊN ĐIỂM: Thẻ <text> của TỪNG ĐIỂM phải có tọa độ x, y cụ thể đặt ngay cạnh điểm đó (cách điểm khoảng 8-12px) để chữ nằm sát đỉnh. Ví dụ: điểm tại cx="40" cy="40" thì <text x="25" y="35" font-weight="bold" font-size="14">A</text>. KHÔNG gom dồn chữ sang một góc!
+   - Viết từng bước suy luận, mỗi bước trên 1 dòng rõ ràng, mở ngoặc nêu lý do định lý.
+   - TUYỆT ĐỐI KHÔNG dùng từ tiếng Anh (because, therefore, implies). Dùng từ tiếng Việt: 'vì', 'suy ra', 'do đó'.
+2. svg_code: Sinh mã SVG (viewBox="0 0 300 240", width="300", height="240"):
+   - Vẽ các đoạn thẳng nét stroke="#1E293B" stroke-width="2.5".
+   - BẮT BUỘC có các điểm tròn đỏ: <circle cx="..." cy="..." r="4" fill="#EF4444"/> tại từng đỉnh (A, B, C, P, Q, M...).
 
 Trả về duy nhất định dạng JSON:
 {
@@ -434,7 +500,7 @@ with tab1:
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh và kèm theo mã SVG chuẩn vẽ lại hình bài toán này.
                             YÊU CẦU:
                             1. Bài giải xuống dòng riêng cho từng bước, mở ngoặc nêu lý do định lý.
-                            2. Mã SVG nhỏ gọn (viewBox="0 0 300 240"), thẻ <text> tên điểm phải có tọa độ x, y nằm sát từng điểm.
+                            2. Mã SVG (viewBox="0 0 300 240"), có các điểm tròn đỏ <circle cx="..." cy="..." r="4" fill="#EF4444"/> tại từng đỉnh.
                             Trả về JSON: {"full_solution": "...", "svg_code": "<svg ...>...</svg>"}"""
                             res_final = execute_openrouter_request([st.session_state.img_data, p_sol], is_json=True)
                             sol = res_final.get("full_solution", "")
@@ -449,20 +515,17 @@ with tab1:
                 </div>
                 """, unsafe_allow_html=True)
 
-                # Hiển thị hình vẽ SVG nhỏ gọn, đúng vị trí điểm
+                # Hiển thị hình vẽ SVG sau khi tự động căn chỉnh tọa độ nhãn
                 if st.session_state.reward_svg and "<svg" in st.session_state.reward_svg:
                     st.markdown("#### 📐 Hình vẽ minh họa chuẩn xác:")
-                    clean_svg_match = re.search(r"<svg[\s\S]*?</svg>", st.session_state.reward_svg)
-                    if clean_svg_match:
-                        svg_html = clean_svg_match.group(0)
-                        svg_html = re.sub(r'width="[^"]+"', 'width="280"', svg_html)
-                        svg_html = re.sub(r'height="[^"]+"', 'height="220"', svg_html)
-                        st.markdown(f'<div class="svg-container">{svg_html}</div>', unsafe_allow_html=True)
+                    fixed_svg = fix_svg_labels(st.session_state.reward_svg)
+                    if fixed_svg:
+                        st.markdown(f'<div class="svg-container">{fixed_svg}</div>', unsafe_allow_html=True)
 
-                # Hiển thị bài giải trong khung chuyên dụng cách dòng thoáng đãng
+                # Hiển thị bài giải bằng bộ lọc sạch bullet trống
                 st.markdown("#### 📝 Bài giải chi tiết chuẩn mực:")
-                sol_html = format_solution_to_html(st.session_state.reward)
-                st.markdown(f'<div class="solution-box">{sol_html}</div>', unsafe_allow_html=True)
+                clean_solution_html = format_solution_to_clean_html(st.session_state.reward)
+                st.markdown(f'<div class="solution-box">{clean_solution_html}</div>', unsafe_allow_html=True)
                 
                 st.write("")
                 st.success("📝 **Bước tiếp theo:** Hãy chuyển sang tab **'Nộp Bài Tập'** ở trên để chụp ảnh bài vở nộp cô chấm nhé!")
@@ -472,7 +535,7 @@ with tab1:
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. 
                         Nhớ giữ câu hỏi và 4 phương án ngắn gọn (1 dòng), dễ hiểu cho học sinh lớp 8.
-                        Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải vào full_solution (xuống dòng rõ ràng) và sinh mã vẽ hình vào svg_code (chữ tên điểm nằm sát điểm)."""
+                        Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải vào full_solution (xuống dòng rõ ràng) và sinh mã vẽ hình vào svg_code (có circle cho từng điểm)."""
                         try:
                             st.session_state.card = execute_openrouter_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
                             st.session_state.step += 1
@@ -540,7 +603,7 @@ with tab2:
                 - Nhận xét chi tiết: (Chỉ ra rõ chỗ làm tốt và lỗi sai nếu có)
                 """
                 score_res = execute_openrouter_request([RUBRIC, hw_img])
-                score_res_clean = format_solution_to_html(score_res)
+                score_res_clean = format_solution_to_clean_html(score_res)
 
                 score_match = re.search(r"(\d+(\.\d+)?)/10", score_res)
                 extracted_score = score_match.group(1) if score_match else "Chưa xác định"
