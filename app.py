@@ -184,7 +184,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-tab1, tab2, tab3 = st.tabs(["🎮 Vượt Chướng Ngại Vật", "📝 Nộp Bài Tập & Chấm Điểm", "📊 Bảng Điểm & Xuất Google Sheets"])
+tab1, tab2, tab3 = st.tabs(["🎮 Thử thách hình học", "📝 Nộp Bài", "📊 Bảng Điểm"])
 
 # ================= TAB 1: GAME TƯƠNG TÁC =================
 with tab1:
