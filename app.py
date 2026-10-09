@@ -93,7 +93,7 @@ if not API_KEY:
     st.stop()
 
 # Dùng mô hình Gemini qua OpenRouter (Hỗ trợ xử lý ảnh mượt mà)
-MODEL_NAME = "google/gemini-2.0-flash-exp:free"
+MODEL_NAME = "google/gemini-2.0-flash-001"
 
 GAME_PROMPT = """
 Bạn là Trợ lý Sư phạm Game Hóa Hình học 8 (Cô Phương).
