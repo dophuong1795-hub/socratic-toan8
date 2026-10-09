@@ -107,29 +107,33 @@ def clean_math_text(text: str) -> str:
     # 2. Xóa các biến thể dính chữ trước tên góc (như góc tam giác PCQ -> góc PCQ)
     text = re.sub(r"góc\s*(?:tam giác|riangle|//|/|°)\s*", "góc ", text, flags=re.IGNORECASE)
 
-    # 3. Chỉ gắn dấu độ ° khi có từ 'độ', 'circ' hoặc số đo góc phổ biến (30, 45, 60, 90, 120, 180)
-    text = re.sub(r"\b(1[0-8]0|[3469]0)\s*(?:\^?\s*(?:circ|riangle|°)|(?=\s*[\.,\)\s]|$))(?!\s*(?:bước|cạnh|đoạn|tam giác))", r"\1°", text)
+    # 3. Điểm thuộc đoạn thẳng (Q thuộc BC thay vì Q // BC)
+    text = re.sub(r"\b([A-Z])\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 thuộc \2", text)
+    text = text.replace(r"\in", " thuộc ")
+
+    # 4. Đoạn thẳng song song với đoạn thẳng (2 chữ cái với 2 chữ cái: PM // BC)
+    text = re.sub(r"\b([A-Z]{2})\s*(?:riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
+    text = re.sub(r"\\?parallel", " // ", text)
+
+    # 5. Xử lý độ và số thứ tự bước (tránh bước 1°)
     text = re.sub(r"bước\s*(\d+)°?", r"bước \1", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b(1[0-8]0|[3469]0)\s*(?:\^?\s*(?:circ|riangle|°)|(?=\s*[\.,\)\s]|$))(?!\s*(?:bước|cạnh|đoạn|tam giác))", r"\1°", text)
     text = text.replace("°°", "°")
     text = text.replace(r"^\circ", "°")
     text = text.replace("^circ", "°")
 
-    # 4. Ký hiệu hình học: song song, tam giác, vuông góc
-    text = re.sub(r"\b([A-Z]{1,2})\s*(?:riangle|°)\s*([A-Z]{1,2})\b", r"\1 // \2", text)
-    text = re.sub(r"\\?parallel", " // ", text)
+    # 6. Các ký hiệu hình học khác
     text = re.sub(r"\\?t?riangle\s*", "tam giác ", text, flags=re.IGNORECASE)
     text = re.sub(r"\\?angle\s*", "góc ", text, flags=re.IGNORECASE)
-    text = text.replace("riangle", " // ")
     text = text.replace("Île", "góc ")
     text = text.replace("£", " ⊥ ")
     text = text.replace(r"\perp", " ⊥ ")
-    text = text.replace(r"\in", " thuộc ")
     text = text.replace("$", "")
 
-    # 5. Xử lý lại nếu còn sót cụm 'góc tam giác'
+    # 7. Xử lý lại nếu còn sót cụm 'góc tam giác'
     text = re.sub(r"góc\s+tam giác\s+([A-Z]{1,3})", r"góc \1", text, flags=re.IGNORECASE)
 
-    # 6. Xử lý các dạng góc có mũ \hat{A}
+    # 8. Xử lý các dạng góc có mũ \hat{A}
     text = re.sub(r"\\hat\{([A-Za-z0-9]+)\}", r"góc \1", text)
     
     # Dọn dẹp khoảng trắng thừa
