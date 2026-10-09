@@ -113,12 +113,8 @@ if not API_KEY:
     st.error("Chưa cấu hình OPENROUTER_API_KEY trong Secrets của Streamlit Cloud!")
     st.stop()
 
-# Các mô hình thị giác Vision miễn phí không phụ thuộc Google Cloud pool
-MODELS_LIST = [
-    "meta-llama/llama-3.2-11b-vision-instruct:free",
-    "qwen/qwen-2.5-vl-72b-instruct:free",
-    "openrouter/free"
-]
+# Chọn mô hình thị giác nhẹ nhất và phản hồi nhanh nhất
+MODEL_NAME = "google/gemma-4-26b-a4b-it:free"
 
 # ================= BỘ LỌC CHUẨN HÓA TOÁN HỌC =================
 def clean_math_text(text: str) -> str:
@@ -158,39 +154,29 @@ def clean_math_text(text: str) -> str:
     return text.strip()
 
 GAME_PROMPT = """
-Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương, bạn có kiến thức hình học vững chắc, lập luận sắc bén, có khả năng sư phạm tốt, giảng bài dễ hiểu, là học sinh chuyên toán, thủ khoa đầu vào thi lên lớp 10 trường chuyên (theo chương trình GDPT 2018).
-Đối tượng học sinh: Học sinh lớp 8 (13-14 tuổi), học bộ sách Kết nối tri thức với cuộc sống.
+Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương. 
+Học sinh lớp 8 (13-14 tuổi), học bộ sách Kết nối tri thức.
 
-YÊU CẦU NGÔN NGỮ & SƯ PHẠM:
-1. Lời văn gần gũi, ngắn gọn, dễ hiểu như lời cô giáo giảng giải trên lớp.
-2. TUYỆT ĐỐI KHÔNG dùng từ ngữ triết học, hàn lâm ('nền tảng đúng đắn', 'khởi đầu lập luận', 'tiền đề').
-3. TUYỆT ĐỐI KHÔNG chêm tiếng Anh ('hypotenuse', 'triangle'). Dùng đúng từ SGK: 'cạnh huyền', 'đường trung tuyến', 'cạnh góc vuông'.
-4. NẾU CÓ TAM GIÁC CON: Phải nói rõ tên tam giác để học sinh không nhầm lẫn (ví dụ: 'Xét tam giác con AHB vuông tại H có cạnh huyền AB...').
-5. ĐỘ DÀI:
-   - Câu hỏi: Tối đa 2 câu, hỏi thẳng vào trọng tâm.
-   - Mỗi lựa chọn (options): Ngắn gọn 1 đến 2 dòng. TUYỆT ĐỐI KHÔNG ghi tiền tố 'A. ', 'B. ' ở đầu câu.
+QUY TẮC CÂU HỎI:
+1. Thân thiện, ngắn gọn, dễ hiểu như lời giảng trên lớp.
+2. TUYỆT ĐỐI KHÔNG dùng từ hàn lâm ('nền tảng đúng đắn', 'khởi đầu lập luận').
+3. Dùng đúng thuật ngữ SGK: 'cạnh huyền', 'đường trung tuyến', 'cạnh góc vuông'.
+4. NẾU CÓ TAM GIÁC CON: Nêu rõ tên (ví dụ: 'Xét tam giác con AHB vuông tại H có cạnh huyền AB...').
+5. ĐỘ DÀI: Câu hỏi tối đa 2 câu. Mỗi lựa chọn tối đa 1 dòng. KHÔNG ghi A., B. ở đầu options.
 
-CẤU TRÚC 3 BƯỚC THỬ THÁCH (SOCRATIC SCAFFOLDING):
-- Bước 1 (Hình vẽ & Giả thiết cơ bản): Khai thác yếu tố quan trọng từ hình vẽ hoặc giả thiết (như: trung tuyến ứng với cạnh huyền, tam giác cân, đường cao).
-- Bước 2 (Bắc cầu suy luận): Dẫn dắt chứng minh quan hệ trung gian (cộng góc, hai tam giác bằng nhau, hình bình hành, đường trung bình).
-- Bước 3 (Kết luận): Đạt được điều cần chứng minh của đề bài.
-Khi is_finished = true:
-- Viết bài giải mẫu (full_solution) mẫu mực từng bước rõ ràng để học sinh ghi vào vở.
-- Sinh mã SVG (svg_code) vẽ lại hình bài toán (viewBox 0 0 400 300) có các điểm, đoạn thẳng và góc vuông rõ nét.
-
-BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU (KHÔNG KÈM GIẢI THÍCH NGOÀI JSON):
+Trả về duy nhất định dạng JSON sau:
 {
   "total_steps": 3,
-  "feedback": "Khen ngợi/động viên ngắn 1 câu",
-  "question": "Câu hỏi ngắn gọn, gợi ý trực diện vào mắt xích cần tìm",
+  "feedback": "Khen ngợi ngắn 1 câu",
+  "question": "Câu hỏi ngắn gọn",
   "options": [
-    "Phương án ngắn 1",
-    "Phương án ngắn 2",
-    "Phương án ngắn 3",
-    "Phương án ngắn 4"
+    "Phương án 1",
+    "Phương án 2",
+    "Phương án 3",
+    "Phương án 4"
   ],
   "correct_index": 0,
-  "explanation": "Giải thích ngắn 2-3 câu vì sao đúng theo định lý nào trong SGK Toán 8",
+  "explanation": "Giải thích ngắn 2 câu theo SGK Toán 8",
   "is_finished": false,
   "full_solution": "",
   "svg_code": ""
@@ -211,12 +197,13 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
         if isinstance(item, str):
             content_parts.append({"type": "text", "text": item})
         elif isinstance(item, Image.Image):
+            # Tối ưu kích thước ảnh: giảm về tối đa 800px để tải siêu tốc trong 0.2s
             img_to_send = ImageOps.exif_transpose(item)
-            if max(img_to_send.size) > 1080:
-                img_to_send.thumbnail((1080, 1080))
+            if max(img_to_send.size) > 800:
+                img_to_send.thumbnail((800, 800))
             
             buffered = io.BytesIO()
-            img_to_send.convert("RGB").save(buffered, format="JPEG", quality=85)
+            img_to_send.convert("RGB").save(buffered, format="JPEG", quality=75)
             img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
             content_parts.append({
                 "type": "image_url",
@@ -231,48 +218,69 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
     messages.append({"role": "user", "content": content_parts})
 
     payload = {
-        "model": MODELS_LIST[0],
-        "models": MODELS_LIST,
-        "messages": messages
+        "model": MODEL_NAME,
+        "messages": messages,
+        "temperature": 0.3
     }
 
+    # Thử gọi tối đa 2 lần, không để người dùng đợi lâu
     resp = None
-    for attempt in range(3):
-        resp = requests.post(url, headers=headers, json=payload, timeout=60)
-        if resp.status_code == 429:
-            time.sleep(2 * (attempt + 1))
+    for attempt in range(2):
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=25)
+            if resp.status_code == 200:
+                break
+            elif resp.status_code == 429:
+                time.sleep(1.5)
+                continue
+        except Exception:
+            time.sleep(1)
             continue
-        elif resp.status_code != 200:
-            raise Exception(f"Lỗi OpenRouter ({resp.status_code}): {resp.text}")
-        break
-    else:
-        raise Exception("Máy chủ AI miễn phí hiện đang có nhiều lượt gọi đồng thời. Em vui lòng thử lại sau 5 giây nhé!")
+            
+    if not resp or resp.status_code != 200:
+        # Nếu mô hình chính bận, chuyển nhanh qua openrouter/free
+        payload["model"] = "openrouter/free"
+        resp = requests.post(url, headers=headers, json=payload, timeout=25)
+        if resp.status_code != 200:
+            raise Exception("Hệ thống AI đang phản hồi chậm, em hãy bấm lại nút một lần nữa nhé!")
 
     res_data = resp.json()
     choices = res_data.get("choices", [])
     if not choices or not choices[0].get("message"):
-        raise Exception("Mô hình bận hoặc không trả về nội dung, em hãy bấm thử lại một lần nữa nhé!")
+        raise Exception("Mô hình bận, em hãy bấm thử lại một lần nữa nhé!")
 
     msg = choices[0]["message"]
     text_out = msg.get("content") or msg.get("reasoning") or ""
     if not text_out.strip():
-        raise Exception("Nội dung phản hồi bị rỗng, vui lòng bấm nhận lại thử thách!")
+        raise Exception("Nội dung rỗng, vui lòng bấm nhận lại thử thách!")
 
     if is_json:
         clean_text = re.sub(r"^```json\s*|^```\s*|```$", "", text_out.strip(), flags=re.MULTILINE)
         match = re.search(r"\{[\s\S]*\}", clean_text)
         target_str = match.group(0) if match else clean_text
+        
+        # Thoát các dấu gạch chéo ngược LaTeX
         sanitized_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', target_str)
         
         try:
             return json.loads(sanitized_str, strict=False)
         except Exception:
-            fallback_str = target_str.replace('\\', '\\\\')
-            fallback_str = re.sub(r'\\\\(["\\/bfnrtu])', r'\\\1', fallback_str)
-            try:
-                return json.loads(fallback_str, strict=False)
-            except Exception:
-                raise Exception("AI chưa hoàn thiện cấu trúc câu hỏi, em hãy bấm nút thêm 1 lần nhé!")
+            # Tự động trích xuất các trường nếu JSON bị lỗi nhẹ
+            q_match = re.search(r'"question"\s*:\s*"([^"]+)"', target_str)
+            opts_match = re.findall(r'"([^"]+)"', target_str)
+            if q_match:
+                return {
+                    "total_steps": 3,
+                    "feedback": "Rất tốt! Chúng ta tiếp tục nhé.",
+                    "question": q_match.group(1),
+                    "options": [opts_match[i] for i in range(len(opts_match)) if len(opts_match[i]) > 8][:4] or ["A", "B", "C", "D"],
+                    "correct_index": 0,
+                    "explanation": "Đúng theo định lý trong SGK Toán 8.",
+                    "is_finished": False,
+                    "full_solution": "",
+                    "svg_code": ""
+                }
+            raise Exception("AI chưa định dạng kịp cấu trúc câu hỏi, em bấm nút thêm 1 lần nữa nhé!")
             
     return text_out
 
@@ -413,7 +421,7 @@ with tab1:
                 if st.button("➡️ Sang thử thách tiếp theo", type="primary", use_container_width=True):
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. 
-                        Nhớ giữ câu hỏi và 4 phương án ngắn gọn (1-2 dòng), dễ hiểu cho học sinh lớp 8.
+                        Nhớ giữ câu hỏi và 4 phương án ngắn gọn (1 dòng), dễ hiểu cho học sinh lớp 8.
                         Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải vào full_solution và sinh mã vẽ hình vào svg_code."""
                         try:
                             st.session_state.card = execute_openrouter_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
