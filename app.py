@@ -1,6 +1,6 @@
 import streamlit as st
 import requests
-from PIL import Image
+from PIL import Image, ImageOps
 import json
 import re
 import base64
@@ -8,61 +8,69 @@ import io
 import pandas as pd
 from datetime import datetime
 
-# Cấu hình giao diện Streamlit
+# ================= CẤU HÌNH GIAO DIỆN STREAMLIT =================
 st.set_page_config(
-    page_title="Đấu Trường Hình Học - Cô Mai Phương",
+    page_title="Đấu Trường Hình Học 8 - Cô Mai Phương",
     page_icon="📐",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-# ================= CSS TÙY CHỈNH GIAO DIỆN HIỆN ĐẠI =================
+# ================= CSS TỐI ƯU MOBILE & MÁY TÍNH HIỆN ĐẠI =================
 st.markdown("""
 <style>
+    /* Canh lề tối ưu cho cả smartphone và desktop */
     .block-container {
-        padding-top: 1.5rem !important;
-        padding-bottom: 3rem !important;
-        max-width: 760px !important;
+        padding-top: 1.2rem !important;
+        padding-bottom: 2.5rem !important;
+        max-width: 780px !important;
     }
+    /* Banner chuyển sắc nhận diện thương hiệu Cô Mai Phương */
     .hero-banner {
         background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
-        border-radius: 20px;
-        padding: 22px 20px;
+        border-radius: 18px;
+        padding: 20px 16px;
         color: white;
         text-align: center;
-        box-shadow: 0 10px 25px rgba(79, 70, 229, 0.25);
-        margin-bottom: 22px;
+        box-shadow: 0 8px 20px rgba(79, 70, 229, 0.25);
+        margin-bottom: 18px;
     }
     .hero-banner h1 {
-        font-size: 26px !important;
+        font-size: 24px !important;
         font-weight: 800 !important;
         margin: 0 !important;
         color: white !important;
+        letter-spacing: -0.5px;
     }
     .hero-banner p {
         font-size: 14px;
         margin: 6px 0 0 0;
         opacity: 0.95;
     }
+    /* Huy hiệu cửa ải */
     .step-badge {
         display: inline-block;
         background-color: #EEF2FF;
         color: #4F46E5;
         font-weight: 700;
         font-size: 13px;
-        padding: 4px 14px;
+        padding: 5px 15px;
         border-radius: 999px;
         margin-bottom: 12px;
         border: 1px solid #C7D2FE;
     }
+    /* Tối ưu nút bấm trắc nghiệm trên màn hình cảm ứng */
     div[data-testid="stButton"] button {
         border-radius: 14px !important;
         border: 2px solid #E2E8F0 !important;
         font-size: 15px !important;
         font-weight: 600 !important;
-        padding: 12px 18px !important;
+        padding: 12px 16px !important;
         background-color: #F8FAFC !important;
         color: #1E293B !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+        line-height: 1.4 !important;
         transition: all 0.2s ease !important;
     }
     div[data-testid="stButton"] button:hover {
@@ -75,69 +83,81 @@ st.markdown("""
         background: linear-gradient(135deg, #4F46E5, #6366F1) !important;
         color: white !important;
         border: none !important;
+        text-align: center !important;
+        justify-content: center !important;
     }
+    /* Khung phần thưởng bài giải */
     .reward-box {
         background: #F0FDF4;
         border: 2px solid #86EFAC;
         border-radius: 16px;
-        padding: 20px;
+        padding: 18px;
         margin-top: 15px;
     }
+    /* Khung vẽ hình SVG trực quan */
     .svg-container {
         display: flex;
         justify-content: center;
         align-items: center;
         background: #FFFFFF;
         border: 1px solid #CBD5E1;
-        border-radius: 12px;
-        padding: 15px;
+        border-radius: 14px;
+        padding: 12px;
         margin: 15px 0;
+        overflow-x: auto;
+    }
+    .svg-container svg {
+        max-width: 100%;
+        height: auto;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Lấy OpenRouter API Key
+# ================= KIỂM TRA API KEY =================
 API_KEY = st.secrets.get("OPENROUTER_API_KEY")
 if not API_KEY:
-    st.error("Chưa cấu hình biến OPENROUTER_API_KEY trong Secrets của Streamlit!")
+    st.error("⚠️ Chưa cấu hình OPENROUTER_API_KEY trong mục Secrets của Streamlit Cloud!")
+    st.info("Cách cấu hình: Vào Settings của App trên Streamlit -> Secrets -> Thêm dòng: OPENROUTER_API_KEY = 'key_cua_co'")
     st.stop()
 
-# Danh sách tối đa 3 mô hình thị giác miễn phí tốt nhất (Tuân thủ giới hạn OpenRouter)
+# Danh sách đúng 2 mô hình thị giác miễn phí tốt nhất (Tránh lỗi 400: models > 3 items)
 MODELS_LIST = [
     "google/gemma-4-31b-it:free",
-    "google/gemma-4-26b-a4b-it:free",
     "openrouter/free"
 ]
 
-# HÀM LỌC VÀ CHUẨN HÓA KÝ HIỆU TOÁN HỌC AN TOÀN TUYỆT ĐỐI
+# ================= BỘ LỌC CHUẨN HÓA TOÁN HỌC & NGÔN NGỮ =================
 def clean_math_text(text: str) -> str:
+    """Chuẩn hóa ký hiệu Toán 8, khắc phục lỗi font, lỗi LaTeX và chính tả"""
     if not text or not isinstance(text, str):
         return ""
     
-    # 1. Thuật ngữ ngoại lai và chính tả
+    # 1. Việt hóa tuyệt đối thuật ngữ ngoại lai
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
+    
+    # 2. Sửa lỗi chính tả tiếng Việt thường gặp
     text = re.sub(r"\btư giác\b", "tứ giác", text, flags=re.IGNORECASE)
     text = re.sub(r"\bTư giác\b", "Tứ giác", text)
 
-    # 2. Xóa các tiền tố lỗi trước tên góc
+    # 3. Khắc phục lỗi rớt từ riangle/tam giác/độ trước góc
     text = re.sub(r"góc\s*(?:tam giác|riangle|//|/|°)\s*", "góc ", text, flags=re.IGNORECASE)
 
-    # 3. Điểm thuộc đoạn thẳng (Q thuộc BC thay vì Q // BC)
+    # 4. Quan hệ điểm thuộc đoạn thẳng (Q thuộc BC thay vì Q // BC)
     text = re.sub(r"\b([A-Z])\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 thuộc \2", text)
     text = text.replace(r"\in", " thuộc ")
 
-    # 4. Đoạn thẳng song song với đoạn thẳng (PM // BC)
+    # 5. Quan hệ song song giữa 2 đoạn thẳng (PM // BC)
     text = re.sub(r"\b([A-Z]{2})\s*(?:riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
     text = re.sub(r"\\?parallel", " // ", text)
 
-    # 5. Xử lý số đo độ và số thứ tự bước (tránh bước 1°)
+    # 6. Chuẩn hóa số đo góc (ví dụ: 90°, tránh nhầm sang bước 1°)
     text = re.sub(r"bước\s*(\d+)°?", r"bước \1", text, flags=re.IGNORECASE)
     text = re.sub(r"\b(1[0-8]0|[3469]0)\s*(?:\^?\s*(?:circ|riangle|°)|(?=\s*[\.,\)\s]|$))(?!\s*(?:bước|cạnh|đoạn|tam giác))", r"\1°", text)
     text = text.replace("°°", "°")
     text = text.replace(r"^\circ", "°")
     text = text.replace("^circ", "°")
 
-    # 6. Các ký hiệu hình học
+    # 7. Chuẩn hóa các ký hiệu hình học cơ bản
     text = re.sub(r"\\?t?riangle\s*", "tam giác ", text, flags=re.IGNORECASE)
     text = re.sub(r"\\?angle\s*", "góc ", text, flags=re.IGNORECASE)
     text = text.replace("riangle", " // ")
@@ -146,44 +166,49 @@ def clean_math_text(text: str) -> str:
     text = text.replace(r"\perp", " ⊥ ")
     text = text.replace("$", "")
 
-    # 7. Xử lý các dạng góc có mũ \hat{A}
+    # 8. Sửa lỗi lặp cụm từ 'góc tam giác'
+    text = re.sub(r"góc\s+tam giác\s+([A-Z]{1,3})", r"góc \1", text, flags=re.IGNORECASE)
+
+    # 9. Đổi ký hiệu mũ LaTeX thành chữ thuần Việt
     text = re.sub(r"\\hat\{([A-Za-z0-9]+)\}", r"góc \1", text)
+    text = re.sub(r"\\widehat\{([A-Za-z0-9]+)\}", r"góc \1", text)
     
-    # Dọn dẹp khoảng trắng thừa
+    # Dọn dẹp khoảng trắng dư thừa
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
+# ================= PROMPT SƯ PHẠM TOÁN 8 (KẾT NỐI TRI THỨC) =================
 GAME_PROMPT = """
 Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương, bạn có kiến thức hình học vững chắc, lập luận sắc bén, có khả năng sư phạm tốt, giảng bài dễ hiểu, là học sinh chuyên toán, thủ khoa đầu vào thi lên lớp 10 trường chuyên (theo chương trình GDPT 2018).
-Đối tượng học sinh: Học sinh lớp 8 (13-14 tuổi), học bộ sách kết nối tri thức, bộ sách chung của bộ giáo dục mới bạn hành năm 2026.
+Đối tượng học sinh: Học sinh lớp 8 (13-14 tuổi), học bộ sách Kết nối tri thức với cuộc sống.
 
 YÊU CẦU NGÔN NGỮ & SƯ PHẠM:
-1. Lời văn gần gũi, ngắn gọn, dễ hiểu như lời cô giáo giảng giải trên lớp.
+1. Lời văn thân thiện, ngắn gọn, dễ hiểu như lời cô giáo giảng giải trực tiếp trên lớp.
 2. TUYỆT ĐỐI KHÔNG dùng từ ngữ triết học, hàn lâm ('nền tảng đúng đắn', 'khởi đầu lập luận', 'tiền đề').
-3. TUYỆT ĐỐI KHÔNG chêm tiếng Anh ('hypotenuse', 'triangle'). Dùng đúng từ SGK: 'cạnh huyền', 'đường trung tuyến', 'cạnh góc vuông'.
-4. NẾU CÓ TAM GIÁC CON: Phải nói rõ tên tam giác để học sinh không nhầm lẫn (ví dụ: 'Xét tam giác con AHB vuông tại H có cạnh huyền AB...').
-5. ĐỘ DÀI:
-   - Câu hỏi: Tối đa 2 câu, hỏi thẳng vào trọng tâm.
-   - Mỗi lựa chọn (options): Ngắn gọn 1 đến 2 dòng. TUYỆT ĐỐI KHÔNG ghi tiền tố 'A. ', 'B. ' ở đầu câu.
+3. TUYỆT ĐỐI KHÔNG chêm tiếng Anh ('hypotenuse', 'triangle'). Dùng đúng thuật ngữ SGK: 'cạnh huyền', 'đường trung tuyến', 'cạnh góc vuông', 'đường trung bình'.
+4. NẾU CÓ TAM GIÁC CON: Phải chỉ rõ tên tam giác để học sinh không nhầm lẫn (Ví dụ: 'Xét tam giác con AHB vuông tại H có cạnh huyền AB...').
+5. ĐỘ DÀI & ĐỊNH DẠNG:
+   - Câu hỏi: Tối đa 2 câu ngắn, tập trung thẳng vào mắt xích tư duy cần tìm.
+   - Mỗi phương án: Ngắn gọn từ 1 đến 2 dòng. TUYỆT ĐỐI KHÔNG ghi tiền tố 'A. ', 'B. ' ở đầu câu trong mảng options.
 
-CẤU TRÚC 3 BƯỚC THỬ THÁCH (SOCRATIC SCAFFOLDING):
-- Bước 1 (Hình vẽ & Giả thiết cơ bản): Khai thác yếu tố quan trọng từ hình vẽ hoặc giả thiết (như: trung tuyến ứng với cạnh huyền, tam giác cân, đường cao).
-- Bước 2 (Bắc cầu suy luận): Dẫn dắt chứng minh quan hệ trung gian (cộng góc, hai tam giác bằng nhau, hình bình hành, đường trung bình).
-- Bước 3 (Kết luận): Đạt được điều cần chứng minh của đề bài.
+CẤU TRÚC 3 BƯỚC THỬ THÁCH SOCRATIC:
+- Bước 1 (Hình vẽ & Khai thác giả thiết): Dẫn dắt nhận ra tính chất khởi đầu (tam giác vuông có trung tuyến ứng với cạnh huyền, tam giác cân, đường cao...).
+- Bước 2 (Bắc cầu suy luận): Dẫn dắt chứng minh quan hệ trung gian (cộng góc, hai tam giác bằng nhau, hình bình hành, đường trung bình...).
+- Bước 3 (Kết luận): Hoàn thành yêu cầu chứng minh của đề bài.
 Khi is_finished = true:
-- Viết bài giải mẫu (full_solution) mẫu mực từng bước rõ ràng để học sinh ghi vào vở.
-- Sinh mã SVG (svg_code) vẽ lại hình bài toán (viewBox 0 0 400 300) có các điểm, đoạn thẳng và góc vuông rõ nét.
+- full_solution: Viết lời giải mẫu mực từng bước, mở ngoặc nêu rõ căn cứ định lý để học sinh chép vào vở.
+- svg_code: Sinh mã SVG chuẩn (viewBox='0 0 400 300') vẽ lại hình bài toán với các điểm A, B, C, đường cao, góc vuông rõ ràng, nền trắng trong suốt.
 
-BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU (KHÔNG KÈM GIẢI THÍCH NGOÀI JSON):
+BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU (KHÔNG KÈM VĂN BẢN NGOÀI JSON):
 {
   "total_steps": 3,
-  "feedback": "Khen ngợi/động viên ngắn 1 câu",
-  "question": "Câu hỏi ngắn gọn, gợi ý trực diện vào mắt xích cần tìm",
+  "feedback": "Lời nhận xét động viên ngắn 1 câu",
+  "question": "Nội dung câu hỏi ngắn gọn",
   "options": [
-    "Phương án ngắn 1",
-    "Phương án ngắn 2",
-    "Phương án ngắn 3",
-    "Phương án ngắn 4"
+    "Phương án 1",
+    "Phương án 2",
+    "Phương án 3",
+    "Phương án 4"
   ],
   "correct_index": 0,
   "explanation": "Giải thích ngắn 2-3 câu vì sao đúng theo định lý nào trong SGK Toán 8",
@@ -193,13 +218,14 @@ BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU (KHÔNG KÈM GIẢI THÍC
 }
 """
 
+# ================= HÀM GỌI API AN TOÀN TUYỆT ĐỐI =================
 def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
         "HTTP-Referer": "https://streamlit.io",
-        "X-Title": "Socratic Geometry Game"
+        "X-Title": "Socratic Geometry Game - Co Mai Phuong"
     }
 
     content_parts = []
@@ -207,10 +233,10 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
         if isinstance(item, str):
             content_parts.append({"type": "text", "text": item})
         elif isinstance(item, Image.Image):
-            # Tối ưu ảnh từ điện thoại để mô hình đọc trơn tru
-            img_to_send = item.copy()
-            if max(img_to_send.size) > 1200:
-                img_to_send.thumbnail((1200, 1200))
+            # Tự động xoay ảnh theo đúng chiều trên iPhone/Android và nén tối ưu
+            img_to_send = ImageOps.exif_transpose(item)
+            if max(img_to_send.size) > 1100:
+                img_to_send.thumbnail((1100, 1100))
             
             buffered = io.BytesIO()
             img_to_send.convert("RGB").save(buffered, format="JPEG", quality=85)
@@ -235,12 +261,12 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
 
     resp = requests.post(url, headers=headers, json=payload, timeout=60)
     if resp.status_code != 200:
-        raise Exception(f"Lỗi kết nối AI ({resp.status_code}): {resp.text}")
+        raise Exception(f"Lỗi OpenRouter ({resp.status_code}): {resp.text}")
 
     res_data = resp.json()
     choices = res_data.get("choices", [])
     if not choices or not choices[0].get("message"):
-        raise Exception("Mô hình không trả về kết quả, em hãy bấm thử lại một lần nữa nhé!")
+        raise Exception("Mô hình bận hoặc không trả về nội dung, em hãy bấm thử lại một lần nữa nhé!")
 
     msg = choices[0]["message"]
     text_out = msg.get("content") or msg.get("reasoning") or ""
@@ -248,42 +274,45 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
         raise Exception("Nội dung phản hồi bị rỗng, vui lòng bấm nhận lại thử thách!")
 
     if is_json:
-        # Bỏ khối markdown bọc ngoài
+        # 1. Bỏ code fence ```json ... ```
         clean_text = re.sub(r"^```json\s*|^```\s*|```$", "", text_out.strip(), flags=re.MULTILINE)
         
-        # Bóc tách khối JSON {...}
+        # 2. Tìm khối JSON { ... }
         match = re.search(r"\{[\s\S]*\}", clean_text)
         target_str = match.group(0) if match else clean_text
         
-        # Xử lý triệt để escape sequence để tránh Invalid \escape từ LaTeX
+        # 3. Xử lý triệt để dấu gạch chéo ngược của LaTeX để chống Invalid \escape
         sanitized_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', target_str)
         
         try:
             return json.loads(sanitized_str, strict=False)
         except Exception:
+            # Phương án dự phòng tự động sửa escape kép
+            fallback_str = target_str.replace('\\', '\\\\')
+            fallback_str = re.sub(r'\\\\(["\\/bfnrtu])', r'\\\1', fallback_str)
             try:
-                fallback_str = target_str.replace('\\', '\\\\')
-                fallback_str = re.sub(r'\\\\(["\\/bfnrtu])', r'\\\1', fallback_str)
                 return json.loads(fallback_str, strict=False)
             except Exception:
-                raise Exception("AI chưa định dạng đúng cấu trúc câu hỏi, em hãy bấm nút một lần nữa nhé!")
+                raise Exception("AI chưa định dạng đúng cấu trúc câu hỏi, em hãy bấm nút thêm 1 lần nhé!")
             
     return text_out
 
+# Khởi tạo lưu trữ lịch sử chấm điểm trong phiên
 if "submission_history" not in st.session_state:
     st.session_state.submission_history = []
 
-# ================= BANNER TIÊU ĐỀ =================
+# ================= BANNER TIÊU ĐỀ ỨNG DỤNG =================
 st.markdown("""
 <div class="hero-banner">
     <h1>📐 ĐẤU TRƯỜNG HÌNH HỌC 8</h1>
-    <p>Học toán gợi mở cùng cô Mai Phương • Chinh phục thử thách từng bước</p>
+    <p>Học toán gợi mở cùng Cô Mai Phương • Chinh phục thử thách từng bước</p>
 </div>
 """, unsafe_allow_html=True)
 
+# Khởi tạo 3 Tab chính
 tab1, tab2, tab3 = st.tabs(["🎮 Thử thách hình học", "📝 Nộp Bài Tập", "📊 Bảng Điểm"])
 
-# ================= TAB 1: GAME TƯƠNG TÁC =================
+# ================= TAB 1: GAME HÌNH HỌC TƯƠNG TÁC =================
 with tab1:
     if "step" not in st.session_state:
         st.session_state.step = 1
@@ -303,16 +332,16 @@ with tab1:
         st.session_state.reward_svg = None
 
     with st.expander("📸 Đề bài / Hình vẽ bài toán", expanded=(st.session_state.card is None)):
-        up_img = st.file_uploader("Tải/chụp ảnh bài tập cần chú ý lên đây:", type=["jpg", "png", "jpeg"], key="up_game_img")
+        up_img = st.file_uploader("Tải/chụp ảnh bài tập cần gợi ý lên đây:", type=["jpg", "png", "jpeg"], key="up_game_img")
         if up_img:
             st.session_state.img_data = Image.open(up_img)
-            st.image(st.session_state.img_data, caption="Hình vẽ bài toán đang giải", use_column_width=True)
+            st.image(st.session_state.img_data, caption="Hình vẽ / Đề bài đang giải", use_column_width=True)
 
         if st.session_state.img_data and st.session_state.card is None:
             if st.button("🚀 Bắt đầu nhận Thử thách Bước 1!", type="primary", use_container_width=True):
-                with st.spinner("Đợi cô một chút..."):
+                with st.spinner("Cô Mai Phương đang chuẩn bị câu hỏi gợi ý..."):
                     try:
-                        p_start = "Tạo câu hỏi thử thách Bước 1 ngắn gọn, tập trung khai thác giả thiết khởi đầu."
+                        p_start = "Tạo câu hỏi thử thách Bước 1 ngắn gọn, tập trung khai thác giả thiết khởi đầu của bài toán."
                         c_data = execute_openrouter_request([st.session_state.img_data, p_start], GAME_PROMPT, is_json=True)
                         st.session_state.card = c_data
                         st.session_state.total_steps = c_data.get("total_steps", 3)
@@ -342,16 +371,19 @@ with tab1:
         opts = card.get("options", [])
         correct = card.get("correct_index", 0)
 
+        # GIAO DIỆN KHI CHƯA CHỌN ĐÁP ÁN
         if not st.session_state.answered:
             st.markdown("**👉 Em hãy bấm chọn một đáp án đúng nhất:**")
             for idx, opt in enumerate(opts):
                 clean_opt = clean_math_text(opt)
+                # Xóa sạch tiền tố lặp A., B., C., D.
                 clean_opt = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", clean_opt)
                 label = f"{chr(65+idx)}. {clean_opt}"
                 if st.button(label, key=f"btn_choice_{idx}", use_container_width=True):
                     st.session_state.answered = True
                     st.session_state.selected_idx = idx
                     st.rerun()
+        # GIAO DIỆN SAU KHI ĐÃ CHỌN
         else:
             sel = st.session_state.selected_idx
             sel_text = clean_math_text(opts[sel]) if (sel is not None and sel < len(opts)) else ""
@@ -361,7 +393,7 @@ with tab1:
             correct_text = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", correct_text)
 
             if sel == correct:
-                st.success("🎉 **Chính xác!** Em đã lựa chọn tư duy chuẩn xác.")
+                st.success("🎉 **Chính xác!** Em đã lựa chọn hướng tư duy rất chuẩn.")
             else:
                 st.error("❌ **Chưa chính xác.**")
                 st.markdown(f"Đáp án đúng là: **{chr(65+correct)}. {correct_text}**")
@@ -370,9 +402,10 @@ with tab1:
 
             is_finish = card.get("is_finished") or (curr >= total)
 
+            # MỞ KHÓA PHẦN THƯỞNG KHI HOÀN THÀNH
             if is_finish:
                 st.balloons()
-                st.success("🏆 **XUẤT SẮC! Em đã hoàn thành trọn vẹn bài toán!**")
+                st.success("🏆 **XUẤT SẮC! Em đã hoàn thành toàn bộ sơ đồ chứng minh!**")
 
                 if not st.session_state.reward:
                     sol = card.get("full_solution", "")
@@ -394,6 +427,7 @@ with tab1:
                 </div>
                 """, unsafe_allow_html=True)
 
+                # Hiển thị hình vẽ SVG chuẩn vector
                 if st.session_state.reward_svg and "<svg" in st.session_state.reward_svg:
                     st.markdown("#### 📐 Hình vẽ minh họa chuẩn xác:")
                     clean_svg = re.search(r"<svg[\s\S]*?</svg>", st.session_state.reward_svg)
@@ -407,7 +441,7 @@ with tab1:
                 if st.button("➡️ Sang thử thách tiếp theo", type="primary", use_container_width=True):
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. 
-                        Nhớ giữ câu hỏi và 4 phương án ngắn gọn, dễ hiểu cho học sinh lớp 8.
+                        Nhớ giữ câu hỏi và 4 phương án ngắn gọn (1-2 dòng), dễ hiểu cho học sinh lớp 8.
                         Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải vào full_solution và sinh mã vẽ hình vào svg_code."""
                         try:
                             st.session_state.card = execute_openrouter_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
@@ -429,10 +463,10 @@ with tab1:
             st.session_state.reward_svg = None
             st.rerun()
 
-# ================= TAB 2: NỘP BÀI & CHẤM ĐIỂM =================
+# ================= TAB 2: NỘP BÀI TẬP & CHẤM ĐIỂM TỰ LUẬN =================
 with tab2:
     st.markdown("""
-    <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 15px; border-radius: 14px; margin-bottom: 20px;">
+    <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 14px; border-radius: 14px; margin-bottom: 18px;">
         <span style="font-weight: 700; color: #334155;">📋 Chấm tự luận bằng AI theo Rubric chuẩn môn Toán THCS</span>
     </div>
     """, unsafe_allow_html=True)
@@ -449,7 +483,8 @@ with tab2:
         "Bài 3: Hình chữ nhật (Chụp kèm đề bài)",
         "Bài 4: Hình thoi (Chụp kèm đề bài)",
         "Bài 5: Hình vuông (Chụp kèm đề bài)",
-        "Bài 6: Bài tập tổng hợp (Chụp kèm đề bài)"
+        "Bài 6: Định lý Thalès và Tam giác đồng dạng",
+        "Bài 7: Bài tập tổng hợp (Chụp kèm đề bài)"
     ])
 
     up_hw = st.file_uploader("📸 Chụp ảnh bài giải viết tay trong vở:", type=["jpg", "png", "jpeg"], key="hw_submit_img")
@@ -460,19 +495,19 @@ with tab2:
         elif not up_hw:
             st.warning("Em chưa tải ảnh bài làm lên!")
         else:
-            with st.spinner("Hệ thống đang chấm bài theo Rubric..."):
+            with st.spinner("Hệ thống đang chấm bài theo Rubric chuẩn..."):
                 hw_img = Image.open(up_hw)
                 RUBRIC = f"""
                 Bạn là Giám khảo chấm thi Toán THCS tại Việt Nam.
                 Đề bài: "{topic}".
                 Hãy đọc ảnh chụp bài làm tự luận viết tay và chấm điểm theo Rubric (Thang 10):
                 1. Hình vẽ (2.0 điểm): Đúng hình, ký hiệu góc, trung điểm.
-                2. Lập luận chứng minh (6.0 điểm): Căn cứ định lý, tính chất, dấu hiệu nhận biết, logic.
-                3. Trình bày & Kết luận (2.0 điểm): Rõ ràng, kết luận chuẩn.
+                2. Lập luận chứng minh (6.0 điểm): Căn cứ định lý, tính chất, dấu hiệu nhận biết, logic chặt chẽ.
+                3. Trình bày & Kết luận (2.0 điểm): Rõ ràng, đúng chuẩn sư phạm.
 
                 ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ:
                 - Tổng điểm: [Ghi điểm số]/10
-                - Nhận xét chi tiết:
+                - Nhận xét chi tiết: (Chỉ ra rõ chỗ làm tốt và lỗi sai nếu có)
                 """
                 score_res = execute_openrouter_request([RUBRIC, hw_img])
                 score_res_clean = clean_math_text(score_res)
@@ -505,12 +540,13 @@ with tab3:
         df = pd.DataFrame(st.session_state.submission_history)
         st.dataframe(df, use_container_width=True)
 
+        # Xuất file CSV hỗ trợ tiếng Việt UTF-8 BOM cho Excel và Google Sheets
         csv_data = df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
 
         st.write("---")
         st.markdown("**📥 Tải file để mở thẳng trên Google Sheets hoặc Excel:**")
         st.download_button(
-            label="📗 Tải file bảng điểm (.CSV cho Google Sheets)",
+            label="📗 Tải file bảng điểm (.CSV cho Google Sheets / Excel)",
             data=csv_data,
             file_name=f"Bang_Diem_HinhHoc8_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
             mime="text/csv",
