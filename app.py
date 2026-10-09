@@ -110,29 +110,32 @@ def clean_math_text(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
     
-    # 1. Sửa lỗi chính tả tiếng Việt
+    # 1. Dịch bỏ tiếng Anh và thuật ngữ ngoại lai
+    text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
+    
+    # 2. Sửa lỗi chính tả tiếng Việt
     text = re.sub(r"\btư giác\b", "tứ giác", text, flags=re.IGNORECASE)
     text = re.sub(r"\bTư giác\b", "Tứ giác", text)
 
-    # 2. Xóa các biến thể dính chữ trước tên góc
+    # 3. Xóa các biến thể dính chữ trước tên góc
     text = re.sub(r"góc\s*(?:tam giác|riangle|//|/|°)\s*", "góc ", text, flags=re.IGNORECASE)
 
-    # 3. Điểm thuộc đoạn thẳng (Q thuộc BC thay vì Q // BC)
+    # 4. Điểm thuộc đoạn thẳng (Q thuộc BC thay vì Q // BC)
     text = re.sub(r"\b([A-Z])\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 thuộc \2", text)
     text = text.replace(r"\in", " thuộc ")
 
-    # 4. Đoạn thẳng song song với đoạn thẳng (PM // BC)
+    # 5. Đoạn thẳng song song với đoạn thẳng (PM // BC)
     text = re.sub(r"\b([A-Z]{2})\s*(?:riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
     text = re.sub(r"\\?parallel", " // ", text)
 
-    # 5. Xử lý độ và số thứ tự bước (tránh bước 1°)
+    # 6. Xử lý độ và số thứ tự bước (tránh bước 1°)
     text = re.sub(r"bước\s*(\d+)°?", r"bước \1", text, flags=re.IGNORECASE)
     text = re.sub(r"\b(1[0-8]0|[3469]0)\s*(?:\^?\s*(?:circ|riangle|°)|(?=\s*[\.,\)\s]|$))(?!\s*(?:bước|cạnh|đoạn|tam giác))", r"\1°", text)
     text = text.replace("°°", "°")
     text = text.replace(r"^\circ", "°")
     text = text.replace("^circ", "°")
 
-    # 6. Các ký hiệu hình học khác
+    # 7. Các ký hiệu hình học khác
     text = re.sub(r"\\?t?riangle\s*", "tam giác ", text, flags=re.IGNORECASE)
     text = re.sub(r"\\?angle\s*", "góc ", text, flags=re.IGNORECASE)
     text = text.replace("riangle", " // ")
@@ -141,10 +144,10 @@ def clean_math_text(text: str) -> str:
     text = text.replace(r"\perp", " ⊥ ")
     text = text.replace("$", "")
 
-    # 7. Xử lý lại nếu còn sót cụm 'góc tam giác'
+    # 8. Xử lý lại nếu còn sót cụm 'góc tam giác'
     text = re.sub(r"góc\s+tam giác\s+([A-Z]{1,3})", r"góc \1", text, flags=re.IGNORECASE)
 
-    # 8. Xử lý các dạng góc có mũ \hat{A}
+    # 9. Xử lý các dạng góc có mũ \hat{A}
     text = re.sub(r"\\hat\{([A-Za-z0-9]+)\}", r"góc \1", text)
     
     # Dọn dẹp khoảng trắng thừa
@@ -152,30 +155,39 @@ def clean_math_text(text: str) -> str:
     return text.strip()
 
 GAME_PROMPT = """
-Bạn là Trợ lý Sư phạm Hình học Cấp cao của Cô Mai Phương. Bạn có tư duy của thủ khoa chuyên Toán, sư phạm chuẩn mực theo GDPT 2018.
+Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương, bạn có kiến thức hình học vững chắc, lập luận sắc bén, có khả năng sư phạm tốt, giảng bài dễ hiểu, là học sinh chuyên toán, thủ khoa đầu vào thi lên lớp 10 trường chuyên (theo chương trình GDPT 2018).
+Đối tượng học sinh: Học sinh lớp 8 (13-14 tuổi), học bộ sách kết nối tri thức, bộ sách chung của bộ giáo dục mới bạn hành năm 2026.
 
-MỤC TIÊU CỐT LÕI:
-Phân tích ảnh đề bài/hình vẽ, thiết kế chuỗi thử thách Socratic 3-4 bước:
-- BƯỚC 1 (NHẬN DIỆN & DỰNG HÌNH CHUẨN): Đưa ra thử thách về cách vẽ hình đúng hoặc đặc điểm hình vẽ chính xác nhất từ giả thiết (ví dụ: xác định vị trí chân đường cao, trung điểm, tính chất góc vuông ban đầu).
-- BƯỚC 2 (BẮC CẦU SUY LUẬN): Khai thác yếu tố trung gian (tam giác bằng nhau, tam giác vuông có trung tuyến, đường trung bình, tỉ số, hình bình hành...).
-- BƯỚC 3 / BƯỚC CUỐI (KẾT LUẬN & MỞ KHÓA): Về đích bài toán.
-ĐẶC BIỆT KHI is_finished = true:
-1. Viết bài giải mẫu mực (full_solution) chuẩn bảng đen môn Toán THCS.
-2. Sinh mã đồ họa vector SVG hoàn chỉnh (svg_code) vẽ lại chính xác hình của bài toán (viewBox 0 0 400 300, nét vẽ rõ, có tên các điểm A, B, C..., có ký hiệu góc vuông và đoạn thẳng).
+YÊU CẦU NGÔN NGỮ & SƯ PHẠM:
+1. Thân thiện, gần gũi, ngắn gọn, dễ hiểu như lời cô giáo giảng giải trên lớp.
+2. TUYỆT ĐỐI KHÔNG dùng từ ngữ triết học, sáo rỗng, hàn lâm (như: 'nền tảng đúng đắn', 'khởi đầu lập luận', 'tiền đề').
+3. TUYỆT ĐỐI KHÔNG chêm tiếng Anh (như: 'hypotenuse', 'triangle'). Dùng đúng từ SGK: 'cạnh huyền', 'đường trung tuyến', 'cạnh góc vuông'.
+4. NẾU CÓ TAM GIÁC CON: Phải nói rõ tên tam giác để học sinh không nhầm lẫn (ví dụ: 'Xét tam giác con AHB vuông tại H có cạnh huyền AB...').
+5. ĐỘ DÀI:
+   - Câu hỏi: Tối đa 2 câu, hỏi thẳng vào trọng tâm.
+   - Mỗi lựa chọn (options): Ngắn gọn 1 đến 2 dòng. TUYỆT ĐỐI KHÔNG ghi tiền tố 'A. ', 'B. ' ở đầu câu.
 
-QUY TẮC CÂU HỎI & PHƯƠNG ÁN:
-- Câu hỏi gãy gọn, nêu rõ căn cứ định lý.
-- Phương án: 1 đáp án chuẩn, 3 phương án nhiễu theo bẫy tư duy học sinh. KHÔNG gắn 'A. ', 'B. ' ở đầu options.
-- Ký hiệu: viết đúng 'tứ giác', 'tam giác', 'góc A', 'AB // CD', 'AB ⊥ CD'. KHÔNG dùng LaTeX phức tạp, không kẹp $.
+CẤU TRÚC 3 BƯỚC THỬ THÁCH (SOCRATIC SCAFFOLDING):
+- Bước 1 (Hình vẽ & Giả thiết cơ bản): Khai thác yếu tố quan trọng từ hình vẽ hoặc giả thiết (như: trung tuyến ứng với cạnh huyền, tam giác cân, đường cao).
+- Bước 2 (Bắc cầu suy luận): Dẫn dắt chứng minh quan hệ trung gian (cộng góc, hai tam giác bằng nhau, hình bình hành, đường trung bình).
+- Bước 3 (Kết luận): Đạt được điều cần chứng minh của đề bài.
+Khi is_finished = true:
+- Viết bài giải mẫu (full_solution) mẫu mực từng bước rõ ràng để học sinh ghi vào vở.
+- Sinh mã SVG (svg_code) vẽ lại hình bài toán (viewBox 0 0 400 300) có các điểm, đoạn thẳng và góc vuông rõ nét.
 
-BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
+ĐỊNH DẠNG JSON TRẢ VỀ:
 {
   "total_steps": 3,
-  "feedback": "Lời nhận xét động viên về câu trả lời trước",
-  "question": "Nội dung câu hỏi thử thách",
-  "options": ["Phương án 1", "Phương án 2", "Phương án 3", "Phương án 4"],
+  "feedback": "Khen ngợi/động viên ngắn 1 câu",
+  "question": "Câu hỏi ngắn gọn, gợi ý trực diện vào mắt xích cần tìm",
+  "options": [
+    "Phương án ngắn 1",
+    "Phương án ngắn 2",
+    "Phương án ngắn 3",
+    "Phương án ngắn 4"
+  ],
   "correct_index": 0,
-  "explanation": "Lời giải thích sư phạm chỉ rõ định lý và phân tích vì sao các phương án khác chưa chính xác",
+  "explanation": "Giải thích ngắn 2-3 câu vì sao đúng theo định lý nào trong SGK Toán 8",
   "is_finished": false,
   "full_solution": "",
   "svg_code": ""
@@ -228,7 +240,6 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
     text_out = res_data["choices"][0]["message"].get("content", "")
 
     if is_json:
-        # Bóc tách khối JSON an toàn
         match = re.search(r"\{[\s\S]*\}", text_out)
         if match:
             clean = match.group(0)
@@ -278,10 +289,10 @@ with tab1:
             st.image(st.session_state.img_data, caption="Hình vẽ bài toán đang giải", use_column_width=True)
 
         if st.session_state.img_data and st.session_state.card is None:
-            if st.button("🚀 Bắt đầu nhận Thử thách Bước 1 (Dựng hình & Khai thác GT)!", type="primary", use_container_width=True):
+            if st.button("🚀 Bắt đầu nhận Thử thách Bước 1!", type="primary", use_container_width=True):
                 with st.spinner("Đợi cô một chút..."):
                     try:
-                        p_start = "Tạo câu hỏi thử thách Bước 1 tập trung vào nhận diện/dựng hình vẽ chuẩn và khai thác yếu tố khởi đầu từ giả thiết."
+                        p_start = "Tạo câu hỏi thử thách Bước 1 ngắn gọn, tập trung khai thác giả thiết khởi đầu."
                         c_data = execute_openrouter_request([st.session_state.img_data, p_start], GAME_PROMPT, is_json=True)
                         st.session_state.card = c_data
                         st.session_state.total_steps = c_data.get("total_steps", 3)
@@ -363,7 +374,6 @@ with tab1:
                 </div>
                 """, unsafe_allow_html=True)
 
-                # Hiển thị hình vẽ SVG nếu có
                 if st.session_state.reward_svg and "<svg" in st.session_state.reward_svg:
                     st.markdown("#### 📐 Hình vẽ minh họa chuẩn xác:")
                     clean_svg = re.search(r"<svg[\s\S]*?</svg>", st.session_state.reward_svg)
@@ -377,6 +387,7 @@ with tab1:
                 if st.button("➡️ Sang thử thách tiếp theo", type="primary", use_container_width=True):
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. 
+                        Nhớ giữ câu hỏi và 4 phương án ngắn gọn, dễ hiểu cho học sinh lớp 8.
                         Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải vào full_solution và sinh mã vẽ hình vào svg_code."""
                         try:
                             st.session_state.card = execute_openrouter_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
