@@ -92,18 +92,35 @@ if not API_KEY:
     st.error("Chưa cấu hình biến OPENROUTER_API_KEY trong Secrets của Streamlit!")
     st.stop()
 
-# Dùng mô hình Gemini qua OpenRouter (Hỗ trợ xử lý ảnh mượt mà)
+# Bộ định tuyến tự động mô hình có hỗ trợ đọc ảnh
 MODEL_NAME = "openrouter/free"
 
+# HÀM LỌC VÀ CHUẨN HÓA KÝ HIỆU TOÁN HỌC TRÁNH LỖI FONT
+def clean_math_text(text: str) -> str:
+    if not text:
+        return ""
+    replacements = {
+        r"Île\s*": "góc ",
+        r"\^([A-Za-z0-9]+)": r"góc \1",
+        r"\hat{([A-Za-z0-9]+)}": r"góc \1",
+        r"\\angle\s*([A-Za-z0-9]+)": r"góc \1",
+        r"\perp": " ⊥ ",
+        r"£": " ⊥ ",
+        r"\$": ""  # Bỏ dấu $ gây lỗi ngắt chữ
+    }
+    for old, new in replacements.items():
+        text = re.sub(old, new, text)
+    return text
+
 GAME_PROMPT = """
-Bạn là Trợ lý Sư phạm Game Hóa Hình học 8 (Cô Phương).
-Nhiệm vụ: Phân tích ảnh đề bài/hình vẽ, chia bài toán thành 2 đến 4 bước thử thách tư duy nhỏ.
+Bạn là Trợ lý Sư phạm Game Hóa Hình học 8 (Cô Mai Phương).
+Nhiệm vụ: Phân tích ảnh đề bài/hình vẽ, chia bài toán thành 2 đến 4 bước thử thách tư duy gợi mở (Socratic).
 Tạo câu hỏi trắc nghiệm 4 lựa chọn cho bước hiện tại.
 ĐẶC BIỆT: Nếu là bước cuối cùng (hoặc is_finished = true), hãy viết kèm một bài giải hoàn chỉnh, mẫu mực sư phạm từng bước làm phần thưởng.
 
 QUY TẮC KÝ HIỆU TOÁN HỌC:
-- Các tên đỉnh, đoạn thẳng, tam giác viết in hoa bình thường (AB, CD, tam giác ABC), không kẹp dấu $ vào từng chữ cái.
-- Chỉ dùng ký hiệu thông thường hoặc LaTeX đơn giản nếu thật sự cần thiết.
+- Các tên đỉnh, đoạn thẳng, tam giác viết in hoa bình thường (AB, CD, tam giác ABC), tuyệt đối không kẹp dấu $ vào từng chữ cái.
+- Viết rõ từ 'góc A', 'góc B', dùng ký hiệu '⊥', '//' trực tiếp, không dùng mã LaTeX phức tạp.
 
 BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU ĐÂY:
 {
@@ -199,7 +216,7 @@ with tab1:
         st.session_state.reward = None
 
     with st.expander("📸 Đề bài / Hình vẽ bài toán", expanded=(st.session_state.card is None)):
-        up_img = st.file_uploader("Tải/chụp ảnh bài tập cần gợi ý lên đây:", type=["jpg", "png", "jpeg"], key="up_game_img")
+        up_img = st.file_uploader("Tải/chụp ảnh bài tập cần chú ý lên đây:", type=["jpg", "png", "jpeg"], key="up_game_img")
         if up_img:
             st.session_state.img_data = Image.open(up_img)
             st.image(st.session_state.img_data, caption="Hình vẽ bài toán đang giải", use_column_width=True)
@@ -226,11 +243,11 @@ with tab1:
         st.progress(progress_val)
 
         st.markdown(f'<span class="step-badge">CỬA ẢI: BƯỚC {curr} / {total}</span>', unsafe_allow_html=True)
-        fb = card.get("feedback", "")
+        fb = clean_math_text(card.get("feedback", ""))
         if fb:
             st.info(f"💡 {fb}")
 
-        st.markdown(f"#### 🎯 {card.get('question', '')}")
+        st.markdown(f"#### 🎯 {clean_math_text(card.get('question', ''))}")
         st.write("")
 
         opts = card.get("options", [])
@@ -239,7 +256,7 @@ with tab1:
         if not st.session_state.answered:
             st.markdown("**👉 Em hãy bấm chọn một đáp án đúng nhất:**")
             for idx, opt in enumerate(opts):
-                clean_opt = opt.replace("$", "")
+                clean_opt = clean_math_text(opt)
                 label = f"{chr(65+idx)}. {clean_opt}"
                 if st.button(label, key=f"btn_choice_{idx}", use_container_width=True):
                     st.session_state.answered = True
@@ -247,8 +264,8 @@ with tab1:
                     st.rerun()
         else:
             sel = st.session_state.selected_idx
-            sel_text = opts[sel] if (sel is not None and sel < len(opts)) else ""
-            correct_text = opts[correct] if correct < len(opts) else ""
+            sel_text = clean_math_text(opts[sel]) if (sel is not None and sel < len(opts)) else ""
+            correct_text = clean_math_text(opts[correct]) if correct < len(opts) else ""
 
             if sel == correct:
                 st.success("🎉 **Chính xác!** Em đã chọn đáp án đúng.")
@@ -256,7 +273,7 @@ with tab1:
                 st.error("❌ **Chưa chính xác.**")
                 st.markdown(f"Đáp án đúng là: **{chr(65+correct)}. {correct_text}**")
 
-            st.markdown(f"**💡 Hướng suy luận:** {card.get('explanation', '')}")
+            st.markdown(f"**💡 Hướng suy luận:** {clean_math_text(card.get('explanation', ''))}")
 
             is_finish = card.get("is_finished") or (curr >= total)
 
@@ -270,7 +287,7 @@ with tab1:
                         with st.spinner("Đang mở khóa bài giải mẫu phần thưởng..."):
                             p_sol = "Hãy viết bài giải hoàn chỉnh, mẫu mực sư phạm môn Toán 8 từng bước rõ ràng cho bài toán này để học sinh đối chiếu ghi vào vở."
                             sol = execute_openrouter_request([st.session_state.img_data, p_sol])
-                    st.session_state.reward = sol
+                    st.session_state.reward = clean_math_text(sol)
 
                 st.markdown("""
                 <div class="reward-box">
@@ -280,7 +297,7 @@ with tab1:
                 """, unsafe_allow_html=True)
 
                 st.markdown(st.session_state.reward)
-                st.success("📝 **Bước tiếp theo:** Hãy chuyển sang tab **'Nộp Bài Tập & Chấm Điểm'** ở trên để chụp ảnh bài vở nộp cô chấm nhé!")
+                st.success("📝 **Bước tiếp theo:** Hãy chuyển sang tab **'Nộp Bài Tập'** ở trên để chụp ảnh bài vở nộp cô chấm nhé!")
             else:
                 st.write("")
                 if st.button("➡️ Sang thử thách tiếp theo", type="primary", use_container_width=True):
@@ -351,8 +368,9 @@ with tab2:
                 - Nhận xét chi tiết:
                 """
                 score_res = execute_openrouter_request([RUBRIC, hw_img])
+                score_res_clean = clean_math_text(score_res)
 
-                score_match = re.search(r"(\d+(\.\d+)?)/10", score_res)
+                score_match = re.search(r"(\d+(\.\d+)?)/10", score_res_clean)
                 extracted_score = score_match.group(1) if score_match else "Chưa xác định"
 
                 sub_record = {
@@ -361,13 +379,13 @@ with tab2:
                     "Lớp": s_class,
                     "Bài tập": topic,
                     "Điểm số": extracted_score,
-                    "Nhận xét của AI": score_res.replace("\n", " ")
+                    "Nhận xét của AI": score_res_clean.replace("\n", " ")
                 }
                 st.session_state.submission_history.append(sub_record)
 
                 st.success("Đã hoàn tất chấm bài và lưu kết quả vào sổ điểm!")
                 st.markdown(f"### Kết quả của: **{s_name}** - Lớp **{s_class}**")
-                st.markdown(score_res)
+                st.markdown(score_res_clean)
 
 # ================= TAB 3: BẢNG ĐIỂM & XUẤT GOOGLE SHEETS =================
 with tab3:
