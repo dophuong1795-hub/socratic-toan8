@@ -3,7 +3,6 @@ import requests
 from PIL import Image
 import json
 import re
-import random
 import base64
 import io
 import pandas as pd
@@ -11,7 +10,7 @@ from datetime import datetime
 
 # Cấu hình giao diện Streamlit
 st.set_page_config(
-    page_title="Đấu Trường Hình Học 8 - Cô Phương",
+    page_title="Đấu Trường Hình Học - Cô Mai Phương",
     page_icon="📐",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -87,14 +86,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Lấy danh sách khóa từ Secrets
-raw_keys = st.secrets.get("GEMINI_KEYS") or [st.secrets.get("GEMINI_API_KEY")]
-if not raw_keys or not raw_keys[0]:
-    st.error("Chưa cấu hình API Key trong Secrets của Streamlit!")
+# Lấy OpenRouter API Key
+API_KEY = st.secrets.get("OPENROUTER_API_KEY")
+if not API_KEY:
+    st.error("Chưa cấu hình biến OPENROUTER_API_KEY trong Secrets của Streamlit!")
     st.stop()
 
-AVAILABLE_KEYS = [k for k in raw_keys if k]
-MODEL_NAME = "gemini-2.5-flash"
+# Dùng mô hình Gemini qua OpenRouter (Hỗ trợ xử lý ảnh mượt mà)
+MODEL_NAME = "google/gemini-2.0-flash-exp:free"
 
 GAME_PROMPT = """
 Bạn là Trợ lý Sư phạm Game Hóa Hình học 8 (Cô Phương).
@@ -119,59 +118,55 @@ BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU ĐÂY:
 }
 """
 
-# HÀM GỌI GEMINI REST API CHẤP NHẬN MÃ KHÓA QUA URL PARAMETER
-def execute_gemini_request(inputs, system_prompt=None, is_json=False):
-    shuffled_keys = AVAILABLE_KEYS.copy()
-    random.shuffle(shuffled_keys)
-    last_err = None
+def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://streamlit.io",
+        "X-Title": "Socratic Geometry Game"
+    }
 
-    parts = []
-    if system_prompt:
-        parts.append({"text": f"HƯỚNG DẪN HỆ THỐNG:\n{system_prompt}\n---\n"})
-
+    content_parts = []
     for item in inputs:
         if isinstance(item, str):
-            parts.append({"text": item})
+            content_parts.append({"type": "text", "text": item})
         elif isinstance(item, Image.Image):
             buffered = io.BytesIO()
             img_format = item.format if item.format else "PNG"
             item.save(buffered, format=img_format)
             img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-            parts.append({
-                "inline_data": {
-                    "mime_type": f"image/{img_format.lower()}",
-                    "data": img_b64
+            content_parts.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/{img_format.lower()};base64,{img_b64}"
                 }
             })
 
-    payload = {"contents": [{"parts": parts}]}
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": content_parts})
+
+    payload = {
+        "model": MODEL_NAME,
+        "messages": messages
+    }
     if is_json:
-        payload["generationConfig"] = {"responseMimeType": "application/json"}
+        payload["response_format"] = {"type": "json_object"}
 
-    for key in shuffled_keys:
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_NAME}:generateContent?key={key}"
-            headers = {"Content-Type": "application/json"}
-            resp = requests.post(url, headers=headers, json=payload, timeout=50)
+    resp = requests.post(url, headers=headers, json=payload, timeout=60)
+    if resp.status_code != 200:
+        raise Exception(f"Lỗi OpenRouter ({resp.status_code}): {resp.text}")
 
-            if resp.status_code == 200:
-                res_data = resp.json()
-                text_out = res_data["candidates"][0]["content"]["parts"][0]["text"]
-                if is_json:
-                    clean = re.sub(r"^```json\s*|^```\s*|```$", "", text_out.strip(), flags=re.MULTILINE)
-                    match = re.search(r"\{.*\}", clean, re.DOTALL)
-                    return json.loads(match.group(0) if match else clean)
-                return text_out
-            else:
-                last_err = resp.text
-                continue
-        except Exception as e:
-            last_err = e
-            continue
+    res_data = resp.json()
+    text_out = res_data["choices"][0]["message"]["content"]
 
     if is_json:
-        raise Exception(f"Lỗi phản hồi API: {last_err}")
-    return f"Lỗi: {last_err}"
+        clean = re.sub(r"^```json\s*|^```\s*|```$", "", text_out.strip(), flags=re.MULTILINE)
+        match = re.search(r"\{.*\}", clean, re.DOTALL)
+        return json.loads(match.group(0) if match else clean)
+    return text_out
 
 if "submission_history" not in st.session_state:
     st.session_state.submission_history = []
@@ -180,11 +175,11 @@ if "submission_history" not in st.session_state:
 st.markdown("""
 <div class="hero-banner">
     <h1>📐 ĐẤU TRƯỜNG HÌNH HỌC 8</h1>
-    <p>Học toán gợi mở cùng cô Phương • Chinh phục thử thách từng bước</p>
+    <p>Học toán gợi mở cùng cô Mai Phương • Chinh phục thử thách từng bước</p>
 </div>
 """, unsafe_allow_html=True)
 
-tab1, tab2, tab3 = st.tabs(["🎮 Thử thách hình học", "📝 Nộp Bài", "📊 Bảng Điểm"])
+tab1, tab2, tab3 = st.tabs(["🎮 Thử thách hình học", "📝 Nộp Bài Tập", "📊 Bảng Điểm"])
 
 # ================= TAB 1: GAME TƯƠNG TÁC =================
 with tab1:
@@ -211,9 +206,9 @@ with tab1:
 
         if st.session_state.img_data and st.session_state.card is None:
             if st.button("🚀 Bắt đầu nhận Thử thách Bước 1!", type="primary", use_container_width=True):
-                with st.spinner("Cô đang quan sát hình vẽ để tạo thử thách..."):
+                with st.spinner("Đợi cô một chút..."):
                     try:
-                        c_data = execute_gemini_request([st.session_state.img_data, "Tạo câu hỏi thử thách Bước 1 cho bài toán trong ảnh."], GAME_PROMPT, is_json=True)
+                        c_data = execute_openrouter_request([st.session_state.img_data, "Tạo câu hỏi thử thách Bước 1 cho bài toán trong ảnh."], GAME_PROMPT, is_json=True)
                         st.session_state.card = c_data
                         st.session_state.total_steps = c_data.get("total_steps", 3)
                         st.session_state.step = 1
@@ -274,7 +269,7 @@ with tab1:
                     if not sol:
                         with st.spinner("Đang mở khóa bài giải mẫu phần thưởng..."):
                             p_sol = "Hãy viết bài giải hoàn chỉnh, mẫu mực sư phạm môn Toán 8 từng bước rõ ràng cho bài toán này để học sinh đối chiếu ghi vào vở."
-                            sol = execute_gemini_request([st.session_state.img_data, p_sol])
+                            sol = execute_openrouter_request([st.session_state.img_data, p_sol])
                     st.session_state.reward = sol
 
                 st.markdown("""
@@ -292,7 +287,7 @@ with tab1:
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. Nếu đây là bước kết luận bài toán, hãy đặt is_finished = true và viết bài giải mẫu vào full_solution."
                         try:
-                            st.session_state.card = execute_gemini_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
+                            st.session_state.card = execute_openrouter_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
                             st.session_state.step += 1
                             st.session_state.answered = False
                             st.session_state.selected_idx = None
@@ -322,7 +317,7 @@ with tab2:
     with c1:
         s_name = st.text_input("Họ và tên học sinh:")
     with c2:
-        s_class = st.selectbox("Lớp:", ["8A1", "8A2", "8A9", "8A13"])
+        s_class = st.selectbox("Lớp:", ["8A13", "8A18"])
 
     topic = st.selectbox("Chọn dạng bài tập nộp:", [
         "Bài 1: Hình thang cân (Chụp kèm đề bài)",
@@ -355,7 +350,7 @@ with tab2:
                 - Tổng điểm: [Ghi điểm số]/10
                 - Nhận xét chi tiết:
                 """
-                score_res = execute_gemini_request([RUBRIC, hw_img])
+                score_res = execute_openrouter_request([RUBRIC, hw_img])
 
                 score_match = re.search(r"(\d+(\.\d+)?)/10", score_res)
                 extracted_score = score_match.group(1) if score_match else "Chưa xác định"
