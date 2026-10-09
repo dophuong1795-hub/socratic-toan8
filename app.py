@@ -83,6 +83,16 @@ st.markdown("""
         padding: 20px;
         margin-top: 15px;
     }
+    .svg-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #FFFFFF;
+        border: 1px solid #CBD5E1;
+        border-radius: 12px;
+        padding: 15px;
+        margin: 15px 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -104,14 +114,14 @@ def clean_math_text(text: str) -> str:
     text = re.sub(r"\btư giác\b", "tứ giác", text, flags=re.IGNORECASE)
     text = re.sub(r"\bTư giác\b", "Tứ giác", text)
 
-    # 2. Xóa các biến thể dính chữ trước tên góc (như góc tam giác PCQ -> góc PCQ)
+    # 2. Xóa các biến thể dính chữ trước tên góc
     text = re.sub(r"góc\s*(?:tam giác|riangle|//|/|°)\s*", "góc ", text, flags=re.IGNORECASE)
 
     # 3. Điểm thuộc đoạn thẳng (Q thuộc BC thay vì Q // BC)
     text = re.sub(r"\b([A-Z])\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 thuộc \2", text)
     text = text.replace(r"\in", " thuộc ")
 
-    # 4. Đoạn thẳng song song với đoạn thẳng (2 chữ cái với 2 chữ cái: PM // BC)
+    # 4. Đoạn thẳng song song với đoạn thẳng (PM // BC)
     text = re.sub(r"\b([A-Z]{2})\s*(?:riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
     text = re.sub(r"\\?parallel", " // ", text)
 
@@ -125,6 +135,7 @@ def clean_math_text(text: str) -> str:
     # 6. Các ký hiệu hình học khác
     text = re.sub(r"\\?t?riangle\s*", "tam giác ", text, flags=re.IGNORECASE)
     text = re.sub(r"\\?angle\s*", "góc ", text, flags=re.IGNORECASE)
+    text = text.replace("riangle", " // ")
     text = text.replace("Île", "góc ")
     text = text.replace("£", " ⊥ ")
     text = text.replace(r"\perp", " ⊥ ")
@@ -139,60 +150,35 @@ def clean_math_text(text: str) -> str:
     # Dọn dẹp khoảng trắng thừa
     text = re.sub(r"\s+", " ", text)
     return text.strip()
+
 GAME_PROMPT = """
-VAI TRÒ & ĐẲNG CẤP CHUYÊN MÔN:
-Bạn là Trợ lý Sư phạm toán Hình học Cấp cao của Cô Mai Phương. Bạn sở hữu tư duy của một Cựu thủ khoa chuyên Toán, kết hợp phương pháp sư phạm gợi mở Socratic chuẩn mực theo Chương trình GDPT 2018.
+Bạn là Trợ lý Sư phạm Hình học Cấp cao của Cô Mai Phương. Bạn có tư duy của thủ khoa chuyên Toán, sư phạm chuẩn mực theo GDPT 2018.
 
 MỤC TIÊU CỐT LÕI:
-Không giải hộ, không đưa câu hỏi ngẫu nhiên. Nhiệm vụ của bạn là bóc tách bài toán hình học trong ảnh thành một chuỗi tư duy giải toán chặt chẽ (Scaffolding Chain) gồm 2 đến 4 bước, dẫn dắt học sinh tự mình tìm ra chân lý thông qua phương pháp phân tích đi lên (suy luận ngược).
+Phân tích ảnh đề bài/hình vẽ, thiết kế chuỗi thử thách Socratic 3-4 bước:
+- BƯỚC 1 (NHẬN DIỆN & DỰNG HÌNH CHUẨN): Đưa ra thử thách về cách vẽ hình đúng hoặc đặc điểm hình vẽ chính xác nhất từ giả thiết (ví dụ: xác định vị trí chân đường cao, trung điểm, tính chất góc vuông ban đầu).
+- BƯỚC 2 (BẮC CẦU SUY LUẬN): Khai thác yếu tố trung gian (tam giác bằng nhau, tam giác vuông có trung tuyến, đường trung bình, tỉ số, hình bình hành...).
+- BƯỚC 3 / BƯỚC CUỐI (KẾT LUẬN & MỞ KHÓA): Về đích bài toán.
+ĐẶC BIỆT KHI is_finished = true:
+1. Viết bài giải mẫu mực (full_solution) chuẩn bảng đen môn Toán THCS.
+2. Sinh mã đồ họa vector SVG hoàn chỉnh (svg_code) vẽ lại chính xác hình của bài toán (viewBox 0 0 400 300, nét vẽ rõ, có tên các điểm A, B, C..., có ký hiệu góc vuông và đoạn thẳng).
 
-QUY TRÌNH PHÂN TÍCH HÌNH HỌC TRƯỚC KHI TẠO BƯỚC ĐI:
-1. Xác định cấu trúc bài toán: Giả thiết (GT) cho gì? Kết luận (KL) đòi hỏi gì?
-2. Thiết lập chuỗi suy luận ngược (Analysis):
-   - Để đạt được KL cuối, ta cần mắt xích trung gian nào?
-   - Mắt xích đó bắt nguồn từ định lý, dấu hiệu hay tính chất nào gắn liền với GT?
-3. Chia nhỏ thành các bước Socratic logic:
-   - Bước 1 (Khai thác GT sơ cấp): Tìm quan hệ bằng nhau, song song, đồng quy, thẳng hàng từ các yếu tố trực tiếp (tam giác cân, vuông cân, đường trung bình, tỉ số...).
-   - Bước 2 (Bắc cầu hình học): Nhận diện cấu trúc trung gian (chứng minh hình bình hành, hai tam giác bằng nhau/đồng dạng, tứ giác nội tiếp...).
-   - Bước 3 / Bước cuối (Đột phá về đích): Kích hoạt điều kiện quyết định để kết luận bài toán.
-
-QUY TẮC THIẾT KẾ CÂU HỎI & BẪY PHƯƠNG ÁN (DISTRACTORS):
-1. Câu hỏi dẫn dắt (Question):
-   - Phải gãy gọn, giàu tính định hướng tư duy, nêu rõ căn cứ định lý hoặc câu hỏi bản chất.
-   - Ví dụ chuẩn mực: "Để chứng minh tứ giác PCQM là hình bình hành từ cặp cạnh đối PM và CQ, căn cứ vào dấu hiệu nhận biết ta cần chỉ ra điều gì?" thay vì hỏi mơ hồ.
-2. Thiết kế 4 phương án trắc nghiệm:
-   - Có DUY NHẤT 1 phương án chuẩn xác về mặt logic suy luận ở bước hiện tại.
-   - 3 phương án nhiễu BẮT BUỘC mô phỏng các sai lầm kinh điển của học sinh:
-     + Bẫy vội vàng / Thiếu điều kiện: Kết luận hình cấp cao khi mới đủ điều kiện hình cấp thấp (ví dụ: vội kết luận hình chữ nhật khi chưa là hình bình hành).
-     + Bẫy ngộ nhận trực giác: Khẳng định tính chất nhìn có vẻ đúng trên hình vẽ nhưng chưa được chứng minh.
-     + Bẫy ngộ nhận định lý đảo: Suy ngược chiều logic toán học.
-   - TUYỆT ĐỐI KHÔNG ghi tiền tố 'A. ', 'B. ', 'C. ', 'D. ' ở đầu câu. Chỉ ghi thuần nội dung phương án.
-3. Hướng dẫn giải thích (Explanation) - Tinh thần Thủ khoa:
-   - Khẳng định định lý/tính chất được dùng với lập luận đanh thép.
-   - Vạch trần ngay lý do sai của các phương án nhiễu để học sinh hiểu sâu bản chất, khắc phục triệt để thói quen đoán mò.
-4. Bài giải mẫu phần thưởng (Full Solution) khi is_finished = true:
-   - Trình bày mẫu mực như bài thi HSG: Có "Chứng minh:", từng bước xuống dòng logic, mở ngoặc ghi rõ căn cứ định lý (gt, c-g-c, tính chất HBH...), kết luận rõ ràng.
-
-QUY TẮC NGÔN NGỮ & KÝ HIỆU HÌNH HỌC (CHỐNG LỖI HIỂN THỊ):
-- Tiếng Việt chuẩn mực: Viết đúng 'tứ giác', 'tam giác', 'hình bình hành', 'hình chữ nhật', 'hình thoi', 'hình vuông'.
-- Điểm thuộc đoạn thẳng: ghi 'thuộc' hoặc 'nằm trên' (Q thuộc BC), TUYỆT ĐỐI KHÔNG ghi điểm song song đoạn (như Q // BC).
-- Ký hiệu thuần túy: viết 'góc A', 'góc PCQ = 90°', 'AB // CD', 'AB ⊥ CD', 'tam giác ABC'. TUYỆT ĐỐI KHÔNG dùng LaTeX phức tạp, không kẹp $, không dùng từ 'riangle'.
+QUY TẮC CÂU HỎI & PHƯƠNG ÁN:
+- Câu hỏi gãy gọn, nêu rõ căn cứ định lý.
+- Phương án: 1 đáp án chuẩn, 3 phương án nhiễu theo bẫy tư duy học sinh. KHÔNG gắn 'A. ', 'B. ' ở đầu options.
+- Ký hiệu: viết đúng 'tứ giác', 'tam giác', 'góc A', 'AB // CD', 'AB ⊥ CD'. KHÔNG dùng LaTeX phức tạp, không kẹp $.
 
 BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
 {
   "total_steps": 3,
-  "feedback": "Lời nhận xét/khích lệ sắc sảo về câu trả lời ở bước trước",
-  "question": "Nội dung câu hỏi thử thách dẫn dắt tư duy",
-  "options": [
-    "Phương án 1",
-    "Phương án 2",
-    "Phương án 3",
-    "Phương án 4"
-  ],
+  "feedback": "Lời nhận xét động viên về câu trả lời trước",
+  "question": "Nội dung câu hỏi thử thách",
+  "options": ["Phương án 1", "Phương án 2", "Phương án 3", "Phương án 4"],
   "correct_index": 0,
-  "explanation": "Lời giải thích sư phạm chặt chẽ, chỉ rõ định lý và phân tích bẫy sai lầm của các phương án khác",
+  "explanation": "Lời giải thích sư phạm chỉ rõ định lý và phân tích vì sao các phương án khác chưa chính xác",
   "is_finished": false,
-  "full_solution": ""
+  "full_solution": "",
+  "svg_code": ""
 }
 """
 
@@ -211,8 +197,8 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
             content_parts.append({"type": "text", "text": item})
         elif isinstance(item, Image.Image):
             buffered = io.BytesIO()
-            img_format = item.format if item.format else "PNG"
-            item.save(buffered, format=img_format)
+            img_format = "JPEG" if item.format == "JPEG" else "PNG"
+            item.convert("RGB").save(buffered, format=img_format)
             img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
             content_parts.append({
                 "type": "image_url",
@@ -230,20 +216,27 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
         "model": MODEL_NAME,
         "messages": messages
     }
-    if is_json:
-        payload["response_format"] = {"type": "json_object"}
 
     resp = requests.post(url, headers=headers, json=payload, timeout=60)
     if resp.status_code != 200:
         raise Exception(f"Lỗi OpenRouter ({resp.status_code}): {resp.text}")
 
     res_data = resp.json()
-    text_out = res_data["choices"][0]["message"]["content"]
+    if not res_data.get("choices") or not res_data["choices"][0].get("message"):
+        raise Exception("Mô hình không trả về nội dung, vui lòng thử lại!")
+
+    text_out = res_data["choices"][0]["message"].get("content", "")
 
     if is_json:
-        clean = re.sub(r"^```json\s*|^```\s*|```$", "", text_out.strip(), flags=re.MULTILINE)
-        match = re.search(r"\{.*\}", clean, re.DOTALL)
-        return json.loads(match.group(0) if match else clean)
+        # Bóc tách khối JSON an toàn
+        match = re.search(r"\{[\s\S]*\}", text_out)
+        if match:
+            clean = match.group(0)
+            return json.loads(clean)
+        else:
+            clean = re.sub(r"^```json\s*|^```\s*|```$", "", text_out.strip(), flags=re.MULTILINE)
+            return json.loads(clean)
+            
     return text_out
 
 if "submission_history" not in st.session_state:
@@ -275,6 +268,8 @@ with tab1:
         st.session_state.img_data = None
     if "reward" not in st.session_state:
         st.session_state.reward = None
+    if "reward_svg" not in st.session_state:
+        st.session_state.reward_svg = None
 
     with st.expander("📸 Đề bài / Hình vẽ bài toán", expanded=(st.session_state.card is None)):
         up_img = st.file_uploader("Tải/chụp ảnh bài tập cần chú ý lên đây:", type=["jpg", "png", "jpeg"], key="up_game_img")
@@ -283,15 +278,17 @@ with tab1:
             st.image(st.session_state.img_data, caption="Hình vẽ bài toán đang giải", use_column_width=True)
 
         if st.session_state.img_data and st.session_state.card is None:
-            if st.button("🚀 Bắt đầu nhận Thử thách Bước 1!", type="primary", use_container_width=True):
+            if st.button("🚀 Bắt đầu nhận Thử thách Bước 1 (Dựng hình & Khai thác GT)!", type="primary", use_container_width=True):
                 with st.spinner("Đợi cô một chút..."):
                     try:
-                        c_data = execute_openrouter_request([st.session_state.img_data, "Tạo câu hỏi thử thách Bước 1 cho bài toán trong ảnh."], GAME_PROMPT, is_json=True)
+                        p_start = "Tạo câu hỏi thử thách Bước 1 tập trung vào nhận diện/dựng hình vẽ chuẩn và khai thác yếu tố khởi đầu từ giả thiết."
+                        c_data = execute_openrouter_request([st.session_state.img_data, p_start], GAME_PROMPT, is_json=True)
                         st.session_state.card = c_data
                         st.session_state.total_steps = c_data.get("total_steps", 3)
                         st.session_state.step = 1
                         st.session_state.answered = False
                         st.session_state.reward = None
+                        st.session_state.reward_svg = None
                         st.rerun()
                     except Exception as err:
                         st.error(f"Lỗi nạp thử thách: {err}")
@@ -333,7 +330,7 @@ with tab1:
             correct_text = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", correct_text)
 
             if sel == correct:
-                st.success("🎉 **Chính xác!** Em đã chọn đáp án đúng.")
+                st.success("🎉 **Chính xác!** Em đã lựa chọn tư duy chuẩn xác.")
             else:
                 st.error("❌ **Chưa chính xác.**")
                 st.markdown(f"Đáp án đúng là: **{chr(65+correct)}. {correct_text}**")
@@ -344,22 +341,34 @@ with tab1:
 
             if is_finish:
                 st.balloons()
-                st.success("🏆 **XUẤT SẮC! Em đã hoàn thành toàn bộ sơ đồ chứng minh!**")
+                st.success("🏆 **XUẤT SẮC! Em đã hoàn thành trọn vẹn bài toán!**")
 
                 if not st.session_state.reward:
                     sol = card.get("full_solution", "")
+                    svg = card.get("svg_code", "")
                     if not sol:
-                        with st.spinner("Đang mở khóa bài giải mẫu phần thưởng..."):
-                            p_sol = "Hãy viết bài giải hoàn chỉnh, mẫu mực sư phạm môn Toán 8 từng bước rõ ràng cho bài toán này để học sinh đối chiếu ghi vào vở."
-                            sol = execute_openrouter_request([st.session_state.img_data, p_sol])
+                        with st.spinner("Đang mở khóa bài giải và hình vẽ chuẩn..."):
+                            p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh và kèm theo mã SVG chuẩn vẽ lại hình bài toán này.
+                            Trả về JSON: {"full_solution": "...", "svg_code": "<svg ...>...</svg>"}"""
+                            res_final = execute_openrouter_request([st.session_state.img_data, p_sol], is_json=True)
+                            sol = res_final.get("full_solution", "")
+                            svg = res_final.get("svg_code", "")
                     st.session_state.reward = clean_math_text(sol)
+                    st.session_state.reward_svg = svg
 
                 st.markdown("""
                 <div class="reward-box">
-                    <h3 style="color: #15803D; margin-top:0;">🎁 PHẦN THƯỞNG: BÀI GIẢI MẪU HOÀN CHỈNH</h3>
-                    <p style="color: #166534; font-size: 14px;">Em hãy đối chiếu các bước suy luận và trình bày thật đẹp vào vở nhé!</p>
+                    <h3 style="color: #15803D; margin-top:0;">🎁 PHẦN THƯỞNG: HÌNH VẼ & BÀI GIẢI MẪU HOÀN CHỈNH</h3>
+                    <p style="color: #166534; font-size: 14px;">Em hãy quan sát hình vẽ chuẩn, đối chiếu lập luận và trình bày thật đẹp vào vở nhé!</p>
                 </div>
                 """, unsafe_allow_html=True)
+
+                # Hiển thị hình vẽ SVG nếu có
+                if st.session_state.reward_svg and "<svg" in st.session_state.reward_svg:
+                    st.markdown("#### 📐 Hình vẽ minh họa chuẩn xác:")
+                    clean_svg = re.search(r"<svg[\s\S]*?</svg>", st.session_state.reward_svg)
+                    if clean_svg:
+                        st.markdown(f'<div class="svg-container">{clean_svg.group(0)}</div>', unsafe_allow_html=True)
 
                 st.markdown(st.session_state.reward)
                 st.success("📝 **Bước tiếp theo:** Hãy chuyển sang tab **'Nộp Bài Tập'** ở trên để chụp ảnh bài vở nộp cô chấm nhé!")
@@ -367,7 +376,8 @@ with tab1:
                 st.write("")
                 if st.button("➡️ Sang thử thách tiếp theo", type="primary", use_container_width=True):
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
-                        p_next = f"Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. Nếu đây là bước kết luận bài toán, hãy đặt is_finished = true và viết bài giải mẫu vào full_solution."
+                        p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. 
+                        Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải vào full_solution và sinh mã vẽ hình vào svg_code."""
                         try:
                             st.session_state.card = execute_openrouter_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
                             st.session_state.step += 1
@@ -385,6 +395,7 @@ with tab1:
             st.session_state.selected_idx = None
             st.session_state.img_data = None
             st.session_state.reward = None
+            st.session_state.reward_svg = None
             st.rerun()
 
 # ================= TAB 2: NỘP BÀI & CHẤM ĐIỂM =================
