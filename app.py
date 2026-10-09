@@ -95,21 +95,19 @@ if not API_KEY:
 # Bộ định tuyến tự động mô hình có hỗ trợ đọc ảnh
 MODEL_NAME = "openrouter/free"
 
-# HÀM LỌC VÀ CHUẨN HÓA KÝ HIỆU TOÁN HỌC TRÁNH LỖI FONT
+# HÀM LỌC VÀ CHUẨN HÓA KÝ HIỆU TOÁN HỌC AN TOÀN TUYỆT ĐỐI
 def clean_math_text(text: str) -> str:
-    if not text:
+    if not text or not isinstance(text, str):
         return ""
-    replacements = {
-        r"Île\s*": "góc ",
-        r"\^([A-Za-z0-9]+)": r"góc \1",
-        r"\hat{([A-Za-z0-9]+)}": r"góc \1",
-        r"\\angle\s*([A-Za-z0-9]+)": r"góc \1",
-        r"\perp": " ⊥ ",
-        r"£": " ⊥ ",
-        r"\$": ""  # Bỏ dấu $ gây lỗi ngắt chữ
-    }
-    for old, new in replacements.items():
-        text = re.sub(old, new, text)
+    # Chuẩn hóa các ký hiệu lỗi font phổ biến
+    text = text.replace("Île", "góc ")
+    text = text.replace("£", " ⊥ ")
+    text = text.replace(r"\perp", " ⊥ ")
+    text = text.replace(r"\parallel", " // ")
+    text = text.replace("$", "")
+    # Xử lý các dạng \hat{A} hoặc ^A
+    text = re.sub(r"\\hat\{([A-Za-z0-9]+)\}", r"góc \1", text)
+    text = re.sub(r"\\angle\s*([A-Za-z0-9]+)", r"góc \1", text)
     return text
 
 GAME_PROMPT = """
