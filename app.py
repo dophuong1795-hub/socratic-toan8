@@ -102,40 +102,44 @@ if not API_KEY:
     st.error("Chưa cấu hình biến OPENROUTER_API_KEY trong Secrets của Streamlit!")
     st.stop()
 
-# Bộ định tuyến tự động mô hình có hỗ trợ đọc ảnh
-MODEL_NAME = "openrouter/free"
+# Danh sách mô hình thị giác (Vision) miễn phí ổn định nhất trên OpenRouter
+MODELS_LIST = [
+    "qwen/qwen3.8-27b:free",
+    "google/gemma-4-31b-it:free",
+    "google/gemma-4-26b-a4b-it:free",
+    "dots-studio/dots-3-note-preview:free",
+    "openrouter/free"
+]
 
 # HÀM LỌC VÀ CHUẨN HÓA KÝ HIỆU TOÁN HỌC AN TOÀN TUYỆT ĐỐI
 def clean_math_text(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
     
-    # 1. Dịch bỏ tiếng Anh và thuật ngữ ngoại lai
+    # 1. Thuật ngữ ngoại lai và chính tả
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
-    
-    # 2. Sửa lỗi chính tả tiếng Việt
     text = re.sub(r"\btư giác\b", "tứ giác", text, flags=re.IGNORECASE)
     text = re.sub(r"\bTư giác\b", "Tứ giác", text)
 
-    # 3. Xóa các biến thể dính chữ trước tên góc
+    # 2. Xóa các tiền tố lỗi trước tên góc
     text = re.sub(r"góc\s*(?:tam giác|riangle|//|/|°)\s*", "góc ", text, flags=re.IGNORECASE)
 
-    # 4. Điểm thuộc đoạn thẳng (Q thuộc BC thay vì Q // BC)
+    # 3. Điểm thuộc đoạn thẳng (Q thuộc BC thay vì Q // BC)
     text = re.sub(r"\b([A-Z])\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 thuộc \2", text)
     text = text.replace(r"\in", " thuộc ")
 
-    # 5. Đoạn thẳng song song với đoạn thẳng (PM // BC)
+    # 4. Đoạn thẳng song song với đoạn thẳng (PM // BC)
     text = re.sub(r"\b([A-Z]{2})\s*(?:riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
     text = re.sub(r"\\?parallel", " // ", text)
 
-    # 6. Xử lý độ và số thứ tự bước (tránh bước 1°)
+    # 5. Xử lý số đo độ và số thứ tự bước (tránh bước 1°)
     text = re.sub(r"bước\s*(\d+)°?", r"bước \1", text, flags=re.IGNORECASE)
     text = re.sub(r"\b(1[0-8]0|[3469]0)\s*(?:\^?\s*(?:circ|riangle|°)|(?=\s*[\.,\)\s]|$))(?!\s*(?:bước|cạnh|đoạn|tam giác))", r"\1°", text)
     text = text.replace("°°", "°")
     text = text.replace(r"^\circ", "°")
     text = text.replace("^circ", "°")
 
-    # 7. Các ký hiệu hình học khác
+    # 6. Các ký hiệu hình học
     text = re.sub(r"\\?t?riangle\s*", "tam giác ", text, flags=re.IGNORECASE)
     text = re.sub(r"\\?angle\s*", "góc ", text, flags=re.IGNORECASE)
     text = text.replace("riangle", " // ")
@@ -144,10 +148,7 @@ def clean_math_text(text: str) -> str:
     text = text.replace(r"\perp", " ⊥ ")
     text = text.replace("$", "")
 
-    # 8. Xử lý lại nếu còn sót cụm 'góc tam giác'
-    text = re.sub(r"góc\s+tam giác\s+([A-Z]{1,3})", r"góc \1", text, flags=re.IGNORECASE)
-
-    # 9. Xử lý các dạng góc có mũ \hat{A}
+    # 7. Xử lý các dạng góc có mũ \hat{A}
     text = re.sub(r"\\hat\{([A-Za-z0-9]+)\}", r"góc \1", text)
     
     # Dọn dẹp khoảng trắng thừa
@@ -159,9 +160,9 @@ Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương, bạn có k
 Đối tượng học sinh: Học sinh lớp 8 (13-14 tuổi), học bộ sách kết nối tri thức, bộ sách chung của bộ giáo dục mới bạn hành năm 2026.
 
 YÊU CẦU NGÔN NGỮ & SƯ PHẠM:
-1. Thân thiện, gần gũi, ngắn gọn, dễ hiểu như lời cô giáo giảng giải trên lớp.
-2. TUYỆT ĐỐI KHÔNG dùng từ ngữ triết học, sáo rỗng, hàn lâm (như: 'nền tảng đúng đắn', 'khởi đầu lập luận', 'tiền đề').
-3. TUYỆT ĐỐI KHÔNG chêm tiếng Anh (như: 'hypotenuse', 'triangle'). Dùng đúng từ SGK: 'cạnh huyền', 'đường trung tuyến', 'cạnh góc vuông'.
+1. Lời văn gần gũi, ngắn gọn, dễ hiểu như lời cô giáo giảng giải trên lớp.
+2. TUYỆT ĐỐI KHÔNG dùng từ ngữ triết học, hàn lâm ('nền tảng đúng đắn', 'khởi đầu lập luận', 'tiền đề').
+3. TUYỆT ĐỐI KHÔNG chêm tiếng Anh ('hypotenuse', 'triangle'). Dùng đúng từ SGK: 'cạnh huyền', 'đường trung tuyến', 'cạnh góc vuông'.
 4. NẾU CÓ TAM GIÁC CON: Phải nói rõ tên tam giác để học sinh không nhầm lẫn (ví dụ: 'Xét tam giác con AHB vuông tại H có cạnh huyền AB...').
 5. ĐỘ DÀI:
    - Câu hỏi: Tối đa 2 câu, hỏi thẳng vào trọng tâm.
@@ -175,7 +176,7 @@ Khi is_finished = true:
 - Viết bài giải mẫu (full_solution) mẫu mực từng bước rõ ràng để học sinh ghi vào vở.
 - Sinh mã SVG (svg_code) vẽ lại hình bài toán (viewBox 0 0 400 300) có các điểm, đoạn thẳng và góc vuông rõ nét.
 
-ĐỊNH DẠNG JSON TRẢ VỀ:
+BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU (KHÔNG KÈM GIẢI THÍCH NGOÀI JSON):
 {
   "total_steps": 3,
   "feedback": "Khen ngợi/động viên ngắn 1 câu",
@@ -208,14 +209,18 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
         if isinstance(item, str):
             content_parts.append({"type": "text", "text": item})
         elif isinstance(item, Image.Image):
+            # Tối ưu ảnh từ điện thoại để mô hình đọc trơn tru
+            img_to_send = item.copy()
+            if max(img_to_send.size) > 1200:
+                img_to_send.thumbnail((1200, 1200))
+            
             buffered = io.BytesIO()
-            img_format = "JPEG" if item.format == "JPEG" else "PNG"
-            item.convert("RGB").save(buffered, format=img_format)
+            img_to_send.convert("RGB").save(buffered, format="JPEG", quality=85)
             img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
             content_parts.append({
                 "type": "image_url",
                 "image_url": {
-                    "url": f"data:image/{img_format.lower()};base64,{img_b64}"
+                    "url": f"data:image/jpeg;base64,{img_b64}"
                 }
             })
 
@@ -225,28 +230,42 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
     messages.append({"role": "user", "content": content_parts})
 
     payload = {
-        "model": MODEL_NAME,
+        "model": MODELS_LIST[0],
+        "models": MODELS_LIST,
         "messages": messages
     }
 
     resp = requests.post(url, headers=headers, json=payload, timeout=60)
     if resp.status_code != 200:
-        raise Exception(f"Lỗi OpenRouter ({resp.status_code}): {resp.text}")
+        raise Exception(f"Lỗi kết nối AI ({resp.status_code}): {resp.text}")
 
     res_data = resp.json()
-    if not res_data.get("choices") or not res_data["choices"][0].get("message"):
-        raise Exception("Mô hình không trả về nội dung, vui lòng thử lại!")
+    choices = res_data.get("choices", [])
+    if not choices or not choices[0].get("message"):
+        raise Exception("Mô hình không trả về kết quả, em hãy bấm thử lại một lần nữa nhé!")
 
-    text_out = res_data["choices"][0]["message"].get("content", "")
+    msg = choices[0]["message"]
+    text_out = msg.get("content") or msg.get("reasoning") or ""
+    if not text_out.strip():
+        raise Exception("Nội dung phản hồi bị rỗng, vui lòng bấm nhận lại thử thách!")
 
     if is_json:
-        match = re.search(r"\{[\s\S]*\}", text_out)
+        # Cơ chế bóc tách JSON chống lỗi dòng đầu tiên
+        clean_text = re.sub(r"^```json\s*|^```\s*|```$", "", text_out.strip(), flags=re.MULTILINE)
+        match = re.search(r"\{[\s\S]*\}", clean_text)
         if match:
-            clean = match.group(0)
-            return json.loads(clean)
-        else:
-            clean = re.sub(r"^```json\s*|^```\s*|```$", "", text_out.strip(), flags=re.MULTILINE)
-            return json.loads(clean)
+            try:
+                return json.loads(match.group(0))
+            except Exception:
+                pass
+        
+        # Phương án dự phòng tự động cứu dữ liệu nếu thiếu ngoặc
+        start_idx = clean_text.find("{")
+        end_idx = clean_text.rfind("}")
+        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+            return json.loads(clean_text[start_idx:end_idx+1])
+            
+        raise Exception("AI chưa hoàn tất khối cấu trúc câu hỏi, em hãy bấm nút một lần nữa nhé!")
             
     return text_out
 
