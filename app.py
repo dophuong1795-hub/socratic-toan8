@@ -99,16 +99,32 @@ MODEL_NAME = "openrouter/free"
 def clean_math_text(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
-    # Chuẩn hóa các ký hiệu lỗi font phổ biến
+    
+    # 1. Sửa lỗi chính tả tiếng Việt
+    text = re.sub(r"\btư giác\b", "tứ giác", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bTư giác\b", "Tứ giác", text)
+
+    # 2. Xóa các biến thể rác LaTeX / riangle
+    text = re.sub(r"90\^?\s*riangle", "90°", text, flags=re.IGNORECASE)
+    text = re.sub(r"\^?\s*riangle", "°", text, flags=re.IGNORECASE)
+    text = re.sub(r"riangle", " // ", text, flags=re.IGNORECASE)
+    text = re.sub(r"\\?t?riangle\s*", "tam giác ", text, flags=re.IGNORECASE)
+    text = re.sub(r"\\?angle\s*", "góc ", text, flags=re.IGNORECASE)
     text = text.replace("Île", "góc ")
     text = text.replace("£", " ⊥ ")
     text = text.replace(r"\perp", " ⊥ ")
     text = text.replace(r"\parallel", " // ")
+    text = text.replace(r"\in", " thuộc ")
     text = text.replace("$", "")
-    # Xử lý các dạng \hat{A} hoặc ^A
+    text = text.replace("^\\circ", "°")
+    text = text.replace("^circ", "°")
+
+    # 3. Xử lý các dạng góc có mũ
     text = re.sub(r"\\hat\{([A-Za-z0-9]+)\}", r"góc \1", text)
-    text = re.sub(r"\\angle\s*([A-Za-z0-9]+)", r"góc \1", text)
-    return text
+    
+    # Dọn dẹp khoảng trắng thừa
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
 
 GAME_PROMPT = """
 Bạn là Trợ lý Sư phạm Game Hóa Hình học 8 (Cô Mai Phương).
@@ -116,16 +132,18 @@ Nhiệm vụ: Phân tích ảnh đề bài/hình vẽ, chia bài toán thành 2 
 Tạo câu hỏi trắc nghiệm 4 lựa chọn cho bước hiện tại.
 ĐẶC BIỆT: Nếu là bước cuối cùng (hoặc is_finished = true), hãy viết kèm một bài giải hoàn chỉnh, mẫu mực sư phạm từng bước làm phần thưởng.
 
-QUY TẮC KÝ HIỆU TOÁN HỌC:
+QUY TẮC KÝ HIỆU VÀ CHÍNH TẢ:
+- Luôn viết đúng chính tả tiếng Việt: viết là 'tứ giác', tuyệt đối KHÔNG viết 'tư giác'.
 - Các tên đỉnh, đoạn thẳng, tam giác viết in hoa bình thường (AB, CD, tam giác ABC), tuyệt đối không kẹp dấu $ vào từng chữ cái.
-- Viết rõ từ 'góc A', 'góc B', dùng ký hiệu '⊥', '//' trực tiếp, không dùng mã LaTeX phức tạp.
+- Viết rõ từ 'góc A', 'góc B', dùng ký hiệu '⊥', '//' trực tiếp, không dùng mã LaTeX phức tạp, không viết chữ 'riangle'.
+- Trong danh sách options, KHÔNG ghi tiền tố 'A. ', 'B. ', 'C. ', 'D. ' ở đầu câu. Chỉ ghi trực tiếp nội dung phương án.
 
 BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU ĐÂY:
 {
   "total_steps": 2,
   "feedback": "Nhận xét ngắn 1 câu về câu trả lời trước đó",
   "question": "Nội dung câu hỏi thử thách",
-  "options": ["Phương án A", "Phương án B", "Phương án C", "Phương án D"],
+  "options": ["Phương án 1", "Phương án 2", "Phương án 3", "Phương án 4"],
   "correct_index": 0,
   "explanation": "Giải thích ngắn vì sao đúng",
   "is_finished": false,
@@ -255,6 +273,7 @@ with tab1:
             st.markdown("**👉 Em hãy bấm chọn một đáp án đúng nhất:**")
             for idx, opt in enumerate(opts):
                 clean_opt = clean_math_text(opt)
+                clean_opt = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", clean_opt)
                 label = f"{chr(65+idx)}. {clean_opt}"
                 if st.button(label, key=f"btn_choice_{idx}", use_container_width=True):
                     st.session_state.answered = True
@@ -263,7 +282,10 @@ with tab1:
         else:
             sel = st.session_state.selected_idx
             sel_text = clean_math_text(opts[sel]) if (sel is not None and sel < len(opts)) else ""
+            sel_text = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", sel_text)
+
             correct_text = clean_math_text(opts[correct]) if correct < len(opts) else ""
+            correct_text = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", correct_text)
 
             if sel == correct:
                 st.success("🎉 **Chính xác!** Em đã chọn đáp án đúng.")
