@@ -104,8 +104,8 @@ def clean_math_text(text: str) -> str:
     text = re.sub(r"\btư giác\b", "tứ giác", text, flags=re.IGNORECASE)
     text = re.sub(r"\bTư giác\b", "Tứ giác", text)
 
-    # 2. Xóa các tiền tố lỗi ghép trước tên góc (như góc // PCQ -> góc PCQ, góc ° PCQ -> góc PCQ)
-    text = re.sub(r"góc\s*(?://|/|°|riangle)\s*", "góc ", text, flags=re.IGNORECASE)
+    # 2. Xóa các biến thể dính chữ trước tên góc (như góc tam giác PCQ -> góc PCQ, góc // PCQ -> góc PCQ)
+    text = re.sub(r"góc\s*(?:tam giác|riangle|//|/|°)\s*", "góc ", text, flags=re.IGNORECASE)
 
     # 3. Chuẩn hóa độ và số đo góc (ví dụ: 90^circ, 90 riangle -> 90°)
     text = re.sub(r"(\d+)\s*\^?\s*(?:riangle|circ|°)?(?:\s*riangle)?", r"\1°", text)
@@ -125,7 +125,10 @@ def clean_math_text(text: str) -> str:
     text = text.replace(r"\in", " thuộc ")
     text = text.replace("$", "")
 
-    # 5. Xử lý các dạng góc có mũ \hat{A}
+    # 5. Xử lý lại nếu còn sót cụm 'góc tam giác'
+    text = re.sub(r"góc\s+tam giác\s+([A-Z]{1,3})", r"góc \1", text, flags=re.IGNORECASE)
+
+    # 6. Xử lý các dạng góc có mũ \hat{A}
     text = re.sub(r"\\hat\{([A-Za-z0-9]+)\}", r"góc \1", text)
     
     # Dọn dẹp khoảng trắng thừa
