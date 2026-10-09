@@ -102,7 +102,7 @@ if not API_KEY:
     st.error("Chưa cấu hình biến OPENROUTER_API_KEY trong Secrets của Streamlit!")
     st.stop()
 
-# Danh sách mô hình thị giác (Vision) miễn phí ổn định nhất trên OpenRouter
+# Danh sách tối đa 3 mô hình thị giác miễn phí tốt nhất (Tuân thủ giới hạn OpenRouter)
 MODELS_LIST = [
     "google/gemma-4-31b-it:free",
     "google/gemma-4-26b-a4b-it:free",
@@ -248,22 +248,25 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
         raise Exception("Nội dung phản hồi bị rỗng, vui lòng bấm nhận lại thử thách!")
 
     if is_json:
-        # Cơ chế bóc tách JSON chống lỗi dòng đầu tiên
+        # Bỏ khối markdown bọc ngoài
         clean_text = re.sub(r"^```json\s*|^```\s*|```$", "", text_out.strip(), flags=re.MULTILINE)
-        match = re.search(r"\{[\s\S]*\}", clean_text)
-        if match:
-            try:
-                return json.loads(match.group(0))
-            except Exception:
-                pass
         
-        # Phương án dự phòng tự động cứu dữ liệu nếu thiếu ngoặc
-        start_idx = clean_text.find("{")
-        end_idx = clean_text.rfind("}")
-        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-            return json.loads(clean_text[start_idx:end_idx+1])
-            
-        raise Exception("AI chưa hoàn tất khối cấu trúc câu hỏi, em hãy bấm nút một lần nữa nhé!")
+        # Bóc tách khối JSON {...}
+        match = re.search(r"\{[\s\S]*\}", clean_text)
+        target_str = match.group(0) if match else clean_text
+        
+        # Xử lý triệt để escape sequence để tránh Invalid \escape từ LaTeX
+        sanitized_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', target_str)
+        
+        try:
+            return json.loads(sanitized_str, strict=False)
+        except Exception:
+            try:
+                fallback_str = target_str.replace('\\', '\\\\')
+                fallback_str = re.sub(r'\\\\(["\\/bfnrtu])', r'\\\1', fallback_str)
+                return json.loads(fallback_str, strict=False)
+            except Exception:
+                raise Exception("AI chưa định dạng đúng cấu trúc câu hỏi, em hãy bấm nút một lần nữa nhé!")
             
     return text_out
 
