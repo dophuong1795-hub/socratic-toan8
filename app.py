@@ -104,26 +104,28 @@ def clean_math_text(text: str) -> str:
     text = re.sub(r"\btư giác\b", "tứ giác", text, flags=re.IGNORECASE)
     text = re.sub(r"\bTư giác\b", "Tứ giác", text)
 
-    # 2. Xóa các biến thể góc và độ
-    text = re.sub(r"(\d+)\s*\^?\s*(?:riangle|circ|°)", r"\1°", text)
+    # 2. Xóa các tiền tố lỗi ghép trước tên góc (như góc // PCQ -> góc PCQ, góc ° PCQ -> góc PCQ)
+    text = re.sub(r"góc\s*(?://|/|°|riangle)\s*", "góc ", text, flags=re.IGNORECASE)
+
+    # 3. Chuẩn hóa độ và số đo góc (ví dụ: 90^circ, 90 riangle -> 90°)
+    text = re.sub(r"(\d+)\s*\^?\s*(?:riangle|circ|°)?(?:\s*riangle)?", r"\1°", text)
+    text = text.replace("°°", "°")
     text = text.replace(r"^\circ", "°")
     text = text.replace("^circ", "°")
-    text = text.replace("góc °", "góc ")
 
-    # 3. Ký hiệu hình học: song song, tam giác, vuông góc
-    # riangle nằm giữa 2 đoạn thẳng (như PM riangle BC) chính là song song //
+    # 4. Ký hiệu hình học: song song, tam giác, vuông góc
     text = re.sub(r"\b([A-Z]{1,2})\s*(?:riangle|°)\s*([A-Z]{1,2})\b", r"\1 // \2", text)
     text = re.sub(r"\\?parallel", " // ", text)
-    text = re.sub(r"riangle", " // ", text)
     text = re.sub(r"\\?t?riangle\s*", "tam giác ", text, flags=re.IGNORECASE)
     text = re.sub(r"\\?angle\s*", "góc ", text, flags=re.IGNORECASE)
+    text = text.replace("riangle", " // ")
     text = text.replace("Île", "góc ")
     text = text.replace("£", " ⊥ ")
     text = text.replace(r"\perp", " ⊥ ")
     text = text.replace(r"\in", " thuộc ")
     text = text.replace("$", "")
 
-    # 4. Xử lý các dạng góc có mũ \hat{A}
+    # 5. Xử lý các dạng góc có mũ \hat{A}
     text = re.sub(r"\\hat\{([A-Za-z0-9]+)\}", r"góc \1", text)
     
     # Dọn dẹp khoảng trắng thừa
