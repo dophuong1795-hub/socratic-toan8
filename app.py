@@ -104,11 +104,12 @@ def clean_math_text(text: str) -> str:
     text = re.sub(r"\btư giác\b", "tứ giác", text, flags=re.IGNORECASE)
     text = re.sub(r"\bTư giác\b", "Tứ giác", text)
 
-    # 2. Xóa các biến thể dính chữ trước tên góc (như góc tam giác PCQ -> góc PCQ, góc // PCQ -> góc PCQ)
+    # 2. Xóa các biến thể dính chữ trước tên góc (như góc tam giác PCQ -> góc PCQ)
     text = re.sub(r"góc\s*(?:tam giác|riangle|//|/|°)\s*", "góc ", text, flags=re.IGNORECASE)
 
-    # 3. Chuẩn hóa độ và số đo góc (ví dụ: 90^circ, 90 riangle -> 90°)
-    text = re.sub(r"(\d+)\s*\^?\s*(?:riangle|circ|°)?(?:\s*riangle)?", r"\1°", text)
+    # 3. Chỉ gắn dấu độ ° khi có từ 'độ', 'circ' hoặc số đo góc phổ biến (30, 45, 60, 90, 120, 180)
+    text = re.sub(r"\b(1[0-8]0|[3469]0)\s*(?:\^?\s*(?:circ|riangle|°)|(?=\s*[\.,\)\s]|$))(?!\s*(?:bước|cạnh|đoạn|tam giác))", r"\1°", text)
+    text = re.sub(r"bước\s*(\d+)°?", r"bước \1", text, flags=re.IGNORECASE)
     text = text.replace("°°", "°")
     text = text.replace(r"^\circ", "°")
     text = text.replace("^circ", "°")
@@ -134,7 +135,6 @@ def clean_math_text(text: str) -> str:
     # Dọn dẹp khoảng trắng thừa
     text = re.sub(r"\s+", " ", text)
     return text.strip()
-
 GAME_PROMPT = """
 Bạn là Trợ lý Sư phạm Game Hóa Hình học 8 (Cô Mai Phương).
 Nhiệm vụ: Phân tích ảnh đề bài/hình vẽ, chia bài toán thành 2 đến 4 bước thử thách tư duy gợi mở (Socratic).
