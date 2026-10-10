@@ -103,7 +103,7 @@ if not API_KEY:
 
 # Khởi tạo Gemini Client
 client = genai.Client(api_key=API_KEY)
-MODEL_NAME = "gemini-2.5-flash"
+MODEL_NAME = "gemini-3.8-flash"
 
 # HÀM LỌC VÀ CHUẨN HÓA KÝ HIỆU TOÁN HỌC
 def clean_math_text(text: str) -> str:
