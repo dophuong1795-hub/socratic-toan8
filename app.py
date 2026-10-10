@@ -136,7 +136,7 @@ def format_math(text: str) -> str:
 
     text = re.sub(r"(?:[∠∡∢]|\\angle\s*|\\widehat\{|\\hat\{|[Gg]óc\s+)([A-Z]{1,3})\b\}?", to_latex_angle, text)
 
-    # 5. Ký hiệu hình học khác: song song //, vuông góc ⊥, thuộc
+    # 5. Ký hiệu hình học khác
     text = re.sub(r"\\?parallel", " // ", text)
     text = re.sub(r"\\perp|£", " ⊥ ", text)
     text = text.replace(r"\in", " thuộc ")
@@ -165,7 +165,7 @@ def shuffle_options_data(card_data):
     card_data["correct_index"] = new_correct_idx
     return card_data
 
-# ================= HÀM ĐỊNH DẠNG BÀI GIẢI AN TOÀN =================
+# ================= HÀM ĐỊNH DẠNG BÀI GIẢI =================
 def format_solution_step_by_step(raw_text: str) -> str:
     if not raw_text:
         return ""
@@ -225,25 +225,25 @@ BẮT BUỘC TRẢ VỀ DUY NHẤT 1 KHỐI JSON HỢP LỆ THEO CẤU TRÚC:
 """
 
 def safe_parse_json(raw_text: str):
-    """Bộ giải mã JSON an toàn tuyệt đối, chống 100% lỗi invalid escape sequence"""
     clean_text = re.sub(r"^```json\s*|^```\s*|```$", "", raw_text.strip(), flags=re.MULTILINE)
     match = re.search(r"\{[\s\S]*\}", clean_text)
     target_str = match.group(0) if match else clean_text
 
-    # Cách 1: Thử load thông thường
     try:
         return json.loads(target_str, strict=False)
     except Exception:
         pass
 
-    # Cách 2: Sửa các ký tự escape không hợp lệ (ví dụ \d, \w, \h...)
-    # Chỉ giữ nguyên: \", \\, \/, \b, \f, \n, \r, \t, \u
-    sanitized = re.sub(r'\\([^"\\/bfnrtu])', r'\\\\\1', target_str)     try:         return json.loads(sanitized, strict=False)     except Exception:         pass      # Cách 3: Bóc tách bằng Regex cứu hộ độc lập     q_match = re.search(r'"question"\s*:\s*"([^"]+)"', target_str)     fb_match = re.search(r'"feedback"\s*:\s*"([^"]+)"', target_str)     expl_match = re.search(r'"explanation"\s*:\s*"([^"]+)"', target_str)     opts_matches = re.findall(r'"([A-Za-z0-9\s\\/\^_\+\-\=\(\)\.\,\?\!\:\;\@\#\$\%\&\*°//⊥]{4,})"', target_str)
-    
+    # Bóc tách bằng Regex dự phòng đơn giản, không dùng escape phức tạp
+    q_match = re.search(r'"question"\s*:\s*"([^"]+)"', target_str)
+    fb_match = re.search(r'"feedback"\s*:\s*"([^"]+)"', target_str)
+    expl_match = re.search(r'"explanation"\s*:\s*"([^"]+)"', target_str)
+    opts_matches = re.findall(r'"([A-Za-z0-9\s\\/\^_\+\-\=\(\)\.\,\?\!\:\;\@\#\$\%\&\*°//⊥]{4,})"', target_str)
+
     question = q_match.group(1) if q_match else "Khẳng định nào sau đây là đúng?"
     feedback = fb_match.group(1) if fb_match else "Cùng tiếp tục suy luận nhé!"
     explanation = expl_match.group(1) if expl_match else "Căn cứ theo định lý trong SGK Toán 8."
-    
+
     options = [o for o in opts_matches if o not in [question, feedback, explanation]][:4]
     while len(options) < 4:
         options.append(f"Khẳng định {len(options)+1}")
