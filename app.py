@@ -4,6 +4,7 @@ from google.genai import types
 from PIL import Image
 import json
 import re
+import random
 import pandas as pd
 from datetime import datetime
 
@@ -102,7 +103,6 @@ if not API_KEY:
     st.error("Chưa cấu hình biến GEMINI_API_KEY trong Secrets của Streamlit!")
     st.stop()
 
-# Khởi tạo Gemini Client với model chuẩn theo thông báo API
 client = genai.Client(api_key=API_KEY)
 MODEL_NAME = "gemini-3.8-flash"
 
@@ -119,32 +119,54 @@ def format_math(text: str) -> str:
     text = re.sub(r"\\therefore|\btherefore\b", " do đó ", text, flags=re.IGNORECASE)
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
 
-    # 2. Chuẩn hóa phân số nét gạch ngang: AC/2, AB/2 -> $\dfrac{AC}{2}$
+    # 2. XỬ LÝ TRIỆT ĐỂ ĐỘ CỦA GÓC: Chuyển 90^\circ, 90^{\circ}, 90\circ thành 90°
+    text = re.sub(r"(\d+)\s*\^?\\?\s*\{?circ\}?", r"\1°", text)
+    text = re.sub(r"(\d+)\s*\^\s*\\?circ", r"\1°", text)
+    text = text.replace("°°", "°")
+
+    # 3. Chuẩn hóa phân số nét gạch ngang: AC/2, AB/2 -> $\dfrac{AC}{2}$
     text = re.sub(r"(?<![a-zA-Z0-9_\$])([A-Z]{1,2}|\d+)\s*/\s*([A-Z]{1,2}|\d+)(?![a-zA-Z0-9_\$])", r"$\\dfrac{\1}{\2}$", text)
     text = re.sub(r"\$?\\frac\{([^}]+)\}\{([^}]+)\}\$?", r"$\\dfrac{\1}{\2}$", text)
 
-    # 3. Chuẩn hóa góc thành dấu mũ: Góc IHA, góc A -> $\widehat{IHA}$, $\widehat{A}$
+    # 4. Chuẩn hóa góc thành dấu mũ: \widehat{ABC}
     def to_latex_angle(m):
         name = m.group(1).strip()
         return f"$\\widehat{{{name}}}$"
 
     text = re.sub(r"(?:[∠∡∢]|\\angle\s*|\\widehat\{|\\hat\{|[Gg]óc\s+)([A-Z]{1,3})\b\}?", to_latex_angle, text)
 
-    # 4. Ký hiệu hình học khác: song song //, vuông góc ⊥, thuộc
+    # 5. Ký hiệu hình học khác
     text = re.sub(r"\b([A-Z]{2})\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
     text = re.sub(r"\\?parallel", " // ", text)
     text = re.sub(r"\\perp|£", " ⊥ ", text)
     text = re.sub(r"\b([A-Z])\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 thuộc \2", text)
     text = text.replace(r"\in", " thuộc ")
 
-    # 5. Chuẩn hóa độ
-    text = re.sub(r"\b(1[0-8]0|[3469]0)\s*(?:\^?\s*(?:circ|°)|(?=\s*[\.,\)\s]|$))(?!\s*(?:bước|cạnh|đoạn|tam giác))", r"\1°", text)
-    text = text.replace("°°", "°")
-
     return text.strip()
 
 clean_math_text = format_math
 clean_math = format_math
+
+# ================= HÀM XÁO TRỘN ĐÁP ÁN NGẪU NHIÊN =================
+def shuffle_options_data(card_data):
+    """Xáo trộn ngẫu nhiên vị trí các lựa chọn A, B, C, D để tránh đoán mò"""
+    opts = card_data.get("options", [])
+    if len(opts) < 2:
+        return card_data
+        
+    correct_idx = card_data.get("correct_index", 0)
+    correct_answer_text = opts[correct_idx]
+    
+    # Tạo bản sao và xáo trộn
+    shuffled_opts = list(opts)
+    random.shuffle(shuffled_opts)
+    
+    # Tìm lại chỉ số đáp án đúng mới
+    new_correct_idx = shuffled_opts.index(correct_answer_text)
+    
+    card_data["options"] = shuffled_opts
+    card_data["correct_index"] = new_correct_idx
+    return card_data
 
 # ================= HÀM ĐỊNH DẠNG BÀI GIẢI AN TOÀN =================
 def format_solution_step_by_step(raw_text: str) -> str:
@@ -157,8 +179,7 @@ def format_solution_step_by_step(raw_text: str) -> str:
     # Đưa các tiêu đề câu a), b), c) thành tiêu đề rõ ràng
     text = re.sub(r"(?:\n|^|\s+)([a-c]\))\s*", r"\n\n### **\1** ", text)
     
-    # Chỉ ngắt dòng khi dấu gạch ngang '-' hoặc '=>' đứng sau dấu chấm hoặc xuống dòng,
-    # TUYỆT ĐỐI KHÔNG ngắt dấu '+' để tránh làm nát phép cộng chu vi
+    # Tách dòng an toàn: chỉ ngắt khi dấu '-' hoặc '=>' đứng sau dấu chấm
     text = re.sub(r"(?<=\.)\s*-\s*", r"\n- ", text)
     text = re.sub(r"\s*=>\s*", r"\n  - $\\Rightarrow$ ", text)
     
@@ -177,12 +198,12 @@ Học sinh lớp 8 (13-14 tuổi).
 
 YÊU CẦU NGÔN NGỮ & SƯ PHẠM:
 1. Lời văn gần gũi, ngắn gọn, dễ hiểu như lời cô giảng trên lớp.
-2. TUYỆT ĐỐI KHÔNG chêm tiếng Anh ('hypotenuse', 'triangle'). Dùng đúng từ SGK: 'cạnh huyền', 'đường trung tuyến', 'cạnh góc vuông'.
-3. NẾU CÓ TAM GIÁC CON: Phải nói rõ tên tam giác để học sinh không nhầm lẫn (ví dụ: 'Xét tam giác con AHB vuông tại H có cạnh huyền AB...').
+2. TUYỆT ĐỐI KHÔNG chêm tiếng Anh. Dùng đúng từ SGK: 'cạnh huyền', 'đường trung tuyến', 'cạnh góc vuông'.
+3. NẾU CÓ TAM GIÁC CON: Phải nói rõ tên tam giác để học sinh không nhầm lẫn.
 4. ĐỘ DÀI:
    - Câu hỏi: Tối đa 2 câu, hỏi thẳng vào trọng tâm.
    - Mỗi lựa chọn (options): Ngắn gọn 1 đến 2 dòng. KHÔNG ghi tiền tố 'A. ', 'B. ' ở đầu câu.
-5. KÝ HIỆU TOÁN: Phân số viết dạng \\dfrac{a}{b}, góc viết dạng \\widehat{ABC}.
+5. KÝ HIỆU TOÁN: Phân số viết dạng \\dfrac{a}{b}, góc viết dạng \\widehat{ABC}, góc vuông và góc đo ghi ký hiệu độ ° (ví dụ: 90°, 45°).
 
 CẤU TRÚC 3 BƯỚC THỬ THÁCH:
 - Bước 1: Khai thác yếu tố quan trọng từ hình vẽ hoặc giả thiết ban đầu (chưa hỏi ngay kết luận đề bài).
@@ -190,8 +211,8 @@ CẤU TRÚC 3 BƯỚC THỬ THÁCH:
 - Bước 3: Đạt được điều cần chứng minh của đề bài.
 
 KHI is_finished = true:
-- Viết bài giải mẫu (full_solution) từng bước mẫu mực có xuống dòng từng ý rõ ràng bằng \\n để học sinh ghi vào vở. Giữ nguyên vẹn dòng tính toán chu vi, không ngắt vụn công thức cộng.
-- BẮT BUỘC TẠO MÃ SVG (svg_code): Vẽ lại hình bài toán với khung viewBox='0 0 400 300', gồm đường thẳng nét xanh/đen rõ nét, điểm chấm tròn đen, chữ cái in hoa (A, B, C, P, Q, M, H, I, K...) to rõ nét và ký hiệu góc vuông.
+- Viết bài giải mẫu (full_solution) từng bước mẫu mực có xuống dòng từng ý rõ ràng bằng \\n để học sinh ghi vào vở. Giữ nguyên vẹn dòng tính toán.
+- BẮT BUỘC TẠO MÃ SVG (svg_code): Vẽ lại hình bài toán với khung viewBox='0 0 400 300', gồm đường nét rõ, điểm chấm tròn đen, chữ cái in hoa to rõ và ký hiệu góc vuông.
 
 BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU:
 {
@@ -212,21 +233,22 @@ BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU:
 }
 """
 
-def execute_gemini_request(inputs, system_prompt=None, is_json=False):
-    config_params = {}
+def execute_gemini_request(inputs, system_prompt=None, is_json=False, max_tokens=500):
+    config_params = {"max_output_tokens": max_tokens}
     if system_prompt:
         config_params["system_instruction"] = system_prompt
     if is_json:
         config_params["response_mime_type"] = "application/json"
     
-    config = types.GenerateContentConfig(**config_params) if config_params else None
+    config = types.GenerateContentConfig(**config_params)
 
     prepared_contents = []
     for item in inputs:
         if isinstance(item, Image.Image):
+            # Tối ưu kích thước ảnh để tăng tốc độ phản hồi tối đa
             img = item.copy()
-            if max(img.size) > 1000:
-                img.thumbnail((1000, 1000))
+            if max(img.size) > 600:
+                img.thumbnail((600, 600))
             prepared_contents.append(img)
         else:
             prepared_contents.append(item)
@@ -296,7 +318,11 @@ with tab1:
                 with st.spinner("Đợi cô một chút..."):
                     try:
                         p_start = "Tạo câu hỏi thử thách Bước 1 ngắn gọn, tập trung khai thác giả thiết khởi đầu."
-                        c_data = execute_gemini_request([st.session_state.img_data, p_start], GAME_PROMPT, is_json=True)
+                        # max_tokens=450 giúp phản hồi chỉ trong 1-2 giây
+                        c_data = execute_gemini_request([st.session_state.img_data, p_start], GAME_PROMPT, is_json=True, max_tokens=450)
+                        # Xáo trộn đáp án ngẫu nhiên
+                        c_data = shuffle_options_data(c_data)
+                        
                         st.session_state.card = c_data
                         st.session_state.total_steps = c_data.get("total_steps", 3)
                         st.session_state.step = 1
@@ -360,12 +386,12 @@ with tab1:
                 if not st.session_state.reward:
                     sol = card.get("full_solution", "")
                     svg = card.get("svg_code", "")
-                    if not sol:
+                    if not sol or not svg:
                         with st.spinner("Đang mở khóa bài giải và hình vẽ chuẩn..."):
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh và kèm theo mã SVG vẽ lại hình bài toán này.
-                            YÊU CẦU: Trình bày bài giải rõ ràng, các biểu thức tính chu vi/đoạn thẳng giữ nguyên vẹn trên cùng một dòng.
+                            YÊU CẦU: Trình bày bài giải rõ ràng, các góc và độ ghi ký hiệu độ ° chuẩn (ví dụ: 90°, 45°).
                             Trả về JSON: {"full_solution": "...", "svg_code": "<svg viewBox='0 0 400 300' ...>...</svg>"}"""
-                            res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
+                            res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True, max_tokens=1500)
                             sol = res_final.get("full_solution", "")
                             svg = res_final.get("svg_code", "")
                     st.session_state.reward = sol
@@ -385,7 +411,7 @@ with tab1:
                     if clean_svg_match:
                         st.markdown(f'<div class="svg-container">{clean_svg_match.group(0)}</div>', unsafe_allow_html=True)
 
-                # HIỂN THỊ BÀI GIẢI LIỀN MẠCH, RÕ RÀNG
+                # HIỂN THỊ BÀI GIẢI
                 st.markdown("#### 📝 Lời giải chi tiết:")
                 formatted_solution = format_solution_step_by_step(st.session_state.reward)
                 st.markdown(formatted_solution)
@@ -397,10 +423,13 @@ with tab1:
                 if st.button("➡️ Sang thử thách tiếp theo", type="primary", use_container_width=True):
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. 
-                        Nhớ giữ câu hỏi và 4 phương án ngắn gọn, dễ hiểu cho học sinh lớp 8. Phân số viết dạng \\dfrac{{a}}{{b}}, góc viết \\widehat{{ABC}}.
+                        Nhớ giữ câu hỏi và 4 phương án ngắn gọn, dễ hiểu cho học sinh lớp 8. Phân số viết dạng \\dfrac{{a}}{{b}}, góc viết \\widehat{{ABC}}, ký hiệu độ ghi ° (ví dụ 90°).
                         Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải chi tiết từng ý vào full_solution và sinh mã vẽ hình chuẩn vào svg_code."""
                         try:
-                            st.session_state.card = execute_gemini_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
+                            # max_tokens=450 cho bước giữa để chạy cực nhanh
+                            c_next = execute_gemini_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True, max_tokens=500)
+                            c_next = shuffle_options_data(c_next)
+                            st.session_state.card = c_next
                             st.session_state.step += 1
                             st.session_state.answered = False
                             st.session_state.selected_idx = None
@@ -465,7 +494,7 @@ with tab2:
                 - Tổng điểm: [Ghi điểm số]/10
                 - Nhận xét chi tiết:
                 """
-                score_res = execute_gemini_request([RUBRIC, hw_img])
+                score_res = execute_gemini_request([RUBRIC, hw_img], max_tokens=600)
                 score_res_clean = format_math(score_res)
 
                 score_match = re.search(r"(\d+([.,]\d+)?)\s*/\s*10", score_res_clean)
