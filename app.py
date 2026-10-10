@@ -1,10 +1,9 @@
 import streamlit as st
-import requests
+from google import genai
+from google.genai import types
 from PIL import Image
 import json
 import re
-import base64
-import io
 import pandas as pd
 from datetime import datetime
 
@@ -96,20 +95,17 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Lấy OpenRouter API Key
-API_KEY = st.secrets.get("OPENROUTER_API_KEY")
+# Lấy Gemini API Key
+API_KEY = st.secrets.get("GEMINI_API_KEY")
 if not API_KEY:
-    st.error("Chưa cấu hình biến OPENROUTER_API_KEY trong Secrets của Streamlit!")
+    st.error("Chưa cấu hình biến GEMINI_API_KEY trong Secrets của Streamlit!")
     st.stop()
 
-# Danh sách tối đa 3 mô hình thị giác miễn phí tốt nhất (Tuân thủ giới hạn OpenRouter)
-MODELS_LIST = [
-    "google/gemma-4-31b-it:free",
-    "google/gemma-4-26b-a4b-it:free",
-    "openrouter/free"
-]
+# Khởi tạo Gemini Client
+client = genai.Client(api_key=API_KEY)
+MODEL_NAME = "gemini-2.5-flash"
 
-# HÀM LỌC VÀ CHUẨN HÓA KÝ HIỆU TOÁN HỌC AN TOÀN TUYỆT ĐỐI
+# HÀM LỌC VÀ CHUẨN HÓA KÝ HIỆU TOÁN HỌC
 def clean_math_text(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
@@ -130,7 +126,7 @@ def clean_math_text(text: str) -> str:
     text = re.sub(r"\b([A-Z]{2})\s*(?:riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
     text = re.sub(r"\\?parallel", " // ", text)
 
-    # 5. Xử lý số đo độ và số thứ tự bước (tránh bước 1°)
+    # 5. Xử lý số đo độ và số thứ tự bước
     text = re.sub(r"bước\s*(\d+)°?", r"bước \1", text, flags=re.IGNORECASE)
     text = re.sub(r"\b(1[0-8]0|[3469]0)\s*(?:\^?\s*(?:circ|riangle|°)|(?=\s*[\.,\)\s]|$))(?!\s*(?:bước|cạnh|đoạn|tam giác))", r"\1°", text)
     text = text.replace("°°", "°")
@@ -149,13 +145,12 @@ def clean_math_text(text: str) -> str:
     # 7. Xử lý các dạng góc có mũ \hat{A}
     text = re.sub(r"\\hat\{([A-Za-z0-9]+)\}", r"góc \1", text)
     
-    # Dọn dẹp khoảng trắng thừa
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
 GAME_PROMPT = """
-Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương, bạn có kiến thức hình học vững chắc, lập luận sắc bén, có khả năng sư phạm tốt, giảng bài dễ hiểu, là học sinh chuyên toán, thủ khoa đầu vào thi lên lớp 10 trường chuyên (theo chương trình GDPT 2018).
-Đối tượng học sinh: Học sinh lớp 8 (13-14 tuổi), học bộ sách kết nối tri thức, bộ sách chung của bộ giáo dục mới bạn hành năm 2026.
+Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương, có kiến thức hình học vững chắc, lập luận sắc bén, giảng bài gần gũi, dễ hiểu (theo chương trình GDPT 2018).
+Đối tượng học sinh: Học sinh lớp 8 (13-14 tuổi), học bộ sách Kết nối tri thức.
 
 YÊU CẦU NGÔN NGỮ & SƯ PHẠM:
 1. Lời văn gần gũi, ngắn gọn, dễ hiểu như lời cô giáo giảng giải trên lớp.
@@ -167,14 +162,14 @@ YÊU CẦU NGÔN NGỮ & SƯ PHẠM:
    - Mỗi lựa chọn (options): Ngắn gọn 1 đến 2 dòng. TUYỆT ĐỐI KHÔNG ghi tiền tố 'A. ', 'B. ' ở đầu câu.
 
 CẤU TRÚC 3 BƯỚC THỬ THÁCH (SOCRATIC SCAFFOLDING):
-- Bước 1 (Hình vẽ & Giả thiết cơ bản): Khai thác yếu tố quan trọng từ hình vẽ hoặc giả thiết (như: trung tuyến ứng với cạnh huyền, tam giác cân, đường cao).
+- Bước 1 (Hình vẽ & Giả thiết cơ bản): Khai thác yếu tố quan trọng từ hình vẽ hoặc giả thiết.
 - Bước 2 (Bắc cầu suy luận): Dẫn dắt chứng minh quan hệ trung gian (cộng góc, hai tam giác bằng nhau, hình bình hành, đường trung bình).
 - Bước 3 (Kết luận): Đạt được điều cần chứng minh của đề bài.
 Khi is_finished = true:
-- Viết bài giải mẫu (full_solution) mẫu mực từng bước rõ ràng để học sinh ghi vào vở.
+- Viết bài giải mẫu (full_solution) từng bước mẫu mực để học sinh ghi vào vở.
 - Sinh mã SVG (svg_code) vẽ lại hình bài toán (viewBox 0 0 400 300) có các điểm, đoạn thẳng và góc vuông rõ nét.
 
-BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU (KHÔNG KÈM GIẢI THÍCH NGOÀI JSON):
+BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU:
 {
   "total_steps": 3,
   "feedback": "Khen ngợi/động viên ngắn 1 câu",
@@ -193,81 +188,46 @@ BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU (KHÔNG KÈM GIẢI THÍC
 }
 """
 
-def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
-    url = "https://openrouter.ai/api/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://streamlit.io",
-        "X-Title": "Socratic Geometry Game"
-    }
-
-    content_parts = []
-    for item in inputs:
-        if isinstance(item, str):
-            content_parts.append({"type": "text", "text": item})
-        elif isinstance(item, Image.Image):
-            # Tối ưu ảnh từ điện thoại để mô hình đọc trơn tru
-            img_to_send = item.copy()
-            if max(img_to_send.size) > 1200:
-                img_to_send.thumbnail((1200, 1200))
-            
-            buffered = io.BytesIO()
-            img_to_send.convert("RGB").save(buffered, format="JPEG", quality=85)
-            img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-            content_parts.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/jpeg;base64,{img_b64}"
-                }
-            })
-
-    messages = []
+def execute_gemini_request(inputs, system_prompt=None, is_json=False):
+    config_params = {}
     if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
-    messages.append({"role": "user", "content": content_parts})
+        config_params["system_instruction"] = system_prompt
+    if is_json:
+        config_params["response_mime_type"] = "application/json"
+    
+    config = types.GenerateContentConfig(**config_params) if config_params else None
 
-    payload = {
-        "model": MODELS_LIST[0],
-        "models": MODELS_LIST,
-        "messages": messages
-    }
+    # Tối ưu ảnh PIL nếu kích thước quá lớn
+    prepared_contents = []
+    for item in inputs:
+        if isinstance(item, Image.Image):
+            img = item.copy()
+            if max(img.size) > 1200:
+                img.thumbnail((1200, 1200))
+            prepared_contents.append(img)
+        else:
+            prepared_contents.append(item)
 
-    resp = requests.post(url, headers=headers, json=payload, timeout=60)
-    if resp.status_code != 200:
-        raise Exception(f"Lỗi kết nối AI ({resp.status_code}): {resp.text}")
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=prepared_contents,
+        config=config
+    )
 
-    res_data = resp.json()
-    choices = res_data.get("choices", [])
-    if not choices or not choices[0].get("message"):
-        raise Exception("Mô hình không trả về kết quả, em hãy bấm thử lại một lần nữa nhé!")
-
-    msg = choices[0]["message"]
-    text_out = msg.get("content") or msg.get("reasoning") or ""
+    text_out = response.text or ""
     if not text_out.strip():
-        raise Exception("Nội dung phản hồi bị rỗng, vui lòng bấm nhận lại thử thách!")
+        raise Exception("Nội dung phản hồi bị rỗng, vui lòng thử lại!")
 
     if is_json:
-        # Bỏ khối markdown bọc ngoài
         clean_text = re.sub(r"^```json\s*|^```\s*|```$", "", text_out.strip(), flags=re.MULTILINE)
-        
-        # Bóc tách khối JSON {...}
         match = re.search(r"\{[\s\S]*\}", clean_text)
         target_str = match.group(0) if match else clean_text
-        
-        # Xử lý triệt để escape sequence để tránh Invalid \escape từ LaTeX
         sanitized_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', target_str)
-        
         try:
             return json.loads(sanitized_str, strict=False)
         except Exception:
-            try:
-                fallback_str = target_str.replace('\\', '\\\\')
-                fallback_str = re.sub(r'\\\\(["\\/bfnrtu])', r'\\\1', fallback_str)
-                return json.loads(fallback_str, strict=False)
-            except Exception:
-                raise Exception("AI chưa định dạng đúng cấu trúc câu hỏi, em hãy bấm nút một lần nữa nhé!")
-            
+            return json.loads(target_str, strict=False)
+
     return text_out
 
 if "submission_history" not in st.session_state:
@@ -306,14 +266,14 @@ with tab1:
         up_img = st.file_uploader("Tải/chụp ảnh bài tập cần chú ý lên đây:", type=["jpg", "png", "jpeg"], key="up_game_img")
         if up_img:
             st.session_state.img_data = Image.open(up_img)
-            st.image(st.session_state.img_data, caption="Hình vẽ bài toán đang giải", use_column_width=True)
+            st.image(st.session_state.img_data, caption="Hình vẽ bài toán đang giải", use_container_width=True)
 
         if st.session_state.img_data and st.session_state.card is None:
             if st.button("🚀 Bắt đầu nhận Thử thách Bước 1!", type="primary", use_container_width=True):
                 with st.spinner("Đợi cô một chút..."):
                     try:
                         p_start = "Tạo câu hỏi thử thách Bước 1 ngắn gọn, tập trung khai thác giả thiết khởi đầu."
-                        c_data = execute_openrouter_request([st.session_state.img_data, p_start], GAME_PROMPT, is_json=True)
+                        c_data = execute_gemini_request([st.session_state.img_data, p_start], GAME_PROMPT, is_json=True)
                         st.session_state.card = c_data
                         st.session_state.total_steps = c_data.get("total_steps", 3)
                         st.session_state.step = 1
@@ -381,7 +341,7 @@ with tab1:
                         with st.spinner("Đang mở khóa bài giải và hình vẽ chuẩn..."):
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh và kèm theo mã SVG chuẩn vẽ lại hình bài toán này.
                             Trả về JSON: {"full_solution": "...", "svg_code": "<svg ...>...</svg>"}"""
-                            res_final = execute_openrouter_request([st.session_state.img_data, p_sol], is_json=True)
+                            res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
                             sol = res_final.get("full_solution", "")
                             svg = res_final.get("svg_code", "")
                     st.session_state.reward = clean_math_text(sol)
@@ -410,7 +370,7 @@ with tab1:
                         Nhớ giữ câu hỏi và 4 phương án ngắn gọn, dễ hiểu cho học sinh lớp 8.
                         Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải vào full_solution và sinh mã vẽ hình vào svg_code."""
                         try:
-                            st.session_state.card = execute_openrouter_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
+                            st.session_state.card = execute_gemini_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
                             st.session_state.step += 1
                             st.session_state.answered = False
                             st.session_state.selected_idx = None
@@ -474,11 +434,12 @@ with tab2:
                 - Tổng điểm: [Ghi điểm số]/10
                 - Nhận xét chi tiết:
                 """
-                score_res = execute_openrouter_request([RUBRIC, hw_img])
+                score_res = execute_gemini_request([RUBRIC, hw_img])
                 score_res_clean = clean_math_text(score_res)
 
-                score_match = re.search(r"(\d+(\.\d+)?)/10", score_res_clean)
-                extracted_score = score_match.group(1) if score_match else "Chưa xác định"
+                # Bắt điểm số linh hoạt cả dạng 8.5/10 và 8,5 / 10
+                score_match = re.search(r"(\d+([.,]\d+)?)\s*/\s*10", score_res_clean)
+                extracted_score = score_match.group(1).replace(",", ".") if score_match else "Chưa xác định"
 
                 sub_record = {
                     "Thời gian": datetime.now().strftime("%d/%m/%Y %H:%M"),
@@ -518,4 +479,4 @@ with tab3:
             use_container_width=True
         )
 
-        st.info("💡 **Cách mở trên Google Sheets:** Mở `sheets.google.com` ➔ Chọn **Tệp (File)** ➔ **Mở (Open)** ➔ Chọn **Tải lên (Upload)** file vừa tải về là toàn bộ bảng điểm sẽ hiển thị đầy đủ, không bị lỗi font chữ tiếng Việt.")
+        st.info("💡 **Cách mở trên Google Sheets:** Mở `sheets.google.com` ➔ Chọn **Tệp (File)** ➔ **Mở (Open)** ➔ Chọn **Tải lên (Upload)** file vừa tải về là toàn bộ bảng điểm sẽ hiển thị đầy đủ, chuẩn font tiếng Việt.")
