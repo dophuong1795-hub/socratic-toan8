@@ -7,15 +7,15 @@ import re
 import pandas as pd
 from datetime import datetime
 
-# Cấu hình giao diện Streamlit
+# ================= CẤU HÌNH GIAO DIỆN STREAMLIT =================
 st.set_page_config(
-    page_title="Đấu Trường Hình Học - Cô Mai Phương",
+    page_title="Đấu Trường Hình Học 8 - Cô Mai Phương",
     page_icon="📐",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-# ================= CSS TÙY CHỈNH GIAO DIỆN HIỆN ĐẠI =================
+# ================= CSS TÙY CHỈNH GIAO DIỆN =================
 st.markdown("""
 <style>
     .block-container {
@@ -82,6 +82,17 @@ st.markdown("""
         padding: 20px;
         margin-top: 15px;
     }
+    .solution-box {
+        background-color: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-left: 5px solid #4F46E5;
+        padding: 18px 20px;
+        border-radius: 10px;
+        line-height: 2;
+        font-size: 16px;
+        color: #1E293B;
+        margin-top: 14px;
+    }
     .svg-container {
         display: flex;
         justify-content: center;
@@ -103,7 +114,7 @@ if not API_KEY:
 
 # Khởi tạo Gemini Client
 client = genai.Client(api_key=API_KEY)
-MODEL_NAME = "gemini-3.8-flash"
+MODEL_NAME = "gemini-2.5-flash"
 
 # ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC 8 =================
 def format_math(text: str) -> str:
@@ -142,6 +153,10 @@ def format_math(text: str) -> str:
 
     return text.strip()
 
+# Định nghĩa các alias để chống lỗi NameError hoàn toàn
+clean_math_text = format_math
+clean_math = format_math
+
 # ================= HÀM ĐỊNH DẠNG BÀI GIẢI XUỐNG DÒNG TỪNG Ý =================
 def format_solution_step_by_step(raw_text: str) -> str:
     """Tách bài giải thành các dòng riêng biệt, thụt đầu dòng và in đậm câu a, b"""
@@ -150,15 +165,14 @@ def format_solution_step_by_step(raw_text: str) -> str:
     
     text = raw_text.replace("Lời giải chi tiết:", "").replace("Bài giải chi tiết:", "").strip()
     
-    # 1. Đưa các ý câu a), b), c) xuống dòng riêng và in đậm
+    # Đưa các ý câu a), b), c) xuống dòng riêng và in đậm
     text = re.sub(r"(?:\s*|^)([a-c]\))\s*", r"\n\n#### **\1** ", text)
     
-    # 2. Tách các dấu gạch đầu dòng '-', '+' hoặc '=>' thành dòng mới
+    # Tách các dấu gạch đầu dòng '-', '+' hoặc '=>' thành dòng mới
     text = re.sub(r"\s*-\s*", r"\n- ", text)
     text = re.sub(r"\s*\+\s*", r"\n  + ", text)
     text = re.sub(r"\s*=>\s*", r"\n  $\\Rightarrow$ ", text)
     
-    # 3. Chuẩn hóa từng dòng bằng bộ lọc ký hiệu toán
     lines = text.split("\n")
     cleaned_lines = []
     for line in lines:
@@ -180,14 +194,14 @@ YÊU CẦU NGÔN NGỮ & SƯ PHẠM:
 5. ĐỘ DÀI:
    - Câu hỏi: Tối đa 2 câu, hỏi thẳng vào trọng tâm.
    - Mỗi lựa chọn (options): Ngắn gọn 1 đến 2 dòng. TUYỆT ĐỐI KHÔNG ghi tiền tố 'A. ', 'B. ' ở đầu câu.
+6. KÝ HIỆU TOÁN: Phân số viết dạng \\dfrac{a}{b}, góc viết dạng \\widehat{ABC}.
 
 CẤU TRÚC 3 BƯỚC THỬ THÁCH (SOCRATIC SCAFFOLDING):
-- Bước 1 (Hình vẽ & Giả thiết cơ bản): Khai thác yếu tố quan trọng từ hình vẽ hoặc giả thiết.
+- Bước 1 (Hình vẽ & Giả thiết cơ bản): Khai thác yếu tố quan trọng từ hình vẽ hoặc giả thiết ban đầu. Tuyệt đối không hỏi ngay kết luận của đề bài.
 - Bước 2 (Bắc cầu suy luận): Dẫn dắt chứng minh quan hệ trung gian (cộng góc, hai tam giác bằng nhau, hình bình hành, đường trung bình).
 - Bước 3 (Kết luận): Đạt được điều cần chứng minh của đề bài.
 Khi is_finished = true:
-- Viết bài giải mẫu (full_solution) từng bước mẫu mực để học sinh ghi vào vở.
-- Sinh mã SVG (svg_code) vẽ lại hình bài toán (viewBox 0 0 400 300) có các điểm, đoạn thẳng và góc vuông rõ nét.
+- Viết bài giải mẫu (full_solution) từng bước mẫu mực có xuống dòng từng ý rõ ràng bằng \\n để học sinh ghi vào vở.
 
 BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU:
 {
@@ -203,8 +217,7 @@ BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU:
   "correct_index": 0,
   "explanation": "Giải thích ngắn 2-3 câu vì sao đúng theo định lý nào trong SGK Toán 8",
   "is_finished": false,
-  "full_solution": "",
-  "svg_code": ""
+  "full_solution": ""
 }
 """
 
@@ -217,13 +230,12 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
     
     config = types.GenerateContentConfig(**config_params) if config_params else None
 
-    # Tối ưu ảnh PIL nếu kích thước quá lớn
     prepared_contents = []
     for item in inputs:
         if isinstance(item, Image.Image):
             img = item.copy()
-            if max(img.size) > 1200:
-                img.thumbnail((1200, 1200))
+            if max(img.size) > 1000:
+                img.thumbnail((1000, 1000))
             prepared_contents.append(img)
         else:
             prepared_contents.append(item)
@@ -242,11 +254,12 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
         clean_text = re.sub(r"^```json\s*|^```\s*|```$", "", text_out.strip(), flags=re.MULTILINE)
         match = re.search(r"\{[\s\S]*\}", clean_text)
         target_str = match.group(0) if match else clean_text
-        sanitized_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', target_str)
         try:
-            return json.loads(sanitized_str, strict=False)
-        except Exception:
             return json.loads(target_str, strict=False)
+        except Exception:
+            # Sửa các dấu gạch chéo ngược LaTeX bị lỗi escape nếu có
+            fixed_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', target_str)
+            return json.loads(fixed_str, strict=False)
 
     return text_out
 
@@ -279,8 +292,6 @@ with tab1:
         st.session_state.img_data = None
     if "reward" not in st.session_state:
         st.session_state.reward = None
-    if "reward_svg" not in st.session_state:
-        st.session_state.reward_svg = None
 
     with st.expander("📸 Đề bài / Hình vẽ bài toán", expanded=(st.session_state.card is None)):
         up_img = st.file_uploader("Tải/chụp ảnh bài tập cần chú ý lên đây:", type=["jpg", "png", "jpeg"], key="up_game_img")
@@ -299,7 +310,6 @@ with tab1:
                         st.session_state.step = 1
                         st.session_state.answered = False
                         st.session_state.reward = None
-                        st.session_state.reward_svg = None
                         st.rerun()
                     except Exception as err:
                         st.error(f"Lỗi nạp thử thách: {err}")
@@ -312,11 +322,11 @@ with tab1:
         st.progress(progress_val)
 
         st.markdown(f'<span class="step-badge">CỬA ẢI: BƯỚC {curr} / {total}</span>', unsafe_allow_html=True)
-        fb = clean_math_text(card.get("feedback", ""))
+        fb = format_math(card.get("feedback", ""))
         if fb:
             st.info(f"💡 {fb}")
 
-        st.markdown(f"#### 🎯 {clean_math_text(card.get('question', ''))}")
+        st.markdown(f"#### 🎯 {format_math(card.get('question', ''))}")
         st.write("")
 
         opts = card.get("options", [])
@@ -325,7 +335,7 @@ with tab1:
         if not st.session_state.answered:
             st.markdown("**👉 Em hãy bấm chọn một đáp án đúng nhất:**")
             for idx, opt in enumerate(opts):
-                clean_opt = clean_math_text(opt)
+                clean_opt = format_math(opt)
                 clean_opt = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", clean_opt)
                 label = f"{chr(65+idx)}. {clean_opt}"
                 if st.button(label, key=f"btn_choice_{idx}", use_container_width=True):
@@ -334,10 +344,10 @@ with tab1:
                     st.rerun()
         else:
             sel = st.session_state.selected_idx
-            sel_text = clean_math_text(opts[sel]) if (sel is not None and sel < len(opts)) else ""
+            sel_text = format_math(opts[sel]) if (sel is not None and sel < len(opts)) else ""
             sel_text = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", sel_text)
 
-            correct_text = clean_math_text(opts[correct]) if correct < len(opts) else ""
+            correct_text = format_math(opts[correct]) if correct < len(opts) else ""
             correct_text = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", correct_text)
 
             if sel == correct:
@@ -346,7 +356,7 @@ with tab1:
                 st.error("❌ **Chưa chính xác.**")
                 st.markdown(f"Đáp án đúng là: **{chr(65+correct)}. {correct_text}**")
 
-            st.markdown(f"**💡 Hướng suy luận:** {clean_math_text(card.get('explanation', ''))}")
+            st.markdown(f"**💡 Hướng suy luận:** {format_math(card.get('explanation', ''))}")
 
             is_finish = card.get("is_finished") or (curr >= total)
 
@@ -356,39 +366,32 @@ with tab1:
 
                 if not st.session_state.reward:
                     sol = card.get("full_solution", "")
-                    svg = card.get("svg_code", "")
                     if not sol:
-                        with st.spinner("Đang mở khóa bài giải và hình vẽ chuẩn..."):
-                            p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh và kèm theo mã SVG chuẩn vẽ lại hình bài toán này.
-                            Trả về JSON: {"full_solution": "...", "svg_code": "<svg ...>...</svg>"}"""
+                        with st.spinner("Đang mở khóa bài giải chuẩn..."):
+                            p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh cho đề bài trong ảnh.
+                            Xuống dòng rõ ràng từng ý bằng ký tự \\n, phân biệt câu a) và câu b).
+                            Trả về JSON: {"full_solution": "..."}"""
                             res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
                             sol = res_final.get("full_solution", "")
-                            svg = res_final.get("svg_code", "")
-                    st.session_state.reward = clean_math_text(sol)
-                    st.session_state.reward_svg = svg
+                    st.session_state.reward = sol
 
                 st.markdown("""
                 <div class="reward-box">
-                    <h3 style="color: #15803D; margin-top:0;">🎁 PHẦN THƯỞNG: HÌNH VẼ & BÀI GIẢI MẪU HOÀN CHỈNH</h3>
-                    <p style="color: #166534; font-size: 14px;">Em hãy quan sát hình vẽ chuẩn, đối chiếu lập luận và trình bày thật đẹp vào vở nhé!</p>
+                    <h3 style="color: #15803D; margin-top:0;">🎁 PHẦN THƯỞNG: BÀI GIẢI MẪU HOÀN CHỈNH</h3>
+                    <p style="color: #166534; font-size: 14px;">Em hãy đối chiếu lập luận và trình bày thật đẹp vào vở nhé!</p>
                 </div>
                 """, unsafe_allow_html=True)
 
-                if st.session_state.reward_svg and "<svg" in st.session_state.reward_svg:
-                    st.markdown("#### 📐 Hình vẽ minh họa chuẩn xác:")
-                    clean_svg = re.search(r"<svg[\s\S]*?</svg>", st.session_state.reward_svg)
-                    if clean_svg:
-                        st.markdown(f'<div class="svg-container">{clean_svg.group(0)}</div>', unsafe_allow_html=True)
-
-                st.markdown(st.session_state.reward)
+                formatted_solution = format_solution_step_by_step(st.session_state.reward)
+                st.markdown(f'<div class="solution-box">{formatted_solution}</div>', unsafe_allow_html=True)
                 st.success("📝 **Bước tiếp theo:** Hãy chuyển sang tab **'Nộp Bài Tập'** ở trên để chụp ảnh bài vở nộp cô chấm nhé!")
             else:
                 st.write("")
                 if st.button("➡️ Sang thử thách tiếp theo", type="primary", use_container_width=True):
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. 
-                        Nhớ giữ câu hỏi và 4 phương án ngắn gọn, dễ hiểu cho học sinh lớp 8.
-                        Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải vào full_solution và sinh mã vẽ hình vào svg_code."""
+                        Nhớ giữ câu hỏi và 4 phương án ngắn gọn, dễ hiểu cho học sinh lớp 8. Phân số viết dạng \\dfrac{{a}}{{b}}, góc viết \\widehat{{ABC}}.
+                        Nếu đây là bước cuối, hãy đặt is_finished = true và viết bài giải chi tiết từng ý vào full_solution."""
                         try:
                             st.session_state.card = execute_gemini_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
                             st.session_state.step += 1
@@ -406,7 +409,6 @@ with tab1:
             st.session_state.selected_idx = None
             st.session_state.img_data = None
             st.session_state.reward = None
-            st.session_state.reward_svg = None
             st.rerun()
 
 # ================= TAB 2: NỘP BÀI & CHẤM ĐIỂM =================
@@ -429,7 +431,8 @@ with tab2:
         "Bài 3: Hình chữ nhật (Chụp kèm đề bài)",
         "Bài 4: Hình thoi (Chụp kèm đề bài)",
         "Bài 5: Hình vuông (Chụp kèm đề bài)",
-        "Bài 6: Bài tập tổng hợp (Chụp kèm đề bài)"
+        "Bài 6: Định lý Thalès và Tam giác đồng dạng",
+        "Bài 7: Bài tập tổng hợp (Chụp kèm đề bài)"
     ])
 
     up_hw = st.file_uploader("📸 Chụp ảnh bài giải viết tay trong vở:", type=["jpg", "png", "jpeg"], key="hw_submit_img")
@@ -455,9 +458,8 @@ with tab2:
                 - Nhận xét chi tiết:
                 """
                 score_res = execute_gemini_request([RUBRIC, hw_img])
-                score_res_clean = clean_math_text(score_res)
+                score_res_clean = format_math(score_res)
 
-                # Bắt điểm số linh hoạt cả dạng 8.5/10 và 8,5 / 10
                 score_match = re.search(r"(\d+([.,]\d+)?)\s*/\s*10", score_res_clean)
                 extracted_score = score_match.group(1).replace(",", ".") if score_match else "Chưa xác định"
 
@@ -473,7 +475,7 @@ with tab2:
 
                 st.success("Đã hoàn tất chấm bài và lưu kết quả vào sổ điểm!")
                 st.markdown(f"### Kết quả của: **{s_name}** - Lớp **{s_class}**")
-                st.markdown(score_res_clean)
+                st.markdown(f'<div class="solution-box">{score_res_clean}</div>', unsafe_allow_html=True)
 
 # ================= TAB 3: BẢNG ĐIỂM & XUẤT GOOGLE SHEETS =================
 with tab3:
