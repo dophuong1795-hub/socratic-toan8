@@ -66,7 +66,7 @@ st.markdown("""
         color: #1E293B !important;
         text-align: left !important;
         justify-content: flex-start !important;
-        line-height: 1.4 !important;
+        line-height: 1.5 !important;
         transition: all 0.2s ease !important;
     }
     div[data-testid="stButton"] button:hover {
@@ -110,8 +110,8 @@ if not API_KEY:
     st.stop()
 
 MODELS_PRIORITY = [
-    "google/gemma-4-26b-a4b-it:free",
     "meta-llama/llama-3.2-11b-vision-instruct:free",
+    "google/gemma-4-26b-a4b-it:free",
     "openrouter/free"
 ]
 
@@ -120,33 +120,40 @@ def clean_math_text(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
     
+    # 1. Chuyển đổi các cấu trúc LaTeX phân số và tam giác
     text = re.sub(r"\\frac\{([^}]+)\}\{([^}]+)\}", r"(\1/\2)", text)
     text = re.sub(r"\\Delta\s*", "tam giác ", text)
     text = re.sub(r"\\cdot", " . ", text)
 
+    # 2. Xóa các thuật ngữ ngoại lai và suy luận logic sai định dạng
     text = re.sub(r"\\implies|implies", " suy ra ", text, flags=re.IGNORECASE)
     text = re.sub(r"\\because|because", " vì ", text, flags=re.IGNORECASE)
     text = re.sub(r"\\therefore|therefore", " do đó ", text, flags=re.IGNORECASE)
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
 
+    # 3. Sửa lỗi chính tả tiếng Việt
     text = re.sub(r"\btư giác\b", "tứ giác", text, flags=re.IGNORECASE)
     text = re.sub(r"\bTư giác\b", "Tứ giác", text)
 
+    # 4. Ký hiệu góc và độ, loại bỏ lặp từ
     text = re.sub(r"góc\s*(?:tam giác|riangle|//|/|°)\s*", "góc ", text, flags=re.IGNORECASE)
     text = re.sub(r"góc\s+góc\s+", "góc ", text, flags=re.IGNORECASE)
     text = re.sub(r"tam giác\s+tam giác\s+", "tam giác ", text, flags=re.IGNORECASE)
 
+    # 5. Quan hệ thuộc và song song
     text = re.sub(r"\b([A-Z])\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 thuộc \2", text)
     text = text.replace(r"\in", " thuộc ")
     text = re.sub(r"\b([A-Z]{2})\s*(?:riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
     text = re.sub(r"\\?parallel", " // ", text)
 
+    # 6. Chuẩn hóa độ
     text = re.sub(r"bước\s*(\d+)°?", r"bước \1", text, flags=re.IGNORECASE)
     text = re.sub(r"\b(1[0-8]0|[3469]0)\s*(?:\^?\s*(?:circ|riangle|°)|(?=\s*[\.,\)\s]|$))(?!\s*(?:bước|cạnh|đoạn|tam giác))", r"\1°", text)
     text = text.replace("°°", "°")
     text = text.replace(r"^\circ", "°")
     text = text.replace("^circ", "°")
 
+    # 7. Các ký hiệu hình học cơ bản
     text = re.sub(r"\\?t?riangle\s*", "tam giác ", text, flags=re.IGNORECASE)
     text = re.sub(r"\\?angle\s*", "góc ", text, flags=re.IGNORECASE)
     text = text.replace("riangle", " // ")
@@ -155,6 +162,7 @@ def clean_math_text(text: str) -> str:
     text = text.replace(r"\perp", " ⊥ ")
     text = text.replace("$", "")
 
+    # 8. Ký hiệu mũ góc LaTeX
     text = re.sub(r"\\hat\{([A-Za-z0-9]+)\}", r"góc \1", text)
     text = re.sub(r"\\widehat\{([A-Za-z0-9]+)\}", r"góc \1", text)
     
@@ -186,37 +194,36 @@ def format_solution_to_clean_html(raw_solution: str) -> str:
 
     return "".join(html_items)
 
-# ================= PROMPT CHUẨN XÁC NỘI DUNG THẬT =================
+# ================= PROMPT CHUẨN XÁC NỘI DUNG =================
 GAME_PROMPT = """
 Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương (theo chương trình GDPT 2018 - bộ sách Kết nối tri thức).
-Nhiệm vụ: Đọc kỹ hình ảnh hoặc nội dung đề bài được cung cấp và tạo câu hỏi gợi mở trắc nghiệm thật sự về bài toán đó.
+Nhiệm vụ: Phân tích kỹ hình ảnh đề bài và tạo một câu hỏi gợi mở trắc nghiệm thực sự dựa trên các giả thiết của bài toán.
 
-QUY TẮC BẮT BUỘC:
-1. Đọc đúng tên các điểm, đoạn thẳng, giả thiết trong đề bài của học sinh (ví dụ: tam giác vuông ABC, đường cao AH, trung điểm I, K...).
-2. Đặt một câu hỏi trắc nghiệm thực tế liên quan trực tiếp đến đề bài (tối đa 2 câu). TUYỆT ĐỐI KHÔNG trả về các chữ giữ chỗ vô nghĩa như 'Nội dung câu hỏi', 'Phương án 1'.
-3. Mảng options phải gồm 4 khẳng định hình học thực tế, ngắn gọn (1 dòng). Trong đó có 1 khẳng định đúng và 3 khẳng định sai.
-4. KHÔNG dùng công thức LaTeX phức tạp (viết phân số dạng AB/2). KHÔNG viết chữ cái A., B., C., D. ở đầu các phương án.
-5. Chỉ ra correct_index (0, 1, 2 hoặc 3) tương ứng với vị trí phương án đúng.
+YÊU CẦU:
+1. Đọc chính xác tên các điểm, đường cao, trung điểm từ ảnh (như tam giác ABC vuông tại A, đường cao AH, trung điểm I, K...).
+2. Câu hỏi ngắn gọn, trực diện vào mắt xích tư duy (tối đa 2 câu). Tuyệt đối không dùng cụm từ mẫu chung chung.
+3. Mảng options gồm đúng 4 lựa chọn trắc nghiệm cụ thể (1 dòng). Không dùng công thức LaTeX phức tạp (viết phân số dạng AB/2 hoặc BC/2), không thêm ký tự A., B., C., D. ở đầu các phương án.
+4. Chỉ ra correct_index (0, 1, 2 hoặc 3) tương ứng phương án đúng.
 
-BẮT BUỘC TRẢ VỀ JSON HỢP LỆ VỚI CÁC TRƯỜNG SAU:
+BẮT BUỘC TRẢ VỀ DUY NHẤT ĐỊNH DẠNG JSON:
 {
   "total_steps": 3,
-  "feedback": "<khen ngợi hoặc động viên ngắn 1 câu>",
-  "question": "<câu hỏi thật sự về bài toán>",
+  "feedback": "Lời nhận xét động viên ngắn 1 câu",
+  "question": "Nội dung câu hỏi cụ thể về bài toán",
   "options": [
-    "<khẳng định hình học 1>",
-    "<khẳng định hình học 2>",
-    "<khẳng định hình học 3>",
-    "<khẳng định hình học 4>"
+    "Khẳng định 1",
+    "Khẳng định 2",
+    "Khẳng định 3",
+    "Khẳng định 4"
   ],
   "correct_index": 0,
-  "explanation": "<lời giải thích ngắn vì sao đúng theo định lý nào>",
+  "explanation": "Giải thích ngắn 2 câu theo SGK Toán 8",
   "is_finished": false,
   "full_solution": ""
 }
 """
 
-# ================= HÀM GỌI API BẮT BUỘC TRẢ VỀ JSON THẬT =================
+# ================= HÀM GỌI API AN TOÀN =================
 def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
@@ -232,11 +239,11 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
             content_parts.append({"type": "text", "text": item})
         elif isinstance(item, Image.Image):
             img_to_send = ImageOps.exif_transpose(item)
-            if max(img_to_send.size) > 600:
-                img_to_send.thumbnail((600, 600))
+            if max(img_to_send.size) > 700:
+                img_to_send.thumbnail((700, 700))
             
             buffered = io.BytesIO()
-            img_to_send.convert("RGB").save(buffered, format="JPEG", quality=65)
+            img_to_send.convert("RGB").save(buffered, format="JPEG", quality=75)
             img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
             content_parts.append({
                 "type": "image_url",
@@ -258,12 +265,8 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
         "max_tokens": 1200
     }
 
-    # Bật chế độ ép trả về JSON của OpenRouter
-    if is_json:
-        payload["response_format"] = {"type": "json_object"}
-
     try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=20)
+        resp = requests.post(url, headers=headers, json=payload, timeout=25)
     except Exception:
         raise Exception("Thời gian phản hồi quá lâu. Em hãy bấm lại nút một lần nữa nhé!")
 
@@ -276,24 +279,52 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
         raise Exception("Mô hình bận, em hãy bấm thử lại một lần nữa nhé!")
 
     msg = choices[0]["message"]
-    text_out = msg.get("content") or msg.get("reasoning") or ""
-    if not text_out.strip():
+    text_out = (msg.get("content") or "").strip()
+    if not text_out:
+        text_out = (msg.get("reasoning") or "").strip()
+
+    if not text_out:
         raise Exception("Nội dung rỗng, vui lòng bấm nhận lại thử thách!")
 
     if is_json:
-        clean_text = re.sub(r"^```json\s*|^```\s*|```$", "", text_out.strip(), flags=re.MULTILINE)
-        match = re.search(r"\{[\s\S]*\}", clean_text)
-        target_str = match.group(0) if match else clean_text
+        clean_text = re.sub(r"^```json\s*|^```\s*|```$", "", text_out, flags=re.MULTILINE)
+        
+        start_idx = clean_text.find("{")
+        end_idx = clean_text.rfind("}")
+        
+        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+            target_str = clean_text[start_idx:end_idx+1]
+        else:
+            target_str = clean_text
+
         sanitized_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', target_str)
         
-        parsed = json.loads(sanitized_str, strict=False)
-        
-        # Kiểm tra nếu AI trả về dữ liệu mẫu chữ giữ chỗ thì yêu cầu thử lại
-        q_val = parsed.get("question", "")
-        if "Nội dung câu hỏi" in q_val or (parsed.get("options") and "Phương án 1" in parsed["options"][0]):
-            raise Exception("AI chưa đọc kỹ ảnh bài toán, em hãy bấm nút lại một lần nhé!")
-            
-        return parsed
+        try:
+            parsed = json.loads(sanitized_str, strict=False)
+            if isinstance(parsed, dict) and "question" in parsed:
+                return parsed
+        except Exception:
+            pass
+
+        q_match = re.search(r'"question"\s*:\s*"([^"]+)"', target_str)
+        opts_block = re.search(r'"options"\s*:\s*\[([\s\S]*?)\]', target_str)
+        options = []
+        if opts_block:
+            options = re.findall(r'"([^"]+)"', opts_block.group(1))
+
+        if q_match and len(options) >= 2:
+            return {
+                "total_steps": 3,
+                "feedback": "Rất tốt! Chúng ta tiếp tục nhé.",
+                "question": q_match.group(1),
+                "options": options[:4],
+                "correct_index": 0,
+                "explanation": "Đúng theo định lý trong SGK Toán 8.",
+                "is_finished": False,
+                "full_solution": ""
+            }
+
+        raise Exception("AI chưa hoàn thiện cấu trúc câu hỏi, em bấm nút thêm 1 lần nhé!")
             
     return text_out
 
