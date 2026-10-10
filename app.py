@@ -119,27 +119,28 @@ def format_math(text: str) -> str:
     text = re.sub(r"\\therefore|\btherefore\b", " do đó ", text, flags=re.IGNORECASE)
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
 
-    # 2. Xử lý triệt để phân số dfrac/frac tránh trùng lặp dấu $
-    # Đưa \frac về \dfrac chuẩn
+    # 2. Chuẩn hóa phân số & đẳng thức toán học
     text = re.sub(r"\\frac\{", r"\\dfrac{", text)
     
-    # Chuẩn hóa dạng phân số thường A/2 hoặc 1/2 thành \dfrac
+    # Biến phân số thông thường dạng số/chữ (VD: 1/2, AC/2) thành \dfrac
     text = re.sub(r"(?<![a-zA-Z0-9_\$\\])([A-Z]{1,2}|\d+)\s*/\s*([A-Z]{1,2}|\d+)(?![a-zA-Z0-9_\$])", r"\\dfrac{\1}{\2}", text)
 
-    # Đảm bảo các biểu thức chứa \dfrac được bọc trong $...$ đúng chuẩn một lớp duy nhất
-    def wrap_fraction_latex(m):
-        content = m.group(0).strip("$")
-        return f"${content}$"
+    # Bọc toàn bộ các đẳng thức chứa \dfrac vào $...$ nếu chưa có
+    # Ví dụ: OM = \dfrac{1}{2}AH -> $OM = \dfrac{1}{2}AH$
+    def wrap_equation(m):
+        eq = m.group(1).strip()
+        return f"${eq}$"
 
-    # Bọc các đẳng thức chứa \dfrac nếu đang nằm ngoài cặp dấu $
-    text = re.sub(r"(?<!\$)\b([A-Z]{1,2}\s*=\s*\\dfrac\{[^}]+\}\{[^}]+\}\s*[A-Z]{0,2})(?!\$)", wrap_fraction_latex, text)
-    text = re.sub(r"(?<!\$)(?<=\s)(\\dfrac\{[^}]+\}\{[^}]+\})(?!\$)", wrap_fraction_latex, text)
+    text = re.sub(r"(?<!\$)\b([A-Z]{1,3}\s*=\s*(?:\\dfrac\{[^}]+\}\{[^}]+\}\s*)?[A-Z]{0,3}(?:\s*=\s*[A-Z]{1,3})?)(?!\$)", wrap_equation, text)
 
-    # Khử lỗi bọc dư thừa nhiều dấu đô la $$...$$ hoặc lồng nhau
+    # Nếu còn sót \dfrac đứng ngoài dấu $, bọc lại
+    text = re.sub(r"(?<!\$)(?<=\s)(\\dfrac\{[^}]+\}\{[^}]+\})(?!\$)", r"$\1$", text)
+
+    # Khử lỗi trùng lặp dấu $$ hoặc $ rỗng
     text = re.sub(r"\${2,}", "$", text)
     text = re.sub(r"\$\s*\$", "", text)
 
-    # 3. Chuẩn hóa góc thành dấu mũ: Góc IHA, góc A -> $\widehat{IHA}$, $\widehat{A}$
+    # 3. Chuẩn hóa góc: góc A, góc ABC, \widehat{ABC}
     def to_latex_angle(m):
         name = m.group(1).strip()
         return f"$\\widehat{{{name}}}$"
@@ -161,16 +162,16 @@ def format_math(text: str) -> str:
 
 # ================= HÀM ĐỊNH DẠNG BÀI GIẢI AN TOÀN =================
 def format_solution_step_by_step(raw_text: str) -> str:
-    """Tách dòng bài giải rõ ràng, chỉ biến a), b), c) thành đề mục khi đứng ĐẦU DÒNG"""
+    """Tách dòng bài giải chuẩn, không làm vỡ các mục a, b, c"""
     if not raw_text:
         return ""
     
     text = raw_text.replace("Lời giải chi tiết:", "").replace("Bài giải chi tiết:", "").strip()
     
-    # CHỈ nhận diện a), b), c) là tiêu đề mục khi nó nằm ở ĐẦU DÒNG MỚI (không ăn vào giữa câu 'ở câu a), nên')
-    text = re.sub(r"(?m)^\s*([a-c]\))\s*", r"\n### **\1** ", text)
+    # CHỈ nhận diện a), b), c) là tiêu đề khi đứng ở ĐẦU DÒNG
+    text = re.sub(r"(?m)^\s*([a-c]\))\s*", r"\n\n### **\1** ", text)
     
-    # Chỉ ngắt dòng khi dấu gạch ngang '-' hoặc '=>' đứng sau dấu chấm hoặc xuống dòng
+    # Xuống dòng rõ ràng cho các bước suy luận
     text = re.sub(r"(?<=\.)\s*-\s*", r"\n- ", text)
     text = re.sub(r"\s*=>\s*", r"\n  - $\\Rightarrow$ ", text)
     
@@ -179,10 +180,9 @@ def format_solution_step_by_step(raw_text: str) -> str:
     for line in lines:
         l = line.strip()
         if l:
-            cleaned_lines.append(format_math(line))
+            cleaned_lines.append(format_math(l))
             
     return "\n\n".join(cleaned_lines)
-
 GAME_PROMPT = """
 Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương (Chương trình GDPT 2018 - bộ sách Kết nối tri thức).
 Học sinh lớp 8 (13-14 tuổi).
@@ -190,20 +190,25 @@ Học sinh lớp 8 (13-14 tuổi).
 YÊU CẦU NGÔN NGỮ & SƯ PHẠM:
 1. Lời văn gần gũi, ngắn gọn, dễ hiểu như lời cô giảng trên lớp.
 2. TUYỆT ĐỐI KHÔNG chêm tiếng Anh ('hypotenuse', 'triangle'). Dùng đúng từ SGK: 'cạnh huyền', 'đường trung tuyến', 'cạnh góc vuông'.
-3. NẾU CÓ TAM GIÁC CON: Phải nói rõ tên tam giác để học sinh không nhầm lẫn (ví dụ: 'Xét tam giác con AHB vuông tại H có cạnh huyền AB...').
+3. NẾU CÓ TAM GIÁC CON: Phải nói rõ tên tam giác để học sinh không nhầm lẫn.
 4. ĐỘ DÀI:
    - Câu hỏi: Tối đa 2 câu, hỏi thẳng vào trọng tâm.
    - Mỗi lựa chọn (options): Ngắn gọn 1 đến 2 dòng. KHÔNG ghi tiền tố 'A. ', 'B. ' ở đầu câu.
-5. KÝ HIỆU TOÁN: Phân số viết dạng \\dfrac{a}{b}, góc viết dạng \\widehat{ABC}.
+5. KÝ HIỆU TOÁN: Bắt buộc bọc biểu thức công thức vào cặp $, ví dụ: $OM = \\dfrac{1}{2}AH$, $\\widehat{ABC} = 90^\\circ$.
 
 CẤU TRÚC 3 BƯỚC THỬ THÁCH:
-- Bước 1: Khai thác yếu tố quan trọng từ hình vẽ hoặc giả thiết ban đầu (chưa hỏi ngay kết luận đề bài).
+- Bước 1: Khai thác yếu tố quan trọng từ hình vẽ hoặc giả thiết ban đầu.
 - Bước 2: Dẫn dắt chứng minh quan hệ trung gian (cộng góc, hai tam giác bằng nhau, hình bình hành, đường trung bình).
 - Bước 3: Đạt được điều cần chứng minh của đề bài.
 
 KHI is_finished = true:
-- Viết bài giải mẫu (full_solution) từng bước mẫu mực có xuống dòng từng ý rõ ràng bằng \\n để học sinh ghi vào vở. Giữ nguyên vẹn dòng tính toán chu vi, không ngắt vụn công thức cộng.
-- BẮT BUỘC TẠO MÃ SVG (svg_code): Vẽ lại hình bài toán với khung viewBox='0 0 400 300', gồm đường thẳng nét xanh/đen rõ nét, điểm chấm tròn đen, chữ cái in hoa (A, B, C, P, Q, M, H, I, K...) to rõ nét và ký hiệu góc vuông.
+- Viết bài giải mẫu (full_solution) từng ý rõ ràng bằng \\n để học sinh ghi vào vở. Công thức toán bọc trong $...$.
+- QUY TẮC VẼ HÌNH SVG (svg_code):
+  + Sử dụng khung viewBox='0 0 500 400'.
+  + Vẽ các đoạn thẳng nét rõ (<line ... stroke='#1E293B' stroke-width='2'/>).
+  + Các điểm chấm tròn đen tại tọa độ (x, y) bằng <circle cx='...' cy='...' r='4' fill='#0F172A'/>.
+  + BẮT BUỘC ĐẶT TÊN TỪNG ĐIỂM NGAY CẠNH TỌA ĐỘ ĐIỂM ĐÓ: Dùng riêng từng thẻ <text x='...' y='...' font-size='15' font-weight='bold' fill='#0F172A'>A</text> nằm lệch khỏi chấm tròn 10-15px (trên/dưới/trái/phải). TUYỆT ĐỐI KHÔNG viết chung một chuỗi các chữ cái cạnh nhau.
+  + Thể hiện ký hiệu góc vuông bằng hình vuông nhỏ hoặc góc chuẩn.
 
 BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU:
 {
