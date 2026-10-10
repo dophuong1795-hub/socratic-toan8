@@ -110,7 +110,6 @@ if not API_KEY:
     st.error("Chưa cấu hình OPENROUTER_API_KEY trong Secrets của Streamlit Cloud!")
     st.stop()
 
-# ĐỔI HOÀN TOÀN SANG CÁC MODEL GOOGLE GEMINI (CHUYÊN TRỊ ẢNH TOÁN HỌC, KHÔNG BỊ SAFETY LỖI)
 MODELS_PRIORITY = [
     "google/gemini-2.0-flash-lite-001",
     "google/gemini-2.0-flash-001",
@@ -128,7 +127,7 @@ def clean_math_text(text: str) -> str:
     text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
     text = text.replace("undefined", "")
 
-    # 2. Khử triệt để các từ tiếng Anh ngoại lai
+    # 2. Khử triệt để các từ ngoại lai
     text = re.sub(r"\\implies|\bimplies\b", " suy ra ", text, flags=re.IGNORECASE)
     text = re.sub(r"\\because|\bbecause\b", " vì ", text, flags=re.IGNORECASE)
     text = re.sub(r"\\therefore|\btherefore\b", " do đó ", text, flags=re.IGNORECASE)
@@ -192,15 +191,12 @@ def format_solution_to_clean_html(raw_solution: str) -> str:
 
 # ================= HÀM BÓC TÁCH JSON TOÀN DIỆN =================
 def safe_parse_json(text: str):
-    # Dọn dẹp rác tiền tố nếu có
     text = re.sub(r"^(?:User Safety|Safety|Thinking Process):[^\n]*\n?", "", text, flags=re.IGNORECASE)
     
-    # Tìm khối JSON { ... }
     match = re.search(r"\{[\s\S]*\}", text)
     if match:
         json_str = match.group(0)
-        # Khử các dấu gạch chéo ngược LaTeX bị lỗi escape
-        json_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', json_str)         try:             data = json.loads(json_str, strict=False)             q = data.get("question", "")             opts = data.get("options", [])             if q and len(opts) >= 4:                 return {                     "question": clean_math_text(q),                     "options": [clean_math_text(o) for o in opts[:4]],                     "correct_index": int(data.get("correct_index", 0)) \% 4,                     "explanation": clean_math_text(data.get("explanation", "")),                     "full_solution": clean_math_text(data.get("full_solution", ""))                 }         except Exception:             pass      # Nếu JSON bị lỗi, bóc tách dòng dự phòng     lines = [l.strip() for l in text.split("\n") if l.strip()]     question = "Dựa vào hình vẽ và giả thiết bài toán, khẳng định nào sau đây là đúng?"     options = []     for l in lines:         if re.match(r"^[A-D][\.\:\)]\s*", l):
+        json_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', json_str)         try:             data = json.loads(json_str, strict=False)             q = data.get("question", "")             opts = data.get("options", [])             if q and len(opts) >= 4:                 return {                     "question": clean_math_text(q),                     "options": [clean_math_text(o) for o in opts[:4]],                     "correct_index": int(data.get("correct_index", 0)) \% 4,                     "explanation": clean_math_text(data.get("explanation", "")),                     "full_solution": clean_math_text(data.get("full_solution", ""))                 }         except Exception:             pass      # Bộ trích xuất fallback khi JSON bị lỗi định dạng     lines = [l.strip() for l in text.split("\n") if l.strip()]     question = "Dựa vào hình vẽ và giả thiết bài toán, khẳng định nào sau đây là đúng?"     options = []     for l in lines:         if re.match(r"^[A-D][\.\:\)]\s*", l):
             options.append(re.sub(r"^[A-D][\.\:\)]\s*", "", l))
     
     while len(options) < 4:
@@ -255,7 +251,6 @@ def execute_openrouter_request(inputs, system_prompt=GAME_PROMPT):
         if isinstance(item, str):
             content_parts.append({"type": "text", "text": item})
         elif isinstance(item, Image.Image):
-            # Nén ảnh kích thước vừa đủ để Gemini đọc siêu nét và nhẹ
             img_to_send = ImageOps.exif_transpose(item)
             if max(img_to_send.size) > 800:
                 img_to_send.thumbnail((800, 800))
@@ -495,7 +490,7 @@ with tab2:
 
                 ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ:
                 - Tổng điểm: [Ghi điểm số]/10
-                - Nhận xét chi tiết: (Chỉ ra chỗ làm tốt và lỗi sai nếu có)
+                - Nhận xét chi tiết: (Chỉ ra rõ chỗ làm tốt và lỗi sai nếu có)
                 """
                 score_res = execute_openrouter_request([RUBRIC, hw_img])
                 score_res_clean = format_solution_to_clean_html(score_res)
