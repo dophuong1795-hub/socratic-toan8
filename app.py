@@ -82,17 +82,6 @@ st.markdown("""
         padding: 20px;
         margin-top: 15px;
     }
-    .solution-box {
-        background-color: #F8FAFC;
-        border: 1px solid #E2E8F0;
-        border-left: 5px solid #4F46E5;
-        padding: 20px 24px;
-        border-radius: 12px;
-        line-height: 2;
-        font-size: 16px;
-        color: #1E293B;
-        margin-top: 14px;
-    }
     .svg-container {
         display: flex;
         justify-content: center;
@@ -141,7 +130,7 @@ def format_math(text: str) -> str:
 
     text = re.sub(r"(?:[∠∡∢]|\\angle\s*|\\widehat\{|\\hat\{|[Gg]óc\s+)([A-Z]{1,3})\b\}?", to_latex_angle, text)
 
-    # 4. Ký hiệu hình học khác: song song //, vuông góc ⊥, thuộc
+    # 4. Ký hiệu hình học khác
     text = re.sub(r"\b([A-Z]{2})\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
     text = re.sub(r"\\?parallel", " // ", text)
     text = re.sub(r"\\perp|£", " ⊥ ", text)
@@ -157,20 +146,21 @@ def format_math(text: str) -> str:
 clean_math_text = format_math
 clean_math = format_math
 
-# ================= HÀM ĐỊNH DẠNG BÀI GIẢI XUỐNG DÒNG TỪNG Ý =================
+# ================= HÀM ĐỊNH DẠNG BÀI GIẢI AN TOÀN TUYỆT ĐỐI =================
 def format_solution_step_by_step(raw_text: str) -> str:
+    """Tách dòng bài giải rõ ràng mà KHÔNG làm vỡ công thức cộng chu vi"""
     if not raw_text:
         return ""
     
     text = raw_text.replace("Lời giải chi tiết:", "").replace("Bài giải chi tiết:", "").strip()
     
-    # 1. Đưa các ý câu a), b), c) xuống dòng riêng và in đậm
-    text = re.sub(r"(?:\s*|^)([a-c]\))\s*", r"\n\n#### **\1** ", text)
+    # Đưa các tiêu đề câu a), b), c) thành tiêu đề rõ ràng
+    text = re.sub(r"(?:\n|^|\s+)([a-c]\))\s*", r"\n\n### **\1** ", text)
     
-    # 2. Tách các dấu gạch đầu dòng '-', '+' hoặc '=>' thành dòng mới
-    text = re.sub(r"\s*-\s*", r"\n- ", text)
-    text = re.sub(r"\s*\+\s*", r"\n  + ", text)
-    text = re.sub(r"\s*=>\s*", r"\n  $\\Rightarrow$ ", text)
+    # Chỉ ngắt dòng khi dấu gạch ngang '-' hoặc '=>' đứng sau dấu chấm hoặc xuống dòng,
+    # TUYỆT ĐỐI KHÔNG ngắt dấu '+' để tránh làm nát phép cộng chu vi
+    text = re.sub(r"(?<=\.)\s*-\s*", r"\n- ", text)
+    text = re.sub(r"\s*=>\s*", r"\n  - $\\Rightarrow$ ", text)
     
     lines = text.split("\n")
     cleaned_lines = []
@@ -182,25 +172,25 @@ def format_solution_step_by_step(raw_text: str) -> str:
     return "\n\n".join(cleaned_lines)
 
 GAME_PROMPT = """
-Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương, có kiến thức hình học vững chắc, lập luận sắc bén, giảng bài gần gũi, dễ hiểu (theo chương trình GDPT 2018).
-Đối tượng học sinh: Học sinh lớp 8 (13-14 tuổi), học bộ sách Kết nối tri thức.
+Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương (Chương trình GDPT 2018 - bộ sách Kết nối tri thức).
+Học sinh lớp 8 (13-14 tuổi).
 
 YÊU CẦU NGÔN NGỮ & SƯ PHẠM:
-1. Lời văn gần gũi, ngắn gọn, dễ hiểu như lời cô giáo giảng giải trên lớp.
+1. Lời văn gần gũi, ngắn gọn, dễ hiểu như lời cô giảng trên lớp.
 2. TUYỆT ĐỐI KHÔNG chêm tiếng Anh ('hypotenuse', 'triangle'). Dùng đúng từ SGK: 'cạnh huyền', 'đường trung tuyến', 'cạnh góc vuông'.
 3. NẾU CÓ TAM GIÁC CON: Phải nói rõ tên tam giác để học sinh không nhầm lẫn (ví dụ: 'Xét tam giác con AHB vuông tại H có cạnh huyền AB...').
 4. ĐỘ DÀI:
    - Câu hỏi: Tối đa 2 câu, hỏi thẳng vào trọng tâm.
-   - Mỗi lựa chọn (options): Ngắn gọn 1 đến 2 dòng. TUYỆT ĐỐI KHÔNG ghi tiền tố 'A. ', 'B. ' ở đầu câu.
+   - Mỗi lựa chọn (options): Ngắn gọn 1 đến 2 dòng. KHÔNG ghi tiền tố 'A. ', 'B. ' ở đầu câu.
 5. KÝ HIỆU TOÁN: Phân số viết dạng \\dfrac{a}{b}, góc viết dạng \\widehat{ABC}.
 
-CẤU TRÚC 3 BƯỚC THỬ THÁCH (SOCRATIC SCAFFOLDING):
-- Bước 1 (Hình vẽ & Giả thiết cơ bản): Khai thác yếu tố quan trọng từ hình vẽ hoặc giả thiết ban đầu. Tuyệt đối không hỏi ngay kết luận của đề bài.
-- Bước 2 (Bắc cầu suy luận): Dẫn dắt chứng minh quan hệ trung gian (cộng góc, hai tam giác bằng nhau, hình bình hành, đường trung bình).
-- Bước 3 (Kết luận): Đạt được điều cần chứng minh của đề bài.
+CẤU TRÚC 3 BƯỚC THỬ THÁCH:
+- Bước 1: Khai thác yếu tố quan trọng từ hình vẽ hoặc giả thiết ban đầu (chưa hỏi ngay kết luận đề bài).
+- Bước 2: Dẫn dắt chứng minh quan hệ trung gian (cộng góc, hai tam giác bằng nhau, hình bình hành, đường trung bình).
+- Bước 3: Đạt được điều cần chứng minh của đề bài.
 
 KHI is_finished = true:
-- Viết bài giải mẫu (full_solution) từng bước mẫu mực có xuống dòng từng ý rõ ràng bằng \\n để học sinh ghi vào vở.
+- Viết bài giải mẫu (full_solution) từng bước mẫu mực có xuống dòng từng ý rõ ràng bằng \\n để học sinh ghi vào vở. Giữ nguyên vẹn dòng tính toán chu vi, không ngắt vụn công thức cộng.
 - BẮT BUỘC TẠO MÃ SVG (svg_code): Vẽ lại hình bài toán với khung viewBox='0 0 400 300', gồm đường thẳng nét xanh/đen rõ nét, điểm chấm tròn đen, chữ cái in hoa (A, B, C, H, I, K) to rõ nét và ký hiệu góc vuông.
 
 BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU:
@@ -373,6 +363,7 @@ with tab1:
                     if not sol:
                         with st.spinner("Đang mở khóa bài giải và hình vẽ chuẩn..."):
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh và kèm theo mã SVG vẽ lại hình bài toán này.
+                            YÊU CẦU: Trình bày bài giải rõ ràng, các biểu thức tính chu vi giữ nguyên vẹn trên cùng một dòng, không ngắt vụn.
                             Trả về JSON: {"full_solution": "...", "svg_code": "<svg viewBox='0 0 400 300' ...>...</svg>"}"""
                             res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
                             sol = res_final.get("full_solution", "")
@@ -394,9 +385,12 @@ with tab1:
                     if clean_svg_match:
                         st.markdown(f'<div class="svg-container">{clean_svg_match.group(0)}</div>', unsafe_allow_html=True)
 
-                # HIỂN THỊ BÀI GIẢI CHI TIẾT ĐÃ XUỐNG DÒNG TỪNG Ý
+                # HIỂN THỊ BÀI GIẢI LIỀN MẠCH, RÕ RÀNG
+                st.markdown("#### 📝 Lời giải chi tiết:")
                 formatted_solution = format_solution_step_by_step(st.session_state.reward)
-                st.markdown(f'<div class="solution-box">{formatted_solution}</div>', unsafe_allow_html=True)
+                st.markdown(formatted_solution)
+
+                st.write("")
                 st.success("📝 **Bước tiếp theo:** Hãy chuyển sang tab **'Nộp Bài Tập'** ở trên để chụp ảnh bài vở nộp cô chấm nhé!")
             else:
                 st.write("")
@@ -489,7 +483,7 @@ with tab2:
 
                 st.success("Đã hoàn tất chấm bài và lưu kết quả vào sổ điểm!")
                 st.markdown(f"### Kết quả của: **{s_name}** - Lớp **{s_class}**")
-                st.markdown(f'<div class="solution-box">{score_res_clean}</div>', unsafe_allow_html=True)
+                st.markdown(score_res_clean)
 
 # ================= TAB 3: BẢNG ĐIỂM & XUẤT GOOGLE SHEETS =================
 with tab3:
