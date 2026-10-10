@@ -86,8 +86,8 @@ st.markdown("""
         background-color: #F8FAFC;
         border: 1px solid #E2E8F0;
         border-left: 5px solid #4F46E5;
-        padding: 18px 20px;
-        border-radius: 10px;
+        padding: 20px 24px;
+        border-radius: 12px;
         line-height: 2;
         font-size: 16px;
         color: #1E293B;
@@ -98,10 +98,11 @@ st.markdown("""
         justify-content: center;
         align-items: center;
         background: #FFFFFF;
-        border: 1px solid #CBD5E1;
-        border-radius: 12px;
-        padding: 15px;
+        border: 2px solid #E2E8F0;
+        border-radius: 14px;
+        padding: 18px;
         margin: 15px 0;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -129,7 +130,7 @@ def format_math(text: str) -> str:
     text = re.sub(r"\\therefore|\btherefore\b", " do đó ", text, flags=re.IGNORECASE)
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
 
-    # 2. Chuẩn hóa phân số có nét gạch ngang: AC/2, AB/2 -> $\dfrac{AC}{2}$
+    # 2. Chuẩn hóa phân số nét gạch ngang: AC/2, AB/2 -> $\dfrac{AC}{2}$
     text = re.sub(r"(?<![a-zA-Z0-9_\$])([A-Z]{1,2}|\d+)\s*/\s*([A-Z]{1,2}|\d+)(?![a-zA-Z0-9_\$])", r"$\\dfrac{\1}{\2}$", text)
     text = re.sub(r"\$?\\frac\{([^}]+)\}\{([^}]+)\}\$?", r"$\\dfrac{\1}{\2}$", text)
 
@@ -153,22 +154,20 @@ def format_math(text: str) -> str:
 
     return text.strip()
 
-# Định nghĩa các alias để chống lỗi NameError hoàn toàn
 clean_math_text = format_math
 clean_math = format_math
 
 # ================= HÀM ĐỊNH DẠNG BÀI GIẢI XUỐNG DÒNG TỪNG Ý =================
 def format_solution_step_by_step(raw_text: str) -> str:
-    """Tách bài giải thành các dòng riêng biệt, thụt đầu dòng và in đậm câu a, b"""
     if not raw_text:
         return ""
     
     text = raw_text.replace("Lời giải chi tiết:", "").replace("Bài giải chi tiết:", "").strip()
     
-    # Đưa các ý câu a), b), c) xuống dòng riêng và in đậm
+    # 1. Đưa các ý câu a), b), c) xuống dòng riêng và in đậm
     text = re.sub(r"(?:\s*|^)([a-c]\))\s*", r"\n\n#### **\1** ", text)
     
-    # Tách các dấu gạch đầu dòng '-', '+' hoặc '=>' thành dòng mới
+    # 2. Tách các dấu gạch đầu dòng '-', '+' hoặc '=>' thành dòng mới
     text = re.sub(r"\s*-\s*", r"\n- ", text)
     text = re.sub(r"\s*\+\s*", r"\n  + ", text)
     text = re.sub(r"\s*=>\s*", r"\n  $\\Rightarrow$ ", text)
@@ -188,20 +187,21 @@ Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương, có kiến 
 
 YÊU CẦU NGÔN NGỮ & SƯ PHẠM:
 1. Lời văn gần gũi, ngắn gọn, dễ hiểu như lời cô giáo giảng giải trên lớp.
-2. TUYỆT ĐỐI KHÔNG dùng từ ngữ triết học, hàn lâm ('nền tảng đúng đắn', 'khởi đầu lập luận', 'tiền đề').
-3. TUYỆT ĐỐI KHÔNG chêm tiếng Anh ('hypotenuse', 'triangle'). Dùng đúng từ SGK: 'cạnh huyền', 'đường trung tuyến', 'cạnh góc vuông'.
-4. NẾU CÓ TAM GIÁC CON: Phải nói rõ tên tam giác để học sinh không nhầm lẫn (ví dụ: 'Xét tam giác con AHB vuông tại H có cạnh huyền AB...').
-5. ĐỘ DÀI:
+2. TUYỆT ĐỐI KHÔNG chêm tiếng Anh ('hypotenuse', 'triangle'). Dùng đúng từ SGK: 'cạnh huyền', 'đường trung tuyến', 'cạnh góc vuông'.
+3. NẾU CÓ TAM GIÁC CON: Phải nói rõ tên tam giác để học sinh không nhầm lẫn (ví dụ: 'Xét tam giác con AHB vuông tại H có cạnh huyền AB...').
+4. ĐỘ DÀI:
    - Câu hỏi: Tối đa 2 câu, hỏi thẳng vào trọng tâm.
    - Mỗi lựa chọn (options): Ngắn gọn 1 đến 2 dòng. TUYỆT ĐỐI KHÔNG ghi tiền tố 'A. ', 'B. ' ở đầu câu.
-6. KÝ HIỆU TOÁN: Phân số viết dạng \\dfrac{a}{b}, góc viết dạng \\widehat{ABC}.
+5. KÝ HIỆU TOÁN: Phân số viết dạng \\dfrac{a}{b}, góc viết dạng \\widehat{ABC}.
 
 CẤU TRÚC 3 BƯỚC THỬ THÁCH (SOCRATIC SCAFFOLDING):
 - Bước 1 (Hình vẽ & Giả thiết cơ bản): Khai thác yếu tố quan trọng từ hình vẽ hoặc giả thiết ban đầu. Tuyệt đối không hỏi ngay kết luận của đề bài.
 - Bước 2 (Bắc cầu suy luận): Dẫn dắt chứng minh quan hệ trung gian (cộng góc, hai tam giác bằng nhau, hình bình hành, đường trung bình).
 - Bước 3 (Kết luận): Đạt được điều cần chứng minh của đề bài.
-Khi is_finished = true:
+
+KHI is_finished = true:
 - Viết bài giải mẫu (full_solution) từng bước mẫu mực có xuống dòng từng ý rõ ràng bằng \\n để học sinh ghi vào vở.
+- BẮT BUỘC TẠO MÃ SVG (svg_code): Vẽ lại hình bài toán với khung viewBox='0 0 400 300', gồm đường thẳng nét xanh/đen rõ nét, điểm chấm tròn đen, chữ cái in hoa (A, B, C, H, I, K) to rõ nét và ký hiệu góc vuông.
 
 BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU:
 {
@@ -217,7 +217,8 @@ BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU:
   "correct_index": 0,
   "explanation": "Giải thích ngắn 2-3 câu vì sao đúng theo định lý nào trong SGK Toán 8",
   "is_finished": false,
-  "full_solution": ""
+  "full_solution": "",
+  "svg_code": ""
 }
 """
 
@@ -257,7 +258,6 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
         try:
             return json.loads(target_str, strict=False)
         except Exception:
-            # Sửa các dấu gạch chéo ngược LaTeX bị lỗi escape nếu có
             fixed_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', target_str)
             return json.loads(fixed_str, strict=False)
 
@@ -292,6 +292,8 @@ with tab1:
         st.session_state.img_data = None
     if "reward" not in st.session_state:
         st.session_state.reward = None
+    if "reward_svg" not in st.session_state:
+        st.session_state.reward_svg = None
 
     with st.expander("📸 Đề bài / Hình vẽ bài toán", expanded=(st.session_state.card is None)):
         up_img = st.file_uploader("Tải/chụp ảnh bài tập cần chú ý lên đây:", type=["jpg", "png", "jpeg"], key="up_game_img")
@@ -310,6 +312,7 @@ with tab1:
                         st.session_state.step = 1
                         st.session_state.answered = False
                         st.session_state.reward = None
+                        st.session_state.reward_svg = None
                         st.rerun()
                     except Exception as err:
                         st.error(f"Lỗi nạp thử thách: {err}")
@@ -366,22 +369,32 @@ with tab1:
 
                 if not st.session_state.reward:
                     sol = card.get("full_solution", "")
+                    svg = card.get("svg_code", "")
                     if not sol:
-                        with st.spinner("Đang mở khóa bài giải chuẩn..."):
-                            p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh cho đề bài trong ảnh.
-                            Xuống dòng rõ ràng từng ý bằng ký tự \\n, phân biệt câu a) và câu b).
-                            Trả về JSON: {"full_solution": "..."}"""
+                        with st.spinner("Đang mở khóa bài giải và hình vẽ chuẩn..."):
+                            p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh và kèm theo mã SVG vẽ lại hình bài toán này.
+                            Trả về JSON: {"full_solution": "...", "svg_code": "<svg viewBox='0 0 400 300' ...>...</svg>"}"""
                             res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
                             sol = res_final.get("full_solution", "")
+                            svg = res_final.get("svg_code", "")
                     st.session_state.reward = sol
+                    st.session_state.reward_svg = svg
 
                 st.markdown("""
                 <div class="reward-box">
-                    <h3 style="color: #15803D; margin-top:0;">🎁 PHẦN THƯỞNG: BÀI GIẢI MẪU HOÀN CHỈNH</h3>
-                    <p style="color: #166534; font-size: 14px;">Em hãy đối chiếu lập luận và trình bày thật đẹp vào vở nhé!</p>
+                    <h3 style="color: #15803D; margin-top:0;">🎁 PHẦN THƯỞNG: HÌNH VẼ & BÀI GIẢI MẪU HOÀN CHỈNH</h3>
+                    <p style="color: #166534; font-size: 14px;">Em hãy quan sát hình vẽ chuẩn, đối chiếu lập luận và trình bày thật đẹp vào vở nhé!</p>
                 </div>
                 """, unsafe_allow_html=True)
 
+                # HIỂN THỊ HÌNH VẼ MINH HỌA SVG
+                if st.session_state.reward_svg and "<svg" in st.session_state.reward_svg:
+                    st.markdown("#### 📐 Hình vẽ minh họa chuẩn xác:")
+                    clean_svg_match = re.search(r"<svg[\s\S]*?</svg>", st.session_state.reward_svg)
+                    if clean_svg_match:
+                        st.markdown(f'<div class="svg-container">{clean_svg_match.group(0)}</div>', unsafe_allow_html=True)
+
+                # HIỂN THỊ BÀI GIẢI CHI TIẾT ĐÃ XUỐNG DÒNG TỪNG Ý
                 formatted_solution = format_solution_step_by_step(st.session_state.reward)
                 st.markdown(f'<div class="solution-box">{formatted_solution}</div>', unsafe_allow_html=True)
                 st.success("📝 **Bước tiếp theo:** Hãy chuyển sang tab **'Nộp Bài Tập'** ở trên để chụp ảnh bài vở nộp cô chấm nhé!")
@@ -391,7 +404,7 @@ with tab1:
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. 
                         Nhớ giữ câu hỏi và 4 phương án ngắn gọn, dễ hiểu cho học sinh lớp 8. Phân số viết dạng \\dfrac{{a}}{{b}}, góc viết \\widehat{{ABC}}.
-                        Nếu đây là bước cuối, hãy đặt is_finished = true và viết bài giải chi tiết từng ý vào full_solution."""
+                        Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải chi tiết từng ý vào full_solution và sinh mã vẽ hình chuẩn vào svg_code."""
                         try:
                             st.session_state.card = execute_gemini_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
                             st.session_state.step += 1
@@ -409,6 +422,7 @@ with tab1:
             st.session_state.selected_idx = None
             st.session_state.img_data = None
             st.session_state.reward = None
+            st.session_state.reward_svg = None
             st.rerun()
 
 # ================= TAB 2: NỘP BÀI & CHẤM ĐIỂM =================
