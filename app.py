@@ -4,6 +4,7 @@ from PIL import Image, ImageOps
 import re
 import base64
 import io
+import json
 import pandas as pd
 from datetime import datetime
 
@@ -15,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ================= CSS TỐI ƯU GIAO DIỆN =================
+# ================= CSS TỐI ƯU GIAO DIỆN HIỆN ĐẠI =================
 st.markdown("""
 <style>
     .block-container {
@@ -59,7 +60,7 @@ st.markdown("""
         border: 2px solid #E2E8F0 !important;
         font-size: 15px !important;
         font-weight: 600 !important;
-        padding: 12px 18px !important;
+        padding: 14px 18px !important;
         background-color: #FFFFFF !important;
         color: #1E293B !important;
         text-align: left !important;
@@ -109,10 +110,12 @@ if not API_KEY:
     st.error("Chưa cấu hình OPENROUTER_API_KEY trong Secrets của Streamlit Cloud!")
     st.stop()
 
+# ĐỔI HOÀN TOÀN SANG CÁC MODEL GOOGLE GEMINI (CHUYÊN TRỊ ẢNH TOÁN HỌC, KHÔNG BỊ SAFETY LỖI)
 MODELS_PRIORITY = [
-    "meta-llama/llama-3.2-11b-vision-instruct:free",
-    "google/gemma-4-26b-a4b-it:free",
-    "openrouter/free"
+    "google/gemini-2.0-flash-lite-001",
+    "google/gemini-2.0-flash-001",
+    "google/gemini-flash-1.5",
+    "google/gemini-2.0-flash-lite-preview:free"
 ]
 
 # ================= BỘ LỌC CHUẨN HÓA TOÁN HỌC 8 =================
@@ -120,23 +123,23 @@ def clean_math_text(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
 
-    # 1. Cắt bỏ hoàn toàn khối suy nghĩ nội bộ của mô hình
-    text = re.sub(r"^(?:Thinking Process|Thought|Reasoning):[\s\S]*?(?=(?:Câu hỏi|Bước \d+|Question|\n[A-D]\.|$))", "", text, flags=re.IGNORECASE)
+    # 1. Cắt bỏ hoàn toàn mọi tàn dư Thinking Process và User Safety
+    text = re.sub(r"^(?:User Safety|Safety|Thinking Process|Thought|Reasoning):[^\n]*\n?", "", text, flags=re.IGNORECASE)
     text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
     text = text.replace("undefined", "")
 
-    # 2. Khử các từ ngoại lai
+    # 2. Khử triệt để các từ tiếng Anh ngoại lai
     text = re.sub(r"\\implies|\bimplies\b", " suy ra ", text, flags=re.IGNORECASE)
     text = re.sub(r"\\because|\bbecause\b", " vì ", text, flags=re.IGNORECASE)
     text = re.sub(r"\\therefore|\btherefore\b", " do đó ", text, flags=re.IGNORECASE)
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
     text = re.sub(r"\btriangle\b", "tam giác", text, flags=re.IGNORECASE)
 
-    # 3. Chuẩn hóa phân số có nét gạch ngang: \dfrac{a}{b}
+    # 3. CHUẨN HÓA PHÂN SỐ CÓ NÉT GẠCH NGANG: \dfrac{a}{b}
     text = re.sub(r"(?<![a-zA-Z0-9_\$])([A-Z]{1,2}|\d+)\s*/\s*([A-Z]{1,2}|\d+)(?![a-zA-Z0-9_\$])", r"$\\dfrac{\1}{\2}$", text)
     text = re.sub(r"\$?\\frac\{([^}]+)\}\{([^}]+)\}\$?", r"$\\dfrac{\1}{\2}$", text)
 
-    # 4. Chuẩn hóa góc: Chuyển ∠ABC, \widehat{ABC}, góc ABC về $\widehat{ABC}$
+    # 4. CHUẨN HÓA GÓC: Chuyển ∠ABC, \widehat{ABC}, góc ABC về $\widehat{ABC}$
     def replace_angle(match):
         pts = match.group(1).strip()
         return f"$\\widehat{{{pts}}}$"
@@ -187,108 +190,58 @@ def format_solution_to_clean_html(raw_solution: str) -> str:
 
     return "".join(html_items)
 
-# ================= BỘ BÓC TÁCH LỌC BỎ SUY NGHĨ NỘI BỘ =================
-def robust_parse_quiz(raw_text: str):
-    # Loại bỏ triệt để phần Thinking Process của mô hình
-    text = re.sub(r"^(?:Thinking Process|Thought|Reasoning):[\s\S]*?(?=(?:Câu hỏi:|Bước \d+:|Question:|\n\s*[A-D]\.))", "", raw_text, flags=re.IGNORECASE)
-    text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE).strip()
-
-    lines = [line.strip() for line in text.split('\n') if line.strip()]
-
-    question_lines = []
-    options_dict = {}
-    correct_index = 0
-    expl_lines = []
-    sol_lines = []
-    current_section = "question"
-
-    for line in lines:
-        # Bắt dòng Đáp án
-        ans_m = re.match(r'^(?:Đáp án|Answer|Chốt):\s*([A-D])', line, re.IGNORECASE)
-        if ans_m:
-            correct_index = ord(ans_m.group(1).upper()) - ord('A')
-            current_section = "other"
-            continue
-
-        # Bắt phần Giải thích
-        if re.match(r'^(?:Giải thích|Explanation):', line, re.IGNORECASE):
-            current_section = "expl"
-            expl_lines.append(re.sub(r'^(?:Giải thích|Explanation):\s*', '', line, flags=re.IGNORECASE))
-            continue
-
-        # Bắt phần Bài giải
-        if re.match(r'^(?:Bài giải|Lời giải|Solution):', line, re.IGNORECASE):
-            current_section = "sol"
-            sol_lines.append(re.sub(r'^(?:Bài giải|Lời giải|Solution):\s*', '', line, flags=re.IGNORECASE))
-            continue
-
-        # Bắt 4 phương án A, B, C, D
-        opt_m = re.match(r'^(?:\*\*)?([A-D])[\.\:\)]\s*(?:\*\*)?(.*)', line)
-        if opt_m:
-            letter = opt_m.group(1).upper()
-            content = opt_m.group(2).strip()
-            options_dict[letter] = content
-            current_section = "options"
-            continue
-
-        # Thu thập nội dung
-        if current_section == "question":
-            cleaned_line = re.sub(r'^(?:Câu hỏi|Question|Bước \d+):\s*', '', line, flags=re.IGNORECASE)
-            if cleaned_line and not cleaned_line.lower().startswith(("thinking", "context", "task")):
-                question_lines.append(cleaned_line)
-        elif current_section == "expl":
-            expl_lines.append(line)
-        elif current_section == "sol":
-            sol_lines.append(line)
-
-    question = " ".join(question_lines).strip()
-    if not question:
-        question = "Dựa vào các dữ kiện hình học của bài toán, khẳng định nào sau đây là đúng?"
-
-    options = []
-    for l in ["A", "B", "C", "D"]:
-        if l in options_dict and options_dict[l]:
-            options.append(options_dict[l])
-        else:
-            options.append(f"Phương án {l}")
-
-    explanation = " ".join(expl_lines).strip() or "Căn cứ theo các định lý hình học trong SGK Toán 8."
-    solution = "\n".join(sol_lines).strip()
+# ================= HÀM BÓC TÁCH JSON TOÀN DIỆN =================
+def safe_parse_json(text: str):
+    # Dọn dẹp rác tiền tố nếu có
+    text = re.sub(r"^(?:User Safety|Safety|Thinking Process):[^\n]*\n?", "", text, flags=re.IGNORECASE)
+    
+    # Tìm khối JSON { ... }
+    match = re.search(r"\{[\s\S]*\}", text)
+    if match:
+        json_str = match.group(0)
+        # Khử các dấu gạch chéo ngược LaTeX bị lỗi escape
+        json_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', json_str)         try:             data = json.loads(json_str, strict=False)             q = data.get("question", "")             opts = data.get("options", [])             if q and len(opts) >= 4:                 return {                     "question": clean_math_text(q),                     "options": [clean_math_text(o) for o in opts[:4]],                     "correct_index": int(data.get("correct_index", 0)) \% 4,                     "explanation": clean_math_text(data.get("explanation", "")),                     "full_solution": clean_math_text(data.get("full_solution", ""))                 }         except Exception:             pass      # Nếu JSON bị lỗi, bóc tách dòng dự phòng     lines = [l.strip() for l in text.split("\n") if l.strip()]     question = "Dựa vào hình vẽ và giả thiết bài toán, khẳng định nào sau đây là đúng?"     options = []     for l in lines:         if re.match(r"^[A-D][\.\:\)]\s*", l):
+            options.append(re.sub(r"^[A-D][\.\:\)]\s*", "", l))
+    
+    while len(options) < 4:
+        options.append(f"Khẳng định {len(options)+1}")
 
     return {
         "question": clean_math_text(question),
-        "options": [clean_math_text(opt) for opt in options[:4]],
-        "correct_index": max(0, min(correct_index, 3)),
-        "explanation": clean_math_text(explanation),
-        "full_solution": clean_math_text(solution)
+        "options": [clean_math_text(o) for o in options[:4]],
+        "correct_index": 0,
+        "explanation": "Căn cứ theo định lý và tính chất trong SGK Toán 8.",
+        "full_solution": ""
     }
 
-SYSTEM_PROMPT = """
+# ================= PROMPT CHUẨN CHO GEMINI VISION =================
+GAME_PROMPT = """
 Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương (Chương trình GDPT 2018 - bộ sách Kết nối tri thức).
-Nhiệm vụ: Đọc kỹ hình ảnh bài toán và tạo câu hỏi trắc nghiệm Socratic dẫn dắt học sinh.
-
-YÊU CẦU ĐẶC BIỆT QUAN TRỌNG:
-- TUYỆT ĐỐI KHÔNG xuất ra 'Thinking Process', 'Reasoning' hoặc bất kỳ suy nghĩ ngầm nào.
-- ĐI THẲNG VÀO NỘI DUNG theo đúng 7 dòng quy định bên dưới.
+Nhiệm vụ: Đọc kỹ hình ảnh bài toán và tạo câu hỏi gợi mở trắc nghiệm Socratic từng bước.
 
 QUY TẮC SƯ PHẠM:
-1. Bước 1: Khai thác mắt xích giả thiết ban đầu (ví dụ: tam giác vuông con AHB có đường trung tuyến HI ứng với cạnh huyền AB nên HI = \\dfrac{AB}{2}, tam giác cân...). Tuyệt đối không hỏi ngay kết luận cần chứng minh ở đề bài.
-2. Bước 2: Dẫn dắt chứng minh quan hệ trung gian (cộng góc, hai tam giác bằng nhau, hình bình hành...).
-3. Bước 3: Đạt đến kết luận cuối cùng.
-4. KÝ HIỆU PHÂN SỐ: Luôn viết phân số nét gạch ngang: \\dfrac{AB}{2}, \\dfrac{BC}{2}.
-5. KÝ HIỆU GÓC: Dùng 'góc ABC' hoặc '\\widehat{ABC}'. Không dùng ký tự lạ ∠. Không dùng tiếng Anh (implies, because).
+- Bước 1: Khai thác mắt xích giả thiết ban đầu (ví dụ: tam giác vuông con AHB có đường trung tuyến HI ứng với cạnh huyền AB nên HI = \\dfrac{AB}{2}, hoặc tam giác AHI cân...). TUYỆT ĐỐI KHÔNG hỏi ngay điều kết luận của đề bài.
+- Bước 2: Dẫn dắt chứng minh quan hệ trung gian (cộng góc, hai tam giác bằng nhau, hình bình hành...).
+- Bước 3: Đạt đến kết luận cuối cùng của đề bài.
+- KÝ HIỆU PHÂN SỐ: Viết dạng phân số có gạch ngang: \\dfrac{AB}{2}, \\dfrac{BC}{2}.
+- KÝ HIỆU GÓC: Viết 'góc ABC' hoặc '\\widehat{ABC}'. Không dùng ký tự lạ ∠. Không dùng tiếng Anh.
 
-BẮT BUỘC TRẢ VỀ THEO CẤU TRÚC 7 DÒNG SAU (KHÔNG VIẾT CHỮ THỪA NGOÀI ĐỊNH DẠNG):
-Câu hỏi: <Nội dung câu hỏi ngắn gọn>
-A. <Nội dung phương án A>
-B. <Nội dung phương án B>
-C. <Nội dung phương án C>
-D. <Nội dung phương án D>
-Đáp án: <Chỉ ghi 1 chữ cái in hoa A, B, C hoặc D>
-Giải thích: <Giải thích ngắn gọn 2 câu>
+BẮT BUỘC TRẢ VỀ DUY NHẤT 1 KHỐI JSON HỢP LỆ VỚI CẤU TRÚC SAU:
+{
+  "question": "Nội dung câu hỏi ngắn gọn",
+  "options": [
+    "Phương án A cụ thể",
+    "Phương án B cụ thể",
+    "Phương án C cụ thể",
+    "Phương án D cụ thể"
+  ],
+  "correct_index": 0,
+  "explanation": "Giải thích ngắn 2 câu theo SGK Toán 8",
+  "full_solution": ""
+}
 """
 
-def execute_openrouter_request(inputs, system_prompt=SYSTEM_PROMPT):
+def execute_openrouter_request(inputs, system_prompt=GAME_PROMPT):
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {API_KEY}",
@@ -302,12 +255,13 @@ def execute_openrouter_request(inputs, system_prompt=SYSTEM_PROMPT):
         if isinstance(item, str):
             content_parts.append({"type": "text", "text": item})
         elif isinstance(item, Image.Image):
+            # Nén ảnh kích thước vừa đủ để Gemini đọc siêu nét và nhẹ
             img_to_send = ImageOps.exif_transpose(item)
-            if max(img_to_send.size) > 650:
-                img_to_send.thumbnail((650, 650))
+            if max(img_to_send.size) > 800:
+                img_to_send.thumbnail((800, 800))
 
             buffered = io.BytesIO()
-            img_to_send.convert("RGB").save(buffered, format="JPEG", quality=70)
+            img_to_send.convert("RGB").save(buffered, format="JPEG", quality=80)
             img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
             content_parts.append({
                 "type": "image_url",
@@ -330,7 +284,7 @@ def execute_openrouter_request(inputs, system_prompt=SYSTEM_PROMPT):
     }
 
     try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=22)
+        resp = requests.post(url, headers=headers, json=payload, timeout=25)
     except Exception:
         raise Exception("Thời gian phản hồi quá lâu, em bấm thử lại nhé!")
 
@@ -392,11 +346,11 @@ with tab1:
             if st.button("🚀 Bắt đầu nhận Thử thách Bước 1!", type="primary", use_container_width=True):
                 with st.spinner("Cô Mai Phương đang chuẩn bị câu hỏi gợi ý..."):
                     try:
-                        p_start = """Đọc kỹ đề bài trong ảnh. Tạo thử thách Bước 1: 
-                        Khai thác tính chất khởi đầu quan trọng nhất (ví dụ tính chất trung tuyến trong tam giác vuông bằng nửa cạnh huyền: \\dfrac{AB}{2}, tam giác cân...). Tuyệt đối không hỏi điều kết luận của đề bài.
-                        Bắt buộc tuân thủ đúng 7 dòng: Câu hỏi, A, B, C, D, Đáp án, Giải thích. Tuyệt đối không viết Thinking Process."""
+                        p_start = """Đọc đề bài trong ảnh. Tạo thử thách Bước 1: 
+                        Khai thác tính chất khởi đầu quan trọng nhất (như tính chất trung tuyến trong tam giác vuông con bằng nửa cạnh huyền: \\dfrac{AB}{2}, tam giác cân...). Tuyệt đối không hỏi điều kết luận của đề bài.
+                        Bắt buộc trả về đúng định dạng JSON có question, options (4 lựa chọn cụ thể), correct_index, explanation."""
                         raw_resp = execute_openrouter_request([st.session_state.img_data, p_start])
-                        st.session_state.card = robust_parse_quiz(raw_resp)
+                        st.session_state.card = safe_parse_json(raw_resp)
                         st.session_state.total_steps = 3
                         st.session_state.step = 1
                         st.session_state.answered = False
@@ -452,12 +406,9 @@ with tab1:
                         with st.spinner("Đang mở khóa bài giải chuẩn mực..."):
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh cho đề bài trong ảnh.
                             YÊU CẦU: Trình bày từng bước có căn cứ định lý, mở ngoặc rõ ràng, xuống dòng sạch sẽ. Phân số viết dạng gạch ngang \\dfrac{a}{b}.
-                            Bắt đầu bằng:
-                            Bài giải:
-                            • Bước 1...
-                            • Bước 2..."""
+                            Trả về JSON: {"full_solution": "..."}"""
                             raw_sol = execute_openrouter_request([st.session_state.img_data, p_sol])
-                            sol_parsed = robust_parse_quiz(raw_sol)
+                            sol_parsed = safe_parse_json(raw_sol)
                             sol = sol_parsed.get("full_solution") or raw_sol
                     st.session_state.reward = sol
 
@@ -479,10 +430,10 @@ with tab1:
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng là: '{correct_text}'. 
                         Tạo câu hỏi thử thách Bước {curr + 1} / {total} (dẫn dắt bước suy luận tiếp theo). Phân số viết dạng \\dfrac{{a}}{{b}}. 
-                        Bắt buộc tuân thủ đúng 7 dòng: Câu hỏi, A, B, C, D, Đáp án, Giải thích. Tuyệt đối không viết Thinking Process."""
+                        Bắt buộc trả về JSON có question, options (4 lựa chọn cụ thể), correct_index, explanation."""
                         try:
                             raw_next = execute_openrouter_request([st.session_state.img_data, p_next])
-                            st.session_state.card = robust_parse_quiz(raw_next)
+                            st.session_state.card = safe_parse_json(raw_next)
                             st.session_state.step += 1
                             st.session_state.answered = False
                             st.session_state.selected_idx = None
