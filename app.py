@@ -1,11 +1,9 @@
 import streamlit as st
 import requests
 from PIL import Image, ImageOps
-import json
 import re
 import base64
 import io
-import time
 import pandas as pd
 from datetime import datetime
 
@@ -56,6 +54,18 @@ st.markdown("""
         margin-bottom: 12px;
         border: 1px solid #C7D2FE;
     }
+    /* Thẻ hiển thị lựa chọn đáp án dạng phân số đẹp mắt */
+    .option-card {
+        background-color: #FFFFFF;
+        border: 2px solid #E2E8F0;
+        border-radius: 14px;
+        padding: 12px 18px;
+        margin-bottom: 10px;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    }
     div[data-testid="stButton"] button {
         border-radius: 14px !important;
         border: 2px solid #E2E8F0 !important;
@@ -64,9 +74,6 @@ st.markdown("""
         padding: 12px 16px !important;
         background-color: #F8FAFC !important;
         color: #1E293B !important;
-        text-align: left !important;
-        justify-content: flex-start !important;
-        line-height: 1.5 !important;
         transition: all 0.2s ease !important;
     }
     div[data-testid="stButton"] button:hover {
@@ -79,8 +86,6 @@ st.markdown("""
         background: linear-gradient(135deg, #4F46E5, #6366F1) !important;
         color: white !important;
         border: none !important;
-        text-align: center !important;
-        justify-content: center !important;
     }
     .reward-box {
         background: #F0FDF4;
@@ -95,8 +100,8 @@ st.markdown("""
         border-left: 5px solid #4F46E5;
         padding: 18px 20px;
         border-radius: 10px;
-        line-height: 1.85;
-        font-size: 15px;
+        line-height: 2;
+        font-size: 16px;
         color: #1E293B;
         margin-top: 14px;
     }
@@ -115,57 +120,49 @@ MODELS_PRIORITY = [
     "openrouter/free"
 ]
 
-# ================= BỘ LỌC CHUẨN HÓA TOÁN HỌC =================
+# ================= BỘ LỌC CHUẨN HÓA PHÂN SỐ VÀ KÝ HIỆU HÌNH HỌC =================
 def clean_math_text(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
-    
-    # 1. Chuyển đổi các cấu trúc LaTeX phân số và tam giác
-    text = re.sub(r"\\frac\{([^}]+)\}\{([^}]+)\}", r"(\1/\2)", text)
-    text = re.sub(r"\\Delta\s*", "tam giác ", text)
-    text = re.sub(r"\\cdot", " . ", text)
 
-    # 2. Xóa các thuật ngữ ngoại lai và suy luận logic sai định dạng
-    text = re.sub(r"\\implies|implies", " suy ra ", text, flags=re.IGNORECASE)
-    text = re.sub(r"\\because|because", " vì ", text, flags=re.IGNORECASE)
-    text = re.sub(r"\\therefore|therefore", " do đó ", text, flags=re.IGNORECASE)
+    # 1. Khử bỏ tận gốc từ ngoại lai và thuật ngữ tiếng Anh
+    text = re.sub(r"\\implies|\bimplies\b", " suy ra ", text, flags=re.IGNORECASE)
+    text = re.sub(r"\\because|\bbecause\b", " vì ", text, flags=re.IGNORECASE)
+    text = re.sub(r"\\therefore|\btherefore\b", " do đó ", text, flags=re.IGNORECASE)
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
+    text = re.sub(r"\btriangle\b", "tam giác", text, flags=re.IGNORECASE)
 
-    # 3. Sửa lỗi chính tả tiếng Việt
-    text = re.sub(r"\btư giác\b", "tứ giác", text, flags=re.IGNORECASE)
-    text = re.sub(r"\bTư giác\b", "Tứ giác", text)
+    # 2. CHUẨN HÓA PHÂN SỐ GẠCH NGANG CHUẨN TOÁN: \dfrac{a}{b} hoặc a/b -> $\dfrac{a}{b}$
+    # Chuyển đổi mọi dạng phân số x/y (như AB/2, BC/2, 1/2) thành LaTeX gạch ngang \dfrac{a}{b}
+    text = re.sub(r"(?<![a-zA-Z0-9_\$])([A-Z]{1,2}|\d+)\s*/\s*([A-Z]{1,2}|\d+)(?![a-zA-Z0-9_\$])", r"$\\dfrac{\1}{\2}$", text)
+    
+    # Chuẩn hóa \frac{} có sẵn thành \dfrac{} có dấu $ bao bọc để hiển thị gạch ngang to rõ
+    text = re.sub(r"\$?\\frac\{([^}]+)\}\{([^}]+)\}\$?", r"$\\dfrac{\1}{\2}$", text)
 
-    # 4. Ký hiệu góc và độ, loại bỏ lặp từ
-    text = re.sub(r"góc\s*(?:tam giác|riangle|//|/|°)\s*", "góc ", text, flags=re.IGNORECASE)
+    # 3. CHUẨN HÓA GÓC: Chuyển ∠ABC, ∡ABC, \angle ABC, góc ABC -> $\widehat{ABC}$
+    def replace_angle(match):
+        pts = match.group(1).strip()
+        return f"$\\widehat{{{pts}}}$"
+
+    text = re.sub(r"(?:[∠∡∢]|\\angle\s*|\\widehat\{|\\hat\{|\bgóc\s+)([A-Z]{1,3})\b\}?", replace_angle, text)
+
+    # 4. Xóa lỗi lặp từ
     text = re.sub(r"góc\s+góc\s+", "góc ", text, flags=re.IGNORECASE)
     text = re.sub(r"tam giác\s+tam giác\s+", "tam giác ", text, flags=re.IGNORECASE)
+    text = re.sub(r"\btư giác\b", "tứ giác", text, flags=re.IGNORECASE)
 
-    # 5. Quan hệ thuộc và song song
+    # 5. Ký hiệu hình học khác: song song //, vuông góc ⊥, thuộc
+    text = re.sub(r"\b([A-Z]{2})\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
+    text = re.sub(r"\\?parallel", " // ", text)
+    text = re.sub(r"\\perp|£", " ⊥ ", text)
     text = re.sub(r"\b([A-Z])\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 thuộc \2", text)
     text = text.replace(r"\in", " thuộc ")
-    text = re.sub(r"\b([A-Z]{2})\s*(?:riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
-    text = re.sub(r"\\?parallel", " // ", text)
 
-    # 6. Chuẩn hóa độ
-    text = re.sub(r"bước\s*(\d+)°?", r"bước \1", text, flags=re.IGNORECASE)
-    text = re.sub(r"\b(1[0-8]0|[3469]0)\s*(?:\^?\s*(?:circ|riangle|°)|(?=\s*[\.,\)\s]|$))(?!\s*(?:bước|cạnh|đoạn|tam giác))", r"\1°", text)
+    # 6. Chuẩn hóa số đo độ (90° thay vì 90^circ)
+    text = re.sub(r"\b(1[0-8]0|[3469]0)\s*(?:\^?\s*(?:circ|°)|(?=\s*[\.,\)\s]|$))(?!\s*(?:bước|cạnh|đoạn|tam giác))", r"\1°", text)
     text = text.replace("°°", "°")
-    text = text.replace(r"^\circ", "°")
-    text = text.replace("^circ", "°")
 
-    # 7. Các ký hiệu hình học cơ bản
-    text = re.sub(r"\\?t?riangle\s*", "tam giác ", text, flags=re.IGNORECASE)
-    text = re.sub(r"\\?angle\s*", "góc ", text, flags=re.IGNORECASE)
-    text = text.replace("riangle", " // ")
-    text = text.replace("Île", "góc ")
-    text = text.replace("£", " ⊥ ")
-    text = text.replace(r"\perp", " ⊥ ")
-    text = text.replace("$", "")
-
-    # 8. Ký hiệu mũ góc LaTeX
-    text = re.sub(r"\\hat\{([A-Za-z0-9]+)\}", r"góc \1", text)
-    text = re.sub(r"\\widehat\{([A-Za-z0-9]+)\}", r"góc \1", text)
-    
+    # Dọn dẹp khoảng trắng thừa
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
@@ -173,7 +170,7 @@ def format_solution_to_clean_html(raw_solution: str) -> str:
     cleaned = clean_math_text(raw_solution)
     raw_lines = re.split(r'[\r\n]+', cleaned)
     valid_lines = []
-    
+
     for l in raw_lines:
         s = l.strip()
         if not s or s in ["*", "•", "-", ".", "**", "***"]:
@@ -190,41 +187,69 @@ def format_solution_to_clean_html(raw_solution: str) -> str:
         elif "BÀI GIẢI" in item.upper():
             html_items.append(f"<strong style='color:#1E293B; font-size:16px;'>{item}</strong>")
         else:
-            html_items.append(f"<div style='margin-left: 14px; margin-bottom: 6px;'>• {item}</div>")
+            html_items.append(f"<div style='margin-left: 14px; margin-bottom: 8px;'>• {item}</div>")
 
     return "".join(html_items)
 
-# ================= PROMPT CHUẨN XÁC NỘI DUNG =================
-GAME_PROMPT = """
-Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương (theo chương trình GDPT 2018 - bộ sách Kết nối tri thức).
-Nhiệm vụ: Phân tích kỹ hình ảnh đề bài và tạo một câu hỏi gợi mở trắc nghiệm thực sự dựa trên các giả thiết của bài toán.
+# ================= BỘ BÓC TÁCH PHẢN HỒI THẺ =================
+def parse_custom_response(text: str):
+    q_match = re.search(r'[QUESTION]\s*(.*?)\s*(?=[OPTIONS]|$)', text, re.DOTALL)
+    opts_match = re.search(r'[OPTIONS]\s*(.*?)\s*(?=[CORRECT]|$)', text, re.DOTALL)
+    corr_match = re.search(r'[CORRECT]\s*(\d+)', text)
+    exp_match = re.search(r'[EXPLANATION]\s*(.*?)\s*(?=[SOLUTION]|$)', text, re.DOTALL)
+    sol_match = re.search(r'[SOLUTION]\s*(.*)', text, re.DOTALL)
 
-YÊU CẦU:
-1. Đọc chính xác tên các điểm, đường cao, trung điểm từ ảnh (như tam giác ABC vuông tại A, đường cao AH, trung điểm I, K...).
-2. Câu hỏi ngắn gọn, trực diện vào mắt xích tư duy (tối đa 2 câu). Tuyệt đối không dùng cụm từ mẫu chung chung.
-3. Mảng options gồm đúng 4 lựa chọn trắc nghiệm cụ thể (1 dòng). Không dùng công thức LaTeX phức tạp (viết phân số dạng AB/2 hoặc BC/2), không thêm ký tự A., B., C., D. ở đầu các phương án.
-4. Chỉ ra correct_index (0, 1, 2 hoặc 3) tương ứng phương án đúng.
+    question = q_match.group(1).strip() if q_match else "Quan sát hình vẽ và cho biết khẳng định nào sau đây là đúng?"
 
-BẮT BUỘC TRẢ VỀ DUY NHẤT ĐỊNH DẠNG JSON:
-{
-  "total_steps": 3,
-  "feedback": "Lời nhận xét động viên ngắn 1 câu",
-  "question": "Nội dung câu hỏi cụ thể về bài toán",
-  "options": [
-    "Khẳng định 1",
-    "Khẳng định 2",
-    "Khẳng định 3",
-    "Khẳng định 4"
-  ],
-  "correct_index": 0,
-  "explanation": "Giải thích ngắn 2 câu theo SGK Toán 8",
-  "is_finished": false,
-  "full_solution": ""
-}
+    raw_opts = opts_match.group(1).strip() if opts_match else ""
+    if "|" in raw_opts:
+        options = [o.strip() for o in raw_opts.split("|") if o.strip()]
+    else:
+        options = [o.strip() for o in raw_opts.split("\n") if o.strip()]
+
+    options = [re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", opt) for opt in options]
+
+    while len(options) < 4:
+        options.append(f"Khẳng định {len(options)+1}")
+
+    try:
+        correct_index = int(corr_match.group(1)) if corr_match else 0
+        if correct_index >= len(options):
+            correct_index = 0
+    except Exception:
+        correct_index = 0
+
+    explanation = exp_match.group(1).strip() if exp_match else "Căn cứ theo định lý trong SGK Toán 8."
+    full_solution = sol_match.group(1).strip() if sol_match else ""
+
+    return {
+        "question": clean_math_text(question),
+        "options": [clean_math_text(opt) for opt in options[:4]],
+        "correct_index": correct_index,
+        "explanation": clean_math_text(explanation),
+        "full_solution": clean_math_text(full_solution)
+    }
+
+SYSTEM_PROMPT = """
+Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương (Chương trình GDPT 2018 - bộ sách Kết nối tri thức).
+Nhiệm vụ: Dẫn dắt học sinh lớp 8 giải bài toán theo phương pháp Socratic 3 bước.
+
+QUY TẮC SƯ PHẠM BẮT BUỘC:
+1. Bước 1: Khai thác giả thiết và tính chất khởi đầu (ví dụ: đường trung tuyến ứng với cạnh huyền của tam giác vuông bằng nửa cạnh huyền: HI = AB/2, tam giác cân, đường trung bình...). TUYỆT ĐỐI KHÔNG hỏi ngay kết luận cuối cùng của đề bài.
+2. Bước 2: Dẫn dắt bắc cầu suy luận trung gian (cộng góc, hai tam giác bằng nhau, hình bình hành...).
+3. Bước 3: Đạt đến kết luận cuối cùng của đề bài.
+4. KÝ HIỆU PHÂN SỐ: Viết dạng phân số có gạch ngang chuẩn toán: \\dfrac{AB}{2}, \\dfrac{BC}{2}.
+5. KÝ HIỆU GÓC: Dùng tiếng Việt 'góc ABC' hoặc '\\widehat{ABC}'. Không dùng ký tự lạ ∠. Không dùng từ tiếng Anh (implies, because, hypotenuse).
+
+BẮT BUỘC TRẢ VỀ THEO ĐỊNH DẠNG THẺ (KHÔNG DÙNG JSON):
+[QUESTION] Nội dung câu hỏi cụ thể của bước này
+[OPTIONS] Phương án 1 | Phương án 2 | Phương án 3 | Phương án 4
+[CORRECT] 0
+[EXPLANATION] Lời giải thích ngắn 2 câu vì sao đúng theo định lý nào
+[SOLUTION] (Chỉ ghi lời giải chi tiết khi được yêu cầu bước cuối cùng, nếu chưa thì để trống)
 """
 
-# ================= HÀM GỌI API AN TOÀN =================
-def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
+def execute_openrouter_request(inputs, system_prompt=SYSTEM_PROMPT):
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {API_KEY}",
@@ -239,11 +264,11 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
             content_parts.append({"type": "text", "text": item})
         elif isinstance(item, Image.Image):
             img_to_send = ImageOps.exif_transpose(item)
-            if max(img_to_send.size) > 700:
-                img_to_send.thumbnail((700, 700))
-            
+            if max(img_to_send.size) > 650:
+                img_to_send.thumbnail((650, 650))
+
             buffered = io.BytesIO()
-            img_to_send.convert("RGB").save(buffered, format="JPEG", quality=75)
+            img_to_send.convert("RGB").save(buffered, format="JPEG", quality=70)
             img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
             content_parts.append({
                 "type": "image_url",
@@ -252,10 +277,10 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
                 }
             })
 
-    messages = []
-    if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
-    messages.append({"role": "user", "content": content_parts})
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": content_parts}
+    ]
 
     payload = {
         "model": MODELS_PRIORITY[0],
@@ -266,9 +291,9 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
     }
 
     try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=25)
+        resp = requests.post(url, headers=headers, json=payload, timeout=22)
     except Exception:
-        raise Exception("Thời gian phản hồi quá lâu. Em hãy bấm lại nút một lần nữa nhé!")
+        raise Exception("Thời gian phản hồi quá lâu, em bấm thử lại nhé!")
 
     if resp.status_code != 200:
         raise Exception(f"Máy chủ AI bận ({resp.status_code}), em bấm lại nhé!")
@@ -276,7 +301,7 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
     res_data = resp.json()
     choices = res_data.get("choices", [])
     if not choices or not choices[0].get("message"):
-        raise Exception("Mô hình bận, em hãy bấm thử lại một lần nữa nhé!")
+        raise Exception("Mô hình bận, em bấm thử lại nhé!")
 
     msg = choices[0]["message"]
     text_out = (msg.get("content") or "").strip()
@@ -284,48 +309,8 @@ def execute_openrouter_request(inputs, system_prompt=None, is_json=False):
         text_out = (msg.get("reasoning") or "").strip()
 
     if not text_out:
-        raise Exception("Nội dung rỗng, vui lòng bấm nhận lại thử thách!")
+        raise Exception("Nội dung phản hồi rỗng, vui lòng bấm lại!")
 
-    if is_json:
-        clean_text = re.sub(r"^```json\s*|^```\s*|```$", "", text_out, flags=re.MULTILINE)
-        
-        start_idx = clean_text.find("{")
-        end_idx = clean_text.rfind("}")
-        
-        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-            target_str = clean_text[start_idx:end_idx+1]
-        else:
-            target_str = clean_text
-
-        sanitized_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', target_str)
-        
-        try:
-            parsed = json.loads(sanitized_str, strict=False)
-            if isinstance(parsed, dict) and "question" in parsed:
-                return parsed
-        except Exception:
-            pass
-
-        q_match = re.search(r'"question"\s*:\s*"([^"]+)"', target_str)
-        opts_block = re.search(r'"options"\s*:\s*\[([\s\S]*?)\]', target_str)
-        options = []
-        if opts_block:
-            options = re.findall(r'"([^"]+)"', opts_block.group(1))
-
-        if q_match and len(options) >= 2:
-            return {
-                "total_steps": 3,
-                "feedback": "Rất tốt! Chúng ta tiếp tục nhé.",
-                "question": q_match.group(1),
-                "options": options[:4],
-                "correct_index": 0,
-                "explanation": "Đúng theo định lý trong SGK Toán 8.",
-                "is_finished": False,
-                "full_solution": ""
-            }
-
-        raise Exception("AI chưa hoàn thiện cấu trúc câu hỏi, em bấm nút thêm 1 lần nhé!")
-            
     return text_out
 
 if "submission_history" not in st.session_state:
@@ -368,10 +353,10 @@ with tab1:
             if st.button("🚀 Bắt đầu nhận Thử thách Bước 1!", type="primary", use_container_width=True):
                 with st.spinner("Cô Mai Phương đang chuẩn bị câu hỏi gợi ý..."):
                     try:
-                        p_start = "Đọc đề bài trong ảnh và tạo câu hỏi thử thách Bước 1 ngắn gọn, tập trung khai thác giả thiết khởi đầu của bài toán."
-                        c_data = execute_openrouter_request([st.session_state.img_data, p_start], GAME_PROMPT, is_json=True)
-                        st.session_state.card = c_data
-                        st.session_state.total_steps = c_data.get("total_steps", 3)
+                        p_start = """Đọc đề bài trong ảnh. Tạo thử thách Bước 1: Khai thác mắt xích giả thiết khởi đầu quan trọng nhất (như tính chất trung tuyến của tam giác vuông bằng nửa cạnh huyền: \\dfrac{AB}{2}, tam giác cân...). Tuyệt đối không hỏi điều kết luận của đề bài."""
+                        raw_resp = execute_openrouter_request([st.session_state.img_data, p_start])
+                        st.session_state.card = parse_custom_response(raw_resp)
+                        st.session_state.total_steps = 3
                         st.session_state.step = 1
                         st.session_state.answered = False
                         st.session_state.reward = None
@@ -387,11 +372,8 @@ with tab1:
         st.progress(progress_val)
 
         st.markdown(f'<span class="step-badge">CỬA ẢI: BƯỚC {curr} / {total}</span>', unsafe_allow_html=True)
-        fb = clean_math_text(card.get("feedback", ""))
-        if fb:
-            st.info(f"💡 {fb}")
-
-        st.markdown(f"#### 🎯 {clean_math_text(card.get('question', ''))}")
+        # Hiển thị câu hỏi có render công thức toán học và phân số gạch ngang
+        st.markdown(f"#### 🎯 {card.get('question', '')}")
         st.write("")
 
         opts = card.get("options", [])
@@ -400,20 +382,19 @@ with tab1:
         if not st.session_state.answered:
             st.markdown("**👉 Em hãy bấm chọn một đáp án đúng nhất:**")
             for idx, opt in enumerate(opts):
-                clean_opt = clean_math_text(opt)
-                clean_opt = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", clean_opt)
-                label = f"{chr(65+idx)}. {clean_opt}"
-                if st.button(label, key=f"btn_choice_{idx}", use_container_width=True):
-                    st.session_state.answered = True
-                    st.session_state.selected_idx = idx
-                    st.rerun()
+                col_btn, col_text = st.columns([1, 6])
+                with col_btn:
+                    if st.button(f"Chọn {chr(65+idx)}", key=f"btn_choice_{idx}", use_container_width=True):
+                        st.session_state.answered = True
+                        st.session_state.selected_idx = idx
+                        st.rerun()
+                with col_text:
+                    # Hiển thị phương án với phân số gạch ngang và góc mũ chuẩn LaTeX
+                    st.markdown(f"**{chr(65+idx)}.** {opt}")
         else:
             sel = st.session_state.selected_idx
-            sel_text = clean_math_text(opts[sel]) if (sel is not None and sel < len(opts)) else ""
-            sel_text = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", sel_text)
-
-            correct_text = clean_math_text(opts[correct]) if correct < len(opts) else ""
-            correct_text = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", correct_text)
+            sel_text = opts[sel] if (sel is not None and sel < len(opts)) else ""
+            correct_text = opts[correct] if correct < len(opts) else ""
 
             if sel == correct:
                 st.success("🎉 **Chính xác!** Em đã lựa chọn hướng tư duy rất chuẩn.")
@@ -421,9 +402,9 @@ with tab1:
                 st.error("❌ **Chưa chính xác.**")
                 st.markdown(f"Đáp án đúng là: **{chr(65+correct)}. {correct_text}**")
 
-            st.markdown(f"**💡 Hướng suy luận:** {clean_math_text(card.get('explanation', ''))}")
+            st.markdown(f"**💡 Hướng suy luận:** {card.get('explanation', '')}")
 
-            is_finish = card.get("is_finished") or (curr >= total)
+            is_finish = (curr >= total)
 
             if is_finish:
                 st.balloons()
@@ -433,13 +414,15 @@ with tab1:
                     sol = card.get("full_solution", "")
                     if not sol:
                         with st.spinner("Đang mở khóa bài giải chuẩn mực..."):
-                            p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh cho bài toán này.
-                            YÊU CẦU:
-                            1. Bài giải xuống dòng riêng cho từng bước, mở ngoặc nêu lý do định lý.
-                            2. Lập luận chuẩn SGK Toán 8, không dùng từ ngữ tiếng Anh hay ký hiệu LaTeX phức tạp.
-                            Trả về JSON: {"full_solution": "..."}"""
-                            res_final = execute_openrouter_request([st.session_state.img_data, p_sol], is_json=True)
-                            sol = res_final.get("full_solution", "")
+                            p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh cho đề bài trong ảnh.
+                            YÊU CẦU: Trình bày từng bước có căn cứ định lý, mở ngoặc rõ ràng, xuống dòng sạch sẽ. Phân số viết dạng gạch ngang \\dfrac{a}{b}.
+                            Trả về duy nhất theo định dạng:
+                            [SOLUTION]
+                            • Bước 1...
+                            • Bước 2..."""
+                            raw_sol = execute_openrouter_request([st.session_state.img_data, p_sol])
+                            sol_parsed = parse_custom_response(raw_sol)
+                            sol = sol_parsed.get("full_solution") or raw_sol
                     st.session_state.reward = sol
 
                 st.markdown("""
@@ -449,20 +432,22 @@ with tab1:
                 </div>
                 """, unsafe_allow_html=True)
 
+                # Hiển thị bài giải với đầy đủ phân số gạch ngang và góc mũ
                 clean_solution_html = format_solution_to_clean_html(st.session_state.reward)
                 st.markdown(f'<div class="solution-box">{clean_solution_html}</div>', unsafe_allow_html=True)
-                
+
                 st.write("")
                 st.success("📝 **Bước tiếp theo:** Hãy chuyển sang tab **'Nộp Bài Tập'** ở trên để chụp ảnh bài vở nộp cô chấm nhé!")
             else:
                 st.write("")
                 if st.button("➡️ Sang thử thách tiếp theo", type="primary", use_container_width=True):
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
-                        p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total} cho bài toán này. 
-                        Nhớ giữ câu hỏi và 4 phương án thực tế, ngắn gọn (1 dòng), dễ hiểu cho học sinh lớp 8.
-                        Nếu đây là bước cuối, hãy đặt is_finished = true và viết bài giải vào full_solution (xuống dòng rõ ràng)."""
+                        p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng là: '{correct_text}'. 
+                        Tạo câu hỏi thử thách Bước {curr + 1} / {total} (dẫn dắt bước suy luận tiếp theo). Phân số viết dạng \\dfrac{{a}}{{b}}. 
+                        Nhớ tuân thủ đúng định dạng [QUESTION], [OPTIONS], [CORRECT], [EXPLANATION]."""
                         try:
-                            st.session_state.card = execute_openrouter_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
+                            raw_next = execute_openrouter_request([st.session_state.img_data, p_next])
+                            st.session_state.card = parse_custom_response(raw_next)
                             st.session_state.step += 1
                             st.session_state.answered = False
                             st.session_state.selected_idx = None
@@ -519,12 +504,12 @@ with tab2:
                 Đề bài: "{topic}".
                 Hãy đọc ảnh chụp bài làm tự luận viết tay và chấm điểm theo Rubric (Thang 10):
                 1. Hình vẽ (2.0 điểm): Đúng hình, ký hiệu góc, trung điểm.
-                2. Lập luận chứng minh (6.0 điểm): Căn cứ định lý, tính chất, dấu hiệu nhận biết, logic chặt chẽ.
-                3. Trình bày & Kết luận (2.0 điểm): Rõ ràng, đúng chuẩn sư phạm.
+                2. Lập luận chứng minh (6.0 điểm): Căn cứ định lý, tính chất, logic.
+                3. Trình bày & Kết luận (2.0 điểm): Rõ ràng, đúng chuẩn.
 
                 ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ:
                 - Tổng điểm: [Ghi điểm số]/10
-                - Nhận xét chi tiết: (Chỉ ra rõ chỗ làm tốt và lỗi sai nếu có)
+                - Nhận xét chi tiết: (Chỉ ra chỗ làm tốt và lỗi sai nếu có)
                 """
                 score_res = execute_openrouter_request([RUBRIC, hw_img])
                 score_res_clean = format_solution_to_clean_html(score_res)
