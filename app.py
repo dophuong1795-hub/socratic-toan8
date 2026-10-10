@@ -102,9 +102,9 @@ if not API_KEY:
     st.error("Chưa cấu hình biến GEMINI_API_KEY trong Secrets của Streamlit!")
     st.stop()
 
-# Khởi tạo Gemini Client
+# Khởi tạo Gemini Client với model chuẩn theo thông báo API
 client = genai.Client(api_key=API_KEY)
-MODEL_NAME = "gemini-2.5-flash"
+MODEL_NAME = "gemini-3.8-flash"
 
 # ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC 8 =================
 def format_math(text: str) -> str:
@@ -130,7 +130,7 @@ def format_math(text: str) -> str:
 
     text = re.sub(r"(?:[∠∡∢]|\\angle\s*|\\widehat\{|\\hat\{|[Gg]óc\s+)([A-Z]{1,3})\b\}?", to_latex_angle, text)
 
-    # 4. Ký hiệu hình học khác
+    # 4. Ký hiệu hình học khác: song song //, vuông góc ⊥, thuộc
     text = re.sub(r"\b([A-Z]{2})\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
     text = re.sub(r"\\?parallel", " // ", text)
     text = re.sub(r"\\perp|£", " ⊥ ", text)
@@ -146,7 +146,7 @@ def format_math(text: str) -> str:
 clean_math_text = format_math
 clean_math = format_math
 
-# ================= HÀM ĐỊNH DẠNG BÀI GIẢI AN TOÀN TUYỆT ĐỐI =================
+# ================= HÀM ĐỊNH DẠNG BÀI GIẢI AN TOÀN =================
 def format_solution_step_by_step(raw_text: str) -> str:
     """Tách dòng bài giải rõ ràng mà KHÔNG làm vỡ công thức cộng chu vi"""
     if not raw_text:
@@ -191,7 +191,7 @@ CẤU TRÚC 3 BƯỚC THỬ THÁCH:
 
 KHI is_finished = true:
 - Viết bài giải mẫu (full_solution) từng bước mẫu mực có xuống dòng từng ý rõ ràng bằng \\n để học sinh ghi vào vở. Giữ nguyên vẹn dòng tính toán chu vi, không ngắt vụn công thức cộng.
-- BẮT BUỘC TẠO MÃ SVG (svg_code): Vẽ lại hình bài toán với khung viewBox='0 0 400 300', gồm đường thẳng nét xanh/đen rõ nét, điểm chấm tròn đen, chữ cái in hoa (A, B, C, H, I, K) to rõ nét và ký hiệu góc vuông.
+- BẮT BUỘC TẠO MÃ SVG (svg_code): Vẽ lại hình bài toán với khung viewBox='0 0 400 300', gồm đường thẳng nét xanh/đen rõ nét, điểm chấm tròn đen, chữ cái in hoa (A, B, C, P, Q, M, H, I, K...) to rõ nét và ký hiệu góc vuông.
 
 BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU:
 {
@@ -363,7 +363,7 @@ with tab1:
                     if not sol:
                         with st.spinner("Đang mở khóa bài giải và hình vẽ chuẩn..."):
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh và kèm theo mã SVG vẽ lại hình bài toán này.
-                            YÊU CẦU: Trình bày bài giải rõ ràng, các biểu thức tính chu vi giữ nguyên vẹn trên cùng một dòng, không ngắt vụn.
+                            YÊU CẦU: Trình bày bài giải rõ ràng, các biểu thức tính chu vi/đoạn thẳng giữ nguyên vẹn trên cùng một dòng.
                             Trả về JSON: {"full_solution": "...", "svg_code": "<svg viewBox='0 0 400 300' ...>...</svg>"}"""
                             res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
                             sol = res_final.get("full_solution", "")
