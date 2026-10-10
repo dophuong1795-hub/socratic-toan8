@@ -119,9 +119,25 @@ def format_math(text: str) -> str:
     text = re.sub(r"\\therefore|\btherefore\b", " do đó ", text, flags=re.IGNORECASE)
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
 
-    # 2. Chuẩn hóa phân số nét gạch ngang: AC/2, AB/2 -> $\dfrac{AC}{2}$
-    text = re.sub(r"(?<![a-zA-Z0-9_\$])([A-Z]{1,2}|\d+)\s*/\s*([A-Z]{1,2}|\d+)(?![a-zA-Z0-9_\$])", r"$\\dfrac{\1}{\2}$", text)
-    text = re.sub(r"\$?\\frac\{([^}]+)\}\{([^}]+)\}\$?", r"$\\dfrac{\1}{\2}$", text)
+    # 2. Xử lý triệt để phân số dfrac/frac tránh trùng lặp dấu $
+    # Đưa \frac về \dfrac chuẩn
+    text = re.sub(r"\\frac\{", r"\\dfrac{", text)
+    
+    # Chuẩn hóa dạng phân số thường A/2 hoặc 1/2 thành \dfrac
+    text = re.sub(r"(?<![a-zA-Z0-9_\$\\])([A-Z]{1,2}|\d+)\s*/\s*([A-Z]{1,2}|\d+)(?![a-zA-Z0-9_\$])", r"\\dfrac{\1}{\2}", text)
+
+    # Đảm bảo các biểu thức chứa \dfrac được bọc trong $...$ đúng chuẩn một lớp duy nhất
+    def wrap_fraction_latex(m):
+        content = m.group(0).strip("$")
+        return f"${content}$"
+
+    # Bọc các đẳng thức chứa \dfrac nếu đang nằm ngoài cặp dấu $
+    text = re.sub(r"(?<!\$)\b([A-Z]{1,2}\s*=\s*\\dfrac\{[^}]+\}\{[^}]+\}\s*[A-Z]{0,2})(?!\$)", wrap_fraction_latex, text)
+    text = re.sub(r"(?<!\$)(?<=\s)(\\dfrac\{[^}]+\}\{[^}]+\})(?!\$)", wrap_fraction_latex, text)
+
+    # Khử lỗi bọc dư thừa nhiều dấu đô la $$...$$ hoặc lồng nhau
+    text = re.sub(r"\${2,}", "$", text)
+    text = re.sub(r"\$\s*\$", "", text)
 
     # 3. Chuẩn hóa góc thành dấu mũ: Góc IHA, góc A -> $\widehat{IHA}$, $\widehat{A}$
     def to_latex_angle(m):
@@ -134,7 +150,6 @@ def format_math(text: str) -> str:
     text = re.sub(r"\b([A-Z]{2})\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
     text = re.sub(r"\\?parallel", " // ", text)
     text = re.sub(r"\\perp|£", " ⊥ ", text)
-    text = re.sub(r"\b([A-Z])\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 thuộc \2", text)
     text = text.replace(r"\in", " thuộc ")
 
     # 5. Chuẩn hóa độ
@@ -143,22 +158,19 @@ def format_math(text: str) -> str:
 
     return text.strip()
 
-clean_math_text = format_math
-clean_math = format_math
 
 # ================= HÀM ĐỊNH DẠNG BÀI GIẢI AN TOÀN =================
 def format_solution_step_by_step(raw_text: str) -> str:
-    """Tách dòng bài giải rõ ràng mà KHÔNG làm vỡ công thức cộng chu vi"""
+    """Tách dòng bài giải rõ ràng, chỉ biến a), b), c) thành đề mục khi đứng ĐẦU DÒNG"""
     if not raw_text:
         return ""
     
     text = raw_text.replace("Lời giải chi tiết:", "").replace("Bài giải chi tiết:", "").strip()
     
-    # Đưa các tiêu đề câu a), b), c) thành tiêu đề rõ ràng
-    text = re.sub(r"(?:\n|^|\s+)([a-c]\))\s*", r"\n\n### **\1** ", text)
+    # CHỈ nhận diện a), b), c) là tiêu đề mục khi nó nằm ở ĐẦU DÒNG MỚI (không ăn vào giữa câu 'ở câu a), nên')
+    text = re.sub(r"(?m)^\s*([a-c]\))\s*", r"\n### **\1** ", text)
     
-    # Chỉ ngắt dòng khi dấu gạch ngang '-' hoặc '=>' đứng sau dấu chấm hoặc xuống dòng,
-    # TUYỆT ĐỐI KHÔNG ngắt dấu '+' để tránh làm nát phép cộng chu vi
+    # Chỉ ngắt dòng khi dấu gạch ngang '-' hoặc '=>' đứng sau dấu chấm hoặc xuống dòng
     text = re.sub(r"(?<=\.)\s*-\s*", r"\n- ", text)
     text = re.sub(r"\s*=>\s*", r"\n  - $\\Rightarrow$ ", text)
     
