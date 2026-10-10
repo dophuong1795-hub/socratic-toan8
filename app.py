@@ -15,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ================= CSS TỐI ƯU MOBILE & MÁY TÍNH =================
+# ================= CSS TỐI ƯU GIAO DIỆN HIỆN ĐẠI =================
 st.markdown("""
 <style>
     .block-container {
@@ -54,26 +54,17 @@ st.markdown("""
         margin-bottom: 12px;
         border: 1px solid #C7D2FE;
     }
-    /* Thẻ hiển thị lựa chọn đáp án dạng phân số đẹp mắt */
-    .option-card {
-        background-color: #FFFFFF;
-        border: 2px solid #E2E8F0;
-        border-radius: 14px;
-        padding: 12px 18px;
-        margin-bottom: 10px;
-        font-size: 16px;
-        display: flex;
-        align-items: center;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
-    }
     div[data-testid="stButton"] button {
         border-radius: 14px !important;
         border: 2px solid #E2E8F0 !important;
         font-size: 15px !important;
         font-weight: 600 !important;
-        padding: 12px 16px !important;
+        padding: 12px 18px !important;
         background-color: #F8FAFC !important;
         color: #1E293B !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+        line-height: 1.6 !important;
         transition: all 0.2s ease !important;
     }
     div[data-testid="stButton"] button:hover {
@@ -86,6 +77,8 @@ st.markdown("""
         background: linear-gradient(135deg, #4F46E5, #6366F1) !important;
         color: white !important;
         border: none !important;
+        text-align: center !important;
+        justify-content: center !important;
     }
     .reward-box {
         background: #F0FDF4;
@@ -120,23 +113,21 @@ MODELS_PRIORITY = [
     "openrouter/free"
 ]
 
-# ================= BỘ LỌC CHUẨN HÓA PHÂN SỐ VÀ KÝ HIỆU HÌNH HỌC =================
+# ================= BỘ LỌC CHUẨN HÓA TOÁN HỌC 8 =================
 def clean_math_text(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
 
-    # 1. Khử bỏ tận gốc từ ngoại lai và thuật ngữ tiếng Anh
+    # 1. Khử bỏ các từ ngoại lai và thuật ngữ an toàn của mô hình
+    text = re.sub(r"\b(?:safety|safe|assistant|system)\b.*", "", text, flags=re.IGNORECASE)
     text = re.sub(r"\\implies|\bimplies\b", " suy ra ", text, flags=re.IGNORECASE)
     text = re.sub(r"\\because|\bbecause\b", " vì ", text, flags=re.IGNORECASE)
     text = re.sub(r"\\therefore|\btherefore\b", " do đó ", text, flags=re.IGNORECASE)
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
     text = re.sub(r"\btriangle\b", "tam giác", text, flags=re.IGNORECASE)
 
-    # 2. CHUẨN HÓA PHÂN SỐ GẠCH NGANG CHUẨN TOÁN: \dfrac{a}{b} hoặc a/b -> $\dfrac{a}{b}$
-    # Chuyển đổi mọi dạng phân số x/y (như AB/2, BC/2, 1/2) thành LaTeX gạch ngang \dfrac{a}{b}
+    # 2. CHUẨN HÓA PHÂN SỐ CÓ NÉT GẠCH NGANG CHUẨN TOÁN: \dfrac{a}{b}
     text = re.sub(r"(?<![a-zA-Z0-9_\$])([A-Z]{1,2}|\d+)\s*/\s*([A-Z]{1,2}|\d+)(?![a-zA-Z0-9_\$])", r"$\\dfrac{\1}{\2}$", text)
-    
-    # Chuẩn hóa \frac{} có sẵn thành \dfrac{} có dấu $ bao bọc để hiển thị gạch ngang to rõ
     text = re.sub(r"\$?\\frac\{([^}]+)\}\{([^}]+)\}\$?", r"$\\dfrac{\1}{\2}$", text)
 
     # 3. CHUẨN HÓA GÓC: Chuyển ∠ABC, ∡ABC, \angle ABC, góc ABC -> $\widehat{ABC}$
@@ -151,18 +142,17 @@ def clean_math_text(text: str) -> str:
     text = re.sub(r"tam giác\s+tam giác\s+", "tam giác ", text, flags=re.IGNORECASE)
     text = re.sub(r"\btư giác\b", "tứ giác", text, flags=re.IGNORECASE)
 
-    # 5. Ký hiệu hình học khác: song song //, vuông góc ⊥, thuộc
+    # 5. Ký hiệu hình học: song song //, vuông góc ⊥, thuộc
     text = re.sub(r"\b([A-Z]{2})\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
     text = re.sub(r"\\?parallel", " // ", text)
     text = re.sub(r"\\perp|£", " ⊥ ", text)
     text = re.sub(r"\b([A-Z])\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 thuộc \2", text)
     text = text.replace(r"\in", " thuộc ")
 
-    # 6. Chuẩn hóa số đo độ (90° thay vì 90^circ)
+    # 6. Chuẩn hóa độ
     text = re.sub(r"\b(1[0-8]0|[3469]0)\s*(?:\^?\s*(?:circ|°)|(?=\s*[\.,\)\s]|$))(?!\s*(?:bước|cạnh|đoạn|tam giác))", r"\1°", text)
     text = text.replace("°°", "°")
 
-    # Dọn dẹp khoảng trắng thừa
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
@@ -191,35 +181,55 @@ def format_solution_to_clean_html(raw_solution: str) -> str:
 
     return "".join(html_items)
 
-# ================= BỘ BÓC TÁCH PHẢN HỒI THẺ =================
-def parse_custom_response(text: str):
-    q_match = re.search(r'[QUESTION]\s*(.*?)\s*(?=[OPTIONS]|$)', text, re.DOTALL)
-    opts_match = re.search(r'[OPTIONS]\s*(.*?)\s*(?=[CORRECT]|$)', text, re.DOTALL)
-    corr_match = re.search(r'[CORRECT]\s*(\d+)', text)
-    exp_match = re.search(r'[EXPLANATION]\s*(.*?)\s*(?=[SOLUTION]|$)', text, re.DOTALL)
-    sol_match = re.search(r'[SOLUTION]\s*(.*)', text, re.DOTALL)
-
-    question = q_match.group(1).strip() if q_match else "Quan sát hình vẽ và cho biết khẳng định nào sau đây là đúng?"
-
-    raw_opts = opts_match.group(1).strip() if opts_match else ""
-    if "|" in raw_opts:
-        options = [o.strip() for o in raw_opts.split("|") if o.strip()]
+# ================= BỘ BÓC TÁCH DÒNG ĐƠN GIẢN CHỐNG MỌI LỖI =================
+def parse_plain_text_response(text: str):
+    """Bóc tách các dòng A., B., C., D. thông dụng nhất, không bao giờ bị cắt chữ"""
+    # 1. Tìm câu hỏi
+    q_match = re.search(r'(?:Câu hỏi|Question):\s*(.*?)(?=(?:\n\s*[A-D]\.|\n\s*A\)))', text, re.DOTALL | re.IGNORECASE)
+    if q_match:
+        question = q_match.group(1).strip()
     else:
-        options = [o.strip() for o in raw_opts.split("\n") if o.strip()]
+        # Nếu AI không ghi chữ "Câu hỏi:", lấy toàn bộ phần trước dòng A.
+        first_opt = re.search(r'\n\s*[A-D][\.\)]\s*', text)
+        if first_opt:
+            question = text[:first_opt.start()].strip()
+        else:
+            question = "Quan sát đề bài và chọn khẳng định đúng:"
 
-    options = [re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", opt) for opt in options]
+    # Khử sạch các chữ rác hệ thống nếu có
+    question = re.sub(r"^(?:ser|user|assistant|safety: safe)\s*", "", question, flags=re.IGNORECASE).strip()
 
+    # 2. Tìm 4 phương án A, B, C, D
+    options = []
+    opt_a = re.search(r'(?:^|\n)\s*A[\.\)]\s*(.*?)(?=(?:\n\s*B[\.\)]|$))', text, re.DOTALL)
+    opt_b = re.search(r'(?:^|\n)\s*B[\.\)]\s*(.*?)(?=(?:\n\s*C[\.\)]|$))', text, re.DOTALL)
+    opt_c = re.search(r'(?:^|\n)\s*C[\.\)]\s*(.*?)(?=(?:\n\s*D[\.\)]|$))', text, re.DOTALL)
+    opt_d = re.search(r'(?:^|\n)\s*D[\.\)]\s*(.*?)(?=(?:\n\s*(?:Đáp án|Answer|Giải thích|Lời giải)|$))', text, re.DOTALL | re.IGNORECASE)
+
+    for match in [opt_a, opt_b, opt_c, opt_d]:
+        if match:
+            clean_opt = match.group(1).strip().split('\n')[0]
+            options.append(clean_opt)
+
+    # Dự phòng nếu AI thiếu dòng
+    letters = ["A", "B", "C", "D"]
     while len(options) < 4:
-        options.append(f"Khẳng định {len(options)+1}")
+        options.append(f"Khẳng định phương án {letters[len(options)]}")
 
-    try:
-        correct_index = int(corr_match.group(1)) if corr_match else 0
-        if correct_index >= len(options):
-            correct_index = 0
-    except Exception:
+    # 3. Tìm đáp án đúng (A, B, C hoặc D)
+    ans_match = re.search(r'(?:Đáp án|Answer):\s*([A-D])', text, re.IGNORECASE)
+    if ans_match:
+        correct_char = ans_match.group(1).upper()
+        correct_index = ord(correct_char) - ord('A')
+    else:
         correct_index = 0
 
-    explanation = exp_match.group(1).strip() if exp_match else "Căn cứ theo định lý trong SGK Toán 8."
+    # 4. Tìm giải thích
+    exp_match = re.search(r'(?:Giải thích|Explanation):\s*(.*?)(?=(?:\n\s*(?:Bài giải|Lời giải)|$))', text, re.DOTALL | re.IGNORECASE)
+    explanation = exp_match.group(1).strip() if exp_match else "Căn cứ theo định lý và tính chất trong SGK Toán 8."
+
+    # 5. Tìm bài giải chi tiết
+    sol_match = re.search(r'(?:Bài giải|Lời giải|Solution):\s*(.*)', text, re.DOTALL | re.IGNORECASE)
     full_solution = sol_match.group(1).strip() if sol_match else ""
 
     return {
@@ -232,21 +242,24 @@ def parse_custom_response(text: str):
 
 SYSTEM_PROMPT = """
 Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương (Chương trình GDPT 2018 - bộ sách Kết nối tri thức).
-Nhiệm vụ: Dẫn dắt học sinh lớp 8 giải bài toán theo phương pháp Socratic 3 bước.
+Nhiệm vụ: Đọc đề bài trong ảnh và tạo câu hỏi trắc nghiệm dẫn dắt Socratic 3 bước.
 
-QUY TẮC SƯ PHẠM BẮT BUỘC:
-1. Bước 1: Khai thác giả thiết và tính chất khởi đầu (ví dụ: đường trung tuyến ứng với cạnh huyền của tam giác vuông bằng nửa cạnh huyền: HI = AB/2, tam giác cân, đường trung bình...). TUYỆT ĐỐI KHÔNG hỏi ngay kết luận cuối cùng của đề bài.
-2. Bước 2: Dẫn dắt bắc cầu suy luận trung gian (cộng góc, hai tam giác bằng nhau, hình bình hành...).
+QUY TẮC SƯ PHẠM:
+1. Bước 1: Khai thác giả thiết và tính chất khởi đầu (như đường trung tuyến ứng với cạnh huyền trong tam giác vuông bằng nửa cạnh huyền: \\dfrac{AB}{2}, tam giác cân, đường trung bình...). TUYỆT ĐỐI KHÔNG hỏi ngay điều kết luận của đề bài.
+2. Bước 2: Dẫn dắt bắc cầu suy luận (cộng góc, hai tam giác bằng nhau, hình bình hành...).
 3. Bước 3: Đạt đến kết luận cuối cùng của đề bài.
-4. KÝ HIỆU PHÂN SỐ: Viết dạng phân số có gạch ngang chuẩn toán: \\dfrac{AB}{2}, \\dfrac{BC}{2}.
-5. KÝ HIỆU GÓC: Dùng tiếng Việt 'góc ABC' hoặc '\\widehat{ABC}'. Không dùng ký tự lạ ∠. Không dùng từ tiếng Anh (implies, because, hypotenuse).
+4. KÝ HIỆU PHÂN SỐ: Luôn viết dạng phân số có gạch ngang chuẩn toán: \\dfrac{AB}{2}, \\dfrac{BC}{2}.
+5. KÝ HIỆU GÓC: Dùng 'góc ABC' hoặc '\\widehat{ABC}'. Không dùng ký tự lạ ∠. Không dùng từ tiếng Anh (implies, because, hypotenuse).
 
-BẮT BUỘC TRẢ VỀ THEO ĐỊNH DẠNG THẺ (KHÔNG DÙNG JSON):
-[QUESTION] Nội dung câu hỏi cụ thể của bước này
-[OPTIONS] Phương án 1 | Phương án 2 | Phương án 3 | Phương án 4
-[CORRECT] 0
-[EXPLANATION] Lời giải thích ngắn 2 câu vì sao đúng theo định lý nào
-[SOLUTION] (Chỉ ghi lời giải chi tiết khi được yêu cầu bước cuối cùng, nếu chưa thì để trống)
+BẮT BUỘC TRẢ VỀ THEO CẤU TRÚC DÒNG SAU (KHÔNG DÙNG JSON, KHÔNG VIẾT CHỮ THỪA NGOÀI ĐỊNH DẠNG):
+Câu hỏi: <Nội dung câu hỏi ngắn gọn>
+A. <Nội dung phương án A>
+B. <Nội dung phương án B>
+C. <Nội dung phương án C>
+D. <Nội dung phương án D>
+Đáp án: <Ghi chữ cái đúng A, B, C hoặc D>
+Giải thích: <Giải thích ngắn gọn 2 câu>
+Bài giải: <Chỉ ghi ở bước cuối cùng khi được yêu cầu, bình thường để trống>
 """
 
 def execute_openrouter_request(inputs, system_prompt=SYSTEM_PROMPT):
@@ -355,7 +368,7 @@ with tab1:
                     try:
                         p_start = """Đọc đề bài trong ảnh. Tạo thử thách Bước 1: Khai thác mắt xích giả thiết khởi đầu quan trọng nhất (như tính chất trung tuyến của tam giác vuông bằng nửa cạnh huyền: \\dfrac{AB}{2}, tam giác cân...). Tuyệt đối không hỏi điều kết luận của đề bài."""
                         raw_resp = execute_openrouter_request([st.session_state.img_data, p_start])
-                        st.session_state.card = parse_custom_response(raw_resp)
+                        st.session_state.card = parse_plain_text_response(raw_resp)
                         st.session_state.total_steps = 3
                         st.session_state.step = 1
                         st.session_state.answered = False
@@ -372,7 +385,6 @@ with tab1:
         st.progress(progress_val)
 
         st.markdown(f'<span class="step-badge">CỬA ẢI: BƯỚC {curr} / {total}</span>', unsafe_allow_html=True)
-        # Hiển thị câu hỏi có render công thức toán học và phân số gạch ngang
         st.markdown(f"#### 🎯 {card.get('question', '')}")
         st.write("")
 
@@ -381,16 +393,15 @@ with tab1:
 
         if not st.session_state.answered:
             st.markdown("**👉 Em hãy bấm chọn một đáp án đúng nhất:**")
+            # Hiển thị từng phương án dạng Markdown (kèm phân số gạch ngang) và nút bấm liền mạch
             for idx, opt in enumerate(opts):
-                col_btn, col_text = st.columns([1, 6])
-                with col_btn:
-                    if st.button(f"Chọn {chr(65+idx)}", key=f"btn_choice_{idx}", use_container_width=True):
-                        st.session_state.answered = True
-                        st.session_state.selected_idx = idx
-                        st.rerun()
-                with col_text:
-                    # Hiển thị phương án với phân số gạch ngang và góc mũ chuẩn LaTeX
-                    st.markdown(f"**{chr(65+idx)}.** {opt}")
+                btn_label = f"Lựa chọn {chr(65+idx)}"
+                st.markdown(f"**{chr(65+idx)}.** {opt}")
+                if st.button(f"👉 Chọn đáp án {chr(65+idx)}", key=f"btn_choice_{idx}", use_container_width=True):
+                    st.session_state.answered = True
+                    st.session_state.selected_idx = idx
+                    st.rerun()
+                st.write("")
         else:
             sel = st.session_state.selected_idx
             sel_text = opts[sel] if (sel is not None and sel < len(opts)) else ""
@@ -416,12 +427,12 @@ with tab1:
                         with st.spinner("Đang mở khóa bài giải chuẩn mực..."):
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh cho đề bài trong ảnh.
                             YÊU CẦU: Trình bày từng bước có căn cứ định lý, mở ngoặc rõ ràng, xuống dòng sạch sẽ. Phân số viết dạng gạch ngang \\dfrac{a}{b}.
-                            Trả về duy nhất theo định dạng:
-                            [SOLUTION]
+                            Bắt đầu bằng:
+                            Bài giải:
                             • Bước 1...
                             • Bước 2..."""
                             raw_sol = execute_openrouter_request([st.session_state.img_data, p_sol])
-                            sol_parsed = parse_custom_response(raw_sol)
+                            sol_parsed = parse_plain_text_response(raw_sol)
                             sol = sol_parsed.get("full_solution") or raw_sol
                     st.session_state.reward = sol
 
@@ -432,7 +443,6 @@ with tab1:
                 </div>
                 """, unsafe_allow_html=True)
 
-                # Hiển thị bài giải với đầy đủ phân số gạch ngang và góc mũ
                 clean_solution_html = format_solution_to_clean_html(st.session_state.reward)
                 st.markdown(f'<div class="solution-box">{clean_solution_html}</div>', unsafe_allow_html=True)
 
@@ -444,10 +454,17 @@ with tab1:
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng là: '{correct_text}'. 
                         Tạo câu hỏi thử thách Bước {curr + 1} / {total} (dẫn dắt bước suy luận tiếp theo). Phân số viết dạng \\dfrac{{a}}{{b}}. 
-                        Nhớ tuân thủ đúng định dạng [QUESTION], [OPTIONS], [CORRECT], [EXPLANATION]."""
+                        Nhớ tuân thủ đúng định dạng:
+                        Câu hỏi: ...
+                        A. ...
+                        B. ...
+                        C. ...
+                        D. ...
+                        Đáp án: ...
+                        Giải thích: ..."""
                         try:
                             raw_next = execute_openrouter_request([st.session_state.img_data, p_next])
-                            st.session_state.card = parse_custom_response(raw_next)
+                            st.session_state.card = parse_plain_text_response(raw_next)
                             st.session_state.step += 1
                             st.session_state.answered = False
                             st.session_state.selected_idx = None
