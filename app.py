@@ -105,48 +105,68 @@ if not API_KEY:
 client = genai.Client(api_key=API_KEY)
 MODEL_NAME = "gemini-3.8-flash"
 
-# HÀM LỌC VÀ CHUẨN HÓA KÝ HIỆU TOÁN HỌC
-def clean_math_text(text: str) -> str:
+# ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC 8 =================
+def format_math(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
-    
-    # 1. Thuật ngữ ngoại lai và chính tả
+
+    # 1. Khử bỏ rác hệ thống & từ ngoại lai
+    text = re.sub(r"^(?:User Safety|Thinking Process|Thought):[^\n]*\n?", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\\implies|\bimplies\b", " suy ra ", text, flags=re.IGNORECASE)
+    text = re.sub(r"\\because|\bbecause\b", " vì ", text, flags=re.IGNORECASE)
+    text = re.sub(r"\\therefore|\btherefore\b", " do đó ", text, flags=re.IGNORECASE)
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
-    text = re.sub(r"\btư giác\b", "tứ giác", text, flags=re.IGNORECASE)
-    text = re.sub(r"\bTư giác\b", "Tứ giác", text)
 
-    # 2. Xóa các tiền tố lỗi trước tên góc
-    text = re.sub(r"góc\s*(?:tam giác|riangle|//|/|°)\s*", "góc ", text, flags=re.IGNORECASE)
+    # 2. Chuẩn hóa phân số có nét gạch ngang: AC/2, AB/2 -> $\dfrac{AC}{2}$
+    text = re.sub(r"(?<![a-zA-Z0-9_\$])([A-Z]{1,2}|\d+)\s*/\s*([A-Z]{1,2}|\d+)(?![a-zA-Z0-9_\$])", r"$\\dfrac{\1}{\2}$", text)
+    text = re.sub(r"\$?\\frac\{([^}]+)\}\{([^}]+)\}\$?", r"$\\dfrac{\1}{\2}$", text)
 
-    # 3. Điểm thuộc đoạn thẳng (Q thuộc BC thay vì Q // BC)
+    # 3. Chuẩn hóa góc thành dấu mũ: Góc IHA, góc A -> $\widehat{IHA}$, $\widehat{A}$
+    def to_latex_angle(m):
+        name = m.group(1).strip()
+        return f"$\\widehat{{{name}}}$"
+
+    text = re.sub(r"(?:[∠∡∢]|\\angle\s*|\\widehat\{|\\hat\{|[Gg]óc\s+)([A-Z]{1,3})\b\}?", to_latex_angle, text)
+
+    # 4. Ký hiệu hình học khác: song song //, vuông góc ⊥, thuộc
+    text = re.sub(r"\b([A-Z]{2})\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
+    text = re.sub(r"\\?parallel", " // ", text)
+    text = re.sub(r"\\perp|£", " ⊥ ", text)
     text = re.sub(r"\b([A-Z])\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 thuộc \2", text)
     text = text.replace(r"\in", " thuộc ")
 
-    # 4. Đoạn thẳng song song với đoạn thẳng (PM // BC)
-    text = re.sub(r"\b([A-Z]{2})\s*(?:riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
-    text = re.sub(r"\\?parallel", " // ", text)
-
-    # 5. Xử lý số đo độ và số thứ tự bước
-    text = re.sub(r"bước\s*(\d+)°?", r"bước \1", text, flags=re.IGNORECASE)
-    text = re.sub(r"\b(1[0-8]0|[3469]0)\s*(?:\^?\s*(?:circ|riangle|°)|(?=\s*[\.,\)\s]|$))(?!\s*(?:bước|cạnh|đoạn|tam giác))", r"\1°", text)
+    # 5. Chuẩn hóa độ
+    text = re.sub(r"\b(1[0-8]0|[3469]0)\s*(?:\^?\s*(?:circ|°)|(?=\s*[\.,\)\s]|$))(?!\s*(?:bước|cạnh|đoạn|tam giác))", r"\1°", text)
     text = text.replace("°°", "°")
-    text = text.replace(r"^\circ", "°")
-    text = text.replace("^circ", "°")
 
-    # 6. Các ký hiệu hình học
-    text = re.sub(r"\\?t?riangle\s*", "tam giác ", text, flags=re.IGNORECASE)
-    text = re.sub(r"\\?angle\s*", "góc ", text, flags=re.IGNORECASE)
-    text = text.replace("riangle", " // ")
-    text = text.replace("Île", "góc ")
-    text = text.replace("£", " ⊥ ")
-    text = text.replace(r"\perp", " ⊥ ")
-    text = text.replace("$", "")
-
-    # 7. Xử lý các dạng góc có mũ \hat{A}
-    text = re.sub(r"\\hat\{([A-Za-z0-9]+)\}", r"góc \1", text)
-    
-    text = re.sub(r"\s+", " ", text)
     return text.strip()
+
+# ================= HÀM ĐỊNH DẠNG BÀI GIẢI XUỐNG DÒNG TỪNG Ý =================
+def format_solution_step_by_step(raw_text: str) -> str:
+    """Tách bài giải thành các dòng riêng biệt, thụt đầu dòng và in đậm câu a, b"""
+    if not raw_text:
+        return ""
+    
+    text = raw_text.replace("Lời giải chi tiết:", "").replace("Bài giải chi tiết:", "").strip()
+    
+    # 1. Đưa các ý câu a), b), c) xuống dòng riêng và in đậm
+    text = re.sub(r"(?:\s*|^)([a-c]\))\s*", r"\n\n#### **\1** ", text)
+    
+    # 2. Tách các dấu gạch đầu dòng '-', '+' hoặc '=>' thành dòng mới
+    text = re.sub(r"\s*-\s*", r"\n- ", text)
+    text = re.sub(r"\s*\+\s*", r"\n  + ", text)
+    text = re.sub(r"\s*=>\s*", r"\n  $\\Rightarrow$ ", text)
+    
+    # 3. Chuẩn hóa từng dòng bằng bộ lọc ký hiệu toán
+    lines = text.split("\n")
+    cleaned_lines = []
+    for line in lines:
+        l = line.strip()
+        if l:
+            cleaned_lines.append(format_math(line))
+            
+    return "\n\n".join(cleaned_lines)
 
 GAME_PROMPT = """
 Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương, có kiến thức hình học vững chắc, lập luận sắc bén, giảng bài gần gũi, dễ hiểu (theo chương trình GDPT 2018).
