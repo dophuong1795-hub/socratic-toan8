@@ -102,16 +102,16 @@ if not API_KEY:
     st.error("Chưa cấu hình biến GEMINI_API_KEY trong Secrets của Streamlit!")
     st.stop()
 
-# Khởi tạo Gemini Client
+# Khởi tạo Gemini Client (Dùng model 2.5-flash chính thức để ổn định nhất)
 client = genai.Client(api_key=API_KEY)
-MODEL_NAME = "gemini-3.8-flash"
-
-import re
+MODEL_NAME = "gemini-2.5-flash"
 
 # ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC 8 =================
-import re
-
 def format_math(text: str) -> str:
+    """
+    Chuẩn hóa toàn bộ ký hiệu LaTeX về Unicode toán học chuẩn THCS.
+    Chống 100% lỗi chữ đỏ, lỗi nghiêng dính chữ tiếng Việt.
+    """
     if not text or not isinstance(text, str):
         return ""
 
@@ -119,78 +119,36 @@ def format_math(text: str) -> str:
     text = re.sub(r"^(?:User Safety|Thinking Process|Thought):[^\n]*\n?", "", text, flags=re.IGNORECASE)
     text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
 
-    # 2. Bảo vệ điểm số (tránh bị biến thành phân số hoặc dính dấu)
-    score_placeholders = []
-    def save_score(m):
-        score_placeholders.append(m.group(0))
-        return f"__SCORE_TOKEN_{len(score_placeholders)-1}__"
-
-    text = re.sub(r"\b\d+(?:[.,]\d+)?\s*/\s*(?:10|100|\d+(?:[.,]\d+)?(?=\s*(?:điểm|\)|$)))", save_score, text)
-
-    # 3. Tháo gỡ toàn bộ dấu $ hiện có để đưa về văn bản thuần trước khi chuẩn hóa
-    # (Tránh lỗi lồng dấu $ hoặc nửa trong nửa ngoài)
+    # 2. Xóa bỏ dấu $ để đưa về văn bản Unicode tự nhiên
     text = text.replace("$", "")
 
-    # 4. Sửa các lỗi dính chữ vào lệnh LaTeX do AI sinh ra
-    # Ví dụ: \perp AB -> \perp AB, \Rightarrow\widehat -> \Rightarrow \widehat
-    text = re.sub(r"(\\perp|\\Rightarrow|\\implies|\\widehat|\\Delta)([A-Za-z0-9])", r"\1 \2", text)
-    text = re.sub(r"([A-Za-z0-9])(\\perp|\\Rightarrow|\\implies|\\widehat|\\Delta)", r"\1 \2", text)
-    
-    # Sửa nhầm ngoặc vuông: \widehat[AEM} -> \widehat{AEM}
-    text = re.sub(r"\\widehat\[\s*([A-Za-z]{1,3})\s*[\]\}]", r"\\widehat{\1}", text)
-    
-    # Đưa các dạng góc về chuẩn \widehat{...}
-    text = re.sub(r"(?:[∠∡∢]|\\angle\s+|[Gg]óc\s+)([A-Za-z]{1,3})\b", r"\\widehat{\1}", text)
-    text = re.sub(r"\\hat\{([A-Za-z]{1,3})\}", r"\\widehat{\1}", text)
+    # 3. Chuẩn hóa góc: \widehat{AEM}, \widehat[AEM}, \hat{A} -> ∠AEM, ∠A
+    text = re.sub(r"\\(?:widehat|hat)\s*[\{\[]\s*([A-Za-z]{1,3})\s*[\}\]]", r"∠\1", text)
+    text = re.sub(r"\\(?:angle)\s+([A-Za-z]{1,3})\b", r"∠\1", text)
 
-    # Thay thế các từ tiếng Anh sang tiếng Việt chuẩn SGK
+    # 4. Chuẩn hóa tam giác: \Delta ABC, \triangle ABC -> ΔABC
+    text = re.sub(r"\\(?:Delta|triangle)\s*([A-Za-z]{3})", r"Δ\1", text)
+
+    # 5. Chuẩn hóa các phép toán và quan hệ hình học
+    text = re.sub(r"\\perp|£", " ⊥ ", text)
+    text = re.sub(r"\\parallel", " // ", text)
+    text = re.sub(r"\\(?:Rightarrow|implies)|=>", " ⇒ ", text)
+    text = re.sub(r"\\in", " ∈ ", text)
+
+    # 6. Chuẩn hóa số đo độ: 90^\circ, 90 ^\circ -> 90°
+    text = re.sub(r"\^?\\circ", "°", text)
+    text = text.replace("°°", "°")
+
+    # 7. Chuẩn hóa phân số: \dfrac{a}{b} hoặc \frac{a}{b} -> a/b
+    text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1/\2)", text)
+
+    # 8. Chuyển thuật ngữ ngoại lai sang tiếng Việt SGK
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
     text = re.sub(r"\\because|\bbecause\b", "vì", text, flags=re.IGNORECASE)
     text = re.sub(r"\\therefore|\btherefore\b", "do đó", text, flags=re.IGNORECASE)
 
-    # Chuẩn hóa ký hiệu độ: 90° hoặc 90^\circ -> 90^\circ
-    text = re.sub(r"(\d+)\s*(?:\^?\\circ|°)", r"\1^\\circ", text)
-
-    # Chuẩn hóa phân số
-    text = text.replace(r"\frac{", r"\dfrac{")
-
-    # 5. Tự động bọc $ quanh từng biểu thức toán học độc lập
-    # Bọc góc và đẳng thức góc: \widehat{AEM} = 90^\circ hoặc \widehat{A} = 90^\circ
-    text = re.sub(r"(\\widehat\{[A-Za-z]{1,3}\}\s*=\s*\d+\^\\circ)", r" $\1$ ", text)
-    text = re.sub(r"(?<!\\widehat\{)(\b[A-Za-z]\b\s*=\s*\d+\^\\circ)", r" $\\widehat{\1}$ ", text)
-    text = re.sub(r"(?<!\$)\\widehat\{[A-Za-z]{1,3}\}(?!\$)", r" $\g<0>$ ", text)
-
-    # Bọc quan hệ vuông góc: ME \perp AB
-    text = re.sub(r"([A-Za-z]{1,3}\s*\\perp\s*[A-Za-z]{1,3})", r" $\1$ ", text)
-
-    # Bọc quan hệ song song: AB // CD
-    text = re.sub(r"([A-Za-z]{1,3}\s*(?:\\parallel|//)\s*[A-Za-z]{1,3})", r" $\1$ ", text)
-
-    # Bọc tam giác: \Delta ABC
-    text = re.sub(r"(\\Delta\s*[A-Za-z]{3})", r" $\1$ ", text)
-
-    # Bọc phân số: \dfrac{a}{b}
-    text = re.sub(r"(\\dfrac\{[^{}]+\}\{[^{}]+\})", r" $\1$ ", text)
-
-    # Bọc dấu suy ra: \Rightarrow hoặc =>
-    text = re.sub(r"\\Rightarrow|=>", r" $\\Rightarrow$ ", text)
-
-    # Bọc ký hiệu thuộc: \in
-    text = re.sub(r"\\in", r" $\\in$ ", text)
-
-    # Bọc tên các đỉnh/tứ giác/đoạn thẳng đứng riêng lẻ có độ dài từ 2 đến 4 chữ in hoa (như AEMF, AB, AC)
-    # Không bọc nếu chữ đó đứng sau dấu gạch chéo ngược (lệnh LaTeX)
-    text = re.sub(r"(?<![\\A-Za-z])([A-Z]{2,4})(?![A-Za-z])", r" $\1$ ", text)
-
-    # 6. Dọn dẹp khoảng trắng và dấu $ thừa
-    text = re.sub(r"\${2,}", "$", text)
-    text = re.sub(r"\$\s*\$", "", text)
+    # 9. Dọn dẹp khoảng trắng dư thừa
     text = re.sub(r"[ \t]+", " ", text)
-
-    # 7. Khôi phục điểm số ban đầu
-    for idx, original_score in enumerate(score_placeholders):
-        text = text.replace(f"__SCORE_TOKEN_{idx}__", original_score)
-
     return text.strip()
 
 # ================= HÀM ĐỊNH DẠNG BÀI GIẢI AN TOÀN =================
@@ -206,7 +164,7 @@ def format_solution_step_by_step(raw_text: str) -> str:
     
     # Ngắt dòng đẹp cho các gạch đầu dòng và dấu suy ra
     text = re.sub(r"(?<=\.)\s*-\s*", r"\n- ", text)
-    text = re.sub(r"\s*(?:=>|\\Rightarrow)\s*", r"\n  - $\\Rightarrow$ ", text)
+    text = re.sub(r"\s*(?:=>|\\Rightarrow)\s*", r"\n  - ⇒ ", text)
     
     lines = text.split("\n")
     cleaned_lines = []
@@ -228,7 +186,8 @@ YÊU CẦU NGÔN NGỮ & SƯ PHẠM:
 4. ĐỘ DÀI:
    - Câu hỏi: Tối đa 2 câu, hỏi thẳng vào trọng tâm.
    - Mỗi lựa chọn (options): Ngắn gọn 1 đến 2 dòng. KHÔNG ghi tiền tố 'A. ', 'B. ' ở đầu câu.
-5. KÝ HIỆU TOÁN: Bắt buộc bọc biểu thức công thức vào cặp $, ví dụ: $OM = \\dfrac{1}{2}AH$, $\\widehat{ABC} = 90^\\circ$.
+5. KÝ HIỆU TOÁN: Dùng ký hiệu Unicode thuần trực tiếp, KHÔNG dùng mã LaTeX:
+   - Dùng: ∠ABC = 90°, ΔABC, AB // CD, ME ⊥ AB, M ∈ BC, ⇒.
 
 CẤU TRÚC 3 BƯỚC THỬ THÁCH:
 - Bước 1: Khai thác yếu tố quan trọng từ hình vẽ hoặc giả thiết ban đầu.
@@ -236,7 +195,7 @@ CẤU TRÚC 3 BƯỚC THỬ THÁCH:
 - Bước 3: Đạt được điều cần chứng minh của đề bài.
 
 KHI is_finished = true:
-- Viết bài giải mẫu (full_solution) từng ý rõ ràng bằng \\n để học sinh ghi vào vở. Công thức toán bọc trong $...$.
+- Viết bài giải mẫu (full_solution) từng ý rõ ràng bằng \\n để học sinh ghi vào vở. Dùng ký hiệu Unicode thuần (∠, ⊥, //, Δ, °).
 - QUY TẮC VẼ HÌNH SVG (svg_code):
   + Sử dụng khung viewBox='0 0 500 400'.
   + Vẽ các đoạn thẳng nét rõ (<line ... stroke='#1E293B' stroke-width='2'/>).
@@ -303,7 +262,7 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
         try:
             return json.loads(target_str, strict=False)
         except Exception:
-            # Xử lý escape ký tự trong công thức toán LaTeX
+            # Xử lý escape ký tự trong công thức toán
             fixed_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', target_str)
             return json.loads(fixed_str, strict=False)
 
@@ -419,7 +378,7 @@ with tab1:
                     if not sol and st.session_state.img_data:
                         with st.spinner("Đang mở khóa bài giải và hình vẽ chuẩn..."):
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh và kèm theo mã SVG vẽ lại hình bài toán này.
-                            YÊU CẦU: Trình bày bài giải rõ ràng, công thức toán bọc trong $...$.
+                            YÊU CẦU: Trình bày bài giải rõ ràng, dùng ký hiệu Unicode (∠, ⊥, //, Δ, °).
                             Trả về JSON: {"full_solution": "...", "svg_code": "<svg viewBox='0 0 500 400' ...>...</svg>"}"""
                             try:
                                 res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
@@ -454,7 +413,7 @@ with tab1:
                 if st.button("➡️ Sang thử thách tiếp theo", type="primary", use_container_width=True):
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. 
-                        Nhớ giữ câu hỏi và 4 phương án ngắn gọn, dễ hiểu cho học sinh lớp 8. Phân số viết dạng \\dfrac{{a}}{{b}}, góc viết \\widehat{{ABC}}.
+                        Nhớ giữ câu hỏi và 4 phương án ngắn gọn, dễ hiểu cho học sinh lớp 8. Dùng ký hiệu Unicode thuần: ∠ABC, ⊥, //, Δ, °.
                         Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải chi tiết từng ý vào full_solution và sinh mã vẽ hình chuẩn vào svg_code."""
                         try:
                             st.session_state.card = execute_gemini_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
@@ -512,20 +471,40 @@ with tab2:
                 try:
                     hw_img = Image.open(up_hw)
                     RUBRIC = f"""
-                    Bạn là Giám khảo chấm thi Toán THCS tại Việt Nam.
-                    Đề bài: "{topic}".
-                    Hãy đọc ảnh chụp bài làm tự luận viết tay và chấm điểm theo Rubric (Thang 10):
-                    1. Hình vẽ (2.0 điểm): Đúng hình, ký hiệu góc, trung điểm.
-                    2. Lập luận chứng minh (6.0 điểm): Căn cứ định lý, tính chất, dấu hiệu nhận biết, logic.
-                    3. Trình bày & Kết luận (2.0 điểm): Rõ ràng, kết luận chuẩn.
+Bạn là Giám khảo chấm thi môn Toán THCS tại Việt Nam.
+Đề bài: "{topic}".
+Hãy đọc ảnh bài làm viết tay của học sinh và nhận xét theo Rubric thang điểm 10.
 
-                    ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ:
-                    - Tổng điểm: [Ghi điểm số]/10
-                    - Nhận xét chi tiết:
-                    """
+QUY TẮC BẮT BUỘC VỀ KÝ HIỆU TOÁN (DÙNG UNICODE THUẦN):
+1. TUYỆT ĐỐI KHÔNG dùng mã lệnh LaTeX có dấu gạch chéo ngược (KHÔNG viết \\perp, \\Rightarrow, \\widehat, \\in, $).
+2. DÙNG KÝ HIỆU UNICODE DỄ ĐỌC:
+   - Ký hiệu góc: viết ∠AEM = 90° hoặc ∠A = 90°.
+   - Vuông góc: dùng dấu ⊥ (ví dụ: ME ⊥ AB tại E).
+   - Suy ra: dùng dấu ⇒ (ví dụ: ME ⊥ AB ⇒ ∠AEM = 90°).
+   - Thuộc: dùng dấu ∈ (ví dụ: M ∈ BC).
+   - Tam giác: dùng ký hiệu Δ (ví dụ: ΔABC vuông tại A).
+   - Độ: dùng ký hiệu ° (ví dụ: 90°).
+
+ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ:
+- Tổng điểm: [Điểm số]/10
+1. Hình vẽ ([Điểm]/2.0 điểm):
+   - Ưu điểm: ...
+   - Hạn chế (Trừ điểm): ...
+2. Lập luận chứng minh ([Điểm]/6.0 điểm):
+   - Ưu điểm: ...
+   - Hạn chế: ...
+3. Trình bày & Kết luận ([Điểm]/2.0 điểm):
+   - Ưu điểm: ...
+   - Hạn chế: ...
+
+Gợi ý cách trình bày chuẩn để đạt điểm tối đa:
+(Trình bày từng dòng ngắn gọn, rõ ràng theo đúng ký hiệu trên).
+"""
+                    # Gọi AI chấm bài
                     score_res = execute_gemini_request([hw_img, RUBRIC])
                     score_res_clean = format_math(score_res)
 
+                    # Trích xuất điểm số
                     score_match = re.search(r"(\d+(?:[.,]\d+)?)\s*/\s*10", score_res_clean)
                     extracted_score = score_match.group(1).replace(",", ".") if score_match else "Chưa xác định"
 
