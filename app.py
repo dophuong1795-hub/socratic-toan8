@@ -560,7 +560,7 @@ with tab3:
     st.caption("Dữ liệu điểm số được bảo mật để đảm bảo tính riêng tư của học sinh.")
 
     teacher_password = st.text_input("🔑 Nhập mật khẩu giáo viên để xem sổ điểm:", type="password")
-    ADMIN_PASS = "Maiphuong2026 
+    ADMIN_PASS = "Maiphuong2026" 
 
     if teacher_password:
         if teacher_password == ADMIN_PASS:
