@@ -109,15 +109,17 @@ MODEL_NAME = "gemini-3.8-flash"
 import re
 
 # ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC 8 =================
+import re
+
 def format_math(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
 
-    # 1. KHỬ BỎ RÁC SUY NGHĨ NỘI BỘ CỦA AI
+    # 1. Khử rác hệ thống & suy nghĩ nội bộ AI
     text = re.sub(r"^(?:User Safety|Thinking Process|Thought):[^\n]*\n?", "", text, flags=re.IGNORECASE)
     text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
 
-    # 2. BẢO VỆ ĐIỂM SỐ (Tránh biến 1.0/2.0 hoặc 8/10 thành phân số hay công thức)
+    # 2. Bảo vệ điểm số (tránh bị biến thành phân số hoặc dính dấu)
     score_placeholders = []
     def save_score(m):
         score_placeholders.append(m.group(0))
@@ -125,74 +127,71 @@ def format_math(text: str) -> str:
 
     text = re.sub(r"\b\d+(?:[.,]\d+)?\s*/\s*(?:10|100|\d+(?:[.,]\d+)?(?=\s*(?:điểm|\)|$)))", save_score, text)
 
-    # 3. SỬA CÁC LỖI GÕ KÝ HIỆU SAI CƠ BẢN CỦA AI
-    # Sửa lỗi gõ nhầm ngoặc vuông: \widehat[ABC} -> \widehat{ABC}
-    text = re.sub(r"\\widehat\[\s*([A-Za-z]{1,3})\s*[\]\}]", r"\\widehat{\1}", text)
-    # Sửa lỗi \hat{A} -> \widehat{A}
-    text = re.sub(r"\\hat\{([A-Za-z]{1,3})\}", r"\\widehat{\1}", text)
-    # Chuẩn hóa góc dạng chữ hoặc ký hiệu unicode: góc ABC, ∠ABC -> \widehat{ABC}
-    text = re.sub(r"(?:[∠∡∢]|\\angle\s+|[Gg]óc\s+)([A-Za-z]{1,3})\b", r"\\widehat{\1}", text)
+    # 3. Tháo gỡ toàn bộ dấu $ hiện có để đưa về văn bản thuần trước khi chuẩn hóa
+    # (Tránh lỗi lồng dấu $ hoặc nửa trong nửa ngoài)
+    text = text.replace("$", "")
 
-    # 4. TÁCH TỪ TIẾNG VIỆT RA KHỎI KHỐI TOÁN $ ... $ (Xử lý triệt để lỗi chữ dính chùm)
-    def clean_vietnamese_in_math(match):
-        inner = match.group(1)
-        # Các từ giải thích thường bị AI nhét vào trong $...$
-        words = r"(?:do|vì|tại|vuông|cân|đều|tam giác|tứ giác|hình|và|thuộc|cắt|là|mà|phải|gọi|tên|góc)"
-        # Đẩy từ tiếng Việt ra ngoài dấu $
-        inner = re.sub(rf"\b({words})\b", r"$ \1 $", inner, flags=re.IGNORECASE)
-        return f"${inner}$"
-
-    text = re.sub(r"\$([^$]+)\$", clean_vietnamese_in_math, text)
-
-    # 5. CHUYỂN ĐỔI THUẬT NGỮ NGOẠI LAI SANG CHUẨN SGK VIỆT NAM
-    text = re.sub(r"\\implies|\bimplies\b", " suy ra ", text, flags=re.IGNORECASE)
-    text = re.sub(r"\\because|\bbecause\b", " vì ", text, flags=re.IGNORECASE)
-    text = re.sub(r"\\therefore|\btherefore\b", " do đó ", text, flags=re.IGNORECASE)
-    text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
-
-    # 6. CHUẨN HÓA KÝ HIỆU HÌNH HỌC & ĐỘ
-    # Chuẩn hóa tam giác: \Delta ABC hoặc \triangle ABC -> \Delta ABC
-    text = re.sub(r"\\(?:triangle|Delta)\s*([A-Za-z]{3})", r"\\Delta \1", text)
+    # 4. Sửa các lỗi dính chữ vào lệnh LaTeX do AI sinh ra
+    # Ví dụ: \perp AB -> \perp AB, \Rightarrow\widehat -> \Rightarrow \widehat
+    text = re.sub(r"(\\perp|\\Rightarrow|\\implies|\\widehat|\\Delta)([A-Za-z0-9])", r"\1 \2", text)
+    text = re.sub(r"([A-Za-z0-9])(\\perp|\\Rightarrow|\\implies|\\widehat|\\Delta)", r"\1 \2", text)
     
-    # Ký hiệu vuông góc, song song, suy ra, thuộc
-    text = re.sub(r"\\perp|£", r" \\perp ", text)
-    text = re.sub(r"\\parallel|(?<!/)\/\/(?!/)", r" // ", text)
-    text = re.sub(r"\\Rightarrow|=>", r" \\Rightarrow ", text)
-    text = text.replace(r"\in", r" \in ")
-    text = text.replace(r"\frac{", r"\dfrac{")
+    # Sửa nhầm ngoặc vuông: \widehat[AEM} -> \widehat{AEM}
+    text = re.sub(r"\\widehat\[\s*([A-Za-z]{1,3})\s*[\]\}]", r"\\widehat{\1}", text)
+    
+    # Đưa các dạng góc về chuẩn \widehat{...}
+    text = re.sub(r"(?:[∠∡∢]|\\angle\s+|[Gg]óc\s+)([A-Za-z]{1,3})\b", r"\\widehat{\1}", text)
+    text = re.sub(r"\\hat\{([A-Za-z]{1,3})\}", r"\\widehat{\1}", text)
 
-    # Chuẩn hóa số đo độ: 90^\circ, 90° -> 90^\circ
+    # Thay thế các từ tiếng Anh sang tiếng Việt chuẩn SGK
+    text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
+    text = re.sub(r"\\because|\bbecause\b", "vì", text, flags=re.IGNORECASE)
+    text = re.sub(r"\\therefore|\btherefore\b", "do đó", text, flags=re.IGNORECASE)
+
+    # Chuẩn hóa ký hiệu độ: 90° hoặc 90^\circ -> 90^\circ
     text = re.sub(r"(\d+)\s*(?:\^?\\circ|°)", r"\1^\\circ", text)
 
-    # 7. BỌC CÁC BIỂU THỨC TOÁN RỜI RẠC VÀO CẶP $ DUY NHẤT
-    # Bọc các phép toán hình học chuẩn (góc, tam giác, vuông góc, song song)
-    patterns = [
-        r"\\widehat\{[A-Za-z]{1,3}\}(?:\s*=\s*\d+\^\\circ)?",
-        r"\\Delta\s*[A-Za-z]{3}",
-        r"[A-Za-z]{1,3}\s*\\perp\s*[A-Za-z]{1,3}",
-        r"[A-Za-z]{1,3}\s*//\s*[A-Za-z]{1,3}",
-        r"[A-Za-z]{1,3}\s*\\in\s*[A-Za-z]{1,3}",
-        r"\\dfrac\{[^{}]+\}\{[^{}]+\}"
-    ]
-    
-    for pat in patterns:
-        def wrap_match(m):
-            val = m.group(0).strip()
-            return f"${val}$"
-        text = re.sub(rf"(?<!\$)(?:{pat})(?!\$)", wrap_match, text)
+    # Chuẩn hóa phân số
+    text = text.replace(r"\frac{", r"\dfrac{")
 
-    # 8. DỌN DẸP DẤU $ DƯ THỪA, LỒNG NHAU HOẶC RỖNG
-    text = re.sub(r"\${2,}", "$", text)                     # Đổi $$$ thành $
-    text = re.sub(r"\$\s*\$", "", text)                      # Xóa $ $ rỗng
-    text = re.sub(r"\$\s*\$([^$]+)\$\s*\$", r"$\1$", text)   # Khử lồng $($...$)$
-    text = re.sub(r"\$\s*([A-Za-z0-9\\^_{}= ]+)\s*\$", r"$\1$", text)
+    # 5. Tự động bọc $ quanh từng biểu thức toán học độc lập
+    # Bọc góc và đẳng thức góc: \widehat{AEM} = 90^\circ hoặc \widehat{A} = 90^\circ
+    text = re.sub(r"(\\widehat\{[A-Za-z]{1,3}\}\s*=\s*\d+\^\\circ)", r" $\1$ ", text)
+    text = re.sub(r"(?<!\\widehat\{)(\b[A-Za-z]\b\s*=\s*\d+\^\\circ)", r" $\\widehat{\1}$ ", text)
+    text = re.sub(r"(?<!\$)\\widehat\{[A-Za-z]{1,3}\}(?!\$)", r" $\g<0>$ ", text)
 
-    # 9. KHÔI PHỤC ĐIỂM SỐ NGUYÊN BẢN
+    # Bọc quan hệ vuông góc: ME \perp AB
+    text = re.sub(r"([A-Za-z]{1,3}\s*\\perp\s*[A-Za-z]{1,3})", r" $\1$ ", text)
+
+    # Bọc quan hệ song song: AB // CD
+    text = re.sub(r"([A-Za-z]{1,3}\s*(?:\\parallel|//)\s*[A-Za-z]{1,3})", r" $\1$ ", text)
+
+    # Bọc tam giác: \Delta ABC
+    text = re.sub(r"(\\Delta\s*[A-Za-z]{3})", r" $\1$ ", text)
+
+    # Bọc phân số: \dfrac{a}{b}
+    text = re.sub(r"(\\dfrac\{[^{}]+\}\{[^{}]+\})", r" $\1$ ", text)
+
+    # Bọc dấu suy ra: \Rightarrow hoặc =>
+    text = re.sub(r"\\Rightarrow|=>", r" $\\Rightarrow$ ", text)
+
+    # Bọc ký hiệu thuộc: \in
+    text = re.sub(r"\\in", r" $\\in$ ", text)
+
+    # Bọc tên các đỉnh/tứ giác/đoạn thẳng đứng riêng lẻ có độ dài từ 2 đến 4 chữ in hoa (như AEMF, AB, AC)
+    # Không bọc nếu chữ đó đứng sau dấu gạch chéo ngược (lệnh LaTeX)
+    text = re.sub(r"(?<![\\A-Za-z])([A-Z]{2,4})(?![A-Za-z])", r" $\1$ ", text)
+
+    # 6. Dọn dẹp khoảng trắng và dấu $ thừa
+    text = re.sub(r"\${2,}", "$", text)
+    text = re.sub(r"\$\s*\$", "", text)
+    text = re.sub(r"[ \t]+", " ", text)
+
+    # 7. Khôi phục điểm số ban đầu
     for idx, original_score in enumerate(score_placeholders):
         text = text.replace(f"__SCORE_TOKEN_{idx}__", original_score)
 
     return text.strip()
-
 
 # ================= HÀM ĐỊNH DẠNG BÀI GIẢI AN TOÀN =================
 def format_solution_step_by_step(raw_text: str) -> str:
