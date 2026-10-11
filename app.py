@@ -102,89 +102,70 @@ if not API_KEY:
     st.error("Chưa cấu hình biến GEMINI_API_KEY trong Secrets của Streamlit!")
     st.stop()
 
-# Khởi tạo Gemini Client với model chuẩn theo thông báo API
+# Khởi tạo Gemini Client với model ổn định
 client = genai.Client(api_key=API_KEY)
-MODEL_NAME = "gemini-3.8-flash"
+MODEL_NAME = "gemini-2.5-flash"
 
 # ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC 8 =================
 def format_math(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
 
-    # 1. Khử bỏ rác hệ thống & từ ngoại lai
+    # 1. Khử bỏ rác hệ thống & suy nghĩ nội bộ AI
     text = re.sub(r"^(?:User Safety|Thinking Process|Thought):[^\n]*\n?", "", text, flags=re.IGNORECASE)
     text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
     text = re.sub(r"\\implies|\bimplies\b", " suy ra ", text, flags=re.IGNORECASE)
     text = re.sub(r"\\because|\bbecause\b", " vì ", text, flags=re.IGNORECASE)
     text = re.sub(r"\\therefore|\btherefore\b", " do đó ", text, flags=re.IGNORECASE)
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
+    text = re.sub(r"\btriangle\b", "tam giác", text, flags=re.IGNORECASE)
 
-    # 2. BẢO VỆ ĐIỂM SỐ (Tránh biến điểm 2.75/6.0, 5.0/10 thành phân số)
+    # 2. BẢO VỆ ĐIỂM SỐ & PHÉP TÍNH ĐẶC BIỆT
     score_placeholders = []
     def save_score(m):
         score_placeholders.append(m.group(0))
         return f"__SCORE_TOKEN_{len(score_placeholders)-1}__"
 
-    text = re.sub(r"\b\d+(?:\.\d+)?\s*/\s*(?:10|100|\d+(?:\.\d+)?(?=\s*(?:điểm|\)|$)))", save_score, text)
+    text = re.sub(r"\b\d+(?:[.,]\d+)?\s*/\s*(?:10|100|\d+(?:[.,]\d+)?(?=\s*(?:điểm|\)|$)))", save_score, text)
 
-    # 3. CHUẨN HÓA GÓC VÀ SỐ ĐO GÓC (Khử lỗi look-behind không cố định)
-    # Xóa dấu $ đứng lẻ loi trước hoặc sau lệnh \widehat mà không dùng lookbehind biến thiên
-    text = re.sub(r"\$\s*(\\widehat\{[A-Za-z]{1,3}\})", r"\1", text)
-    text = re.sub(r"(\\widehat\{[A-Za-z]{1,3}\})\s*\$", r"\1", text)
-    text = re.sub(r"(\\circ)\s*\$", r"\1", text)
+    # 3. CHUẨN HÓA ĐỘ (° và ^\circ)
+    text = re.sub(r"(\d+)\s*(?:\^?\\circ|°)", r"$\1^\\circ$", text)
 
-    # Gom cụm góc có số đo: \widehat{AEM} = 90^\circ hoặc \widehat{AEM} = 90° -> $\widehat{AEM} = 90^\circ$
-    text = re.sub(
-        r"\\widehat\{([A-Za-z]{1,3})\}\s*=\s*(\d+)\s*(?:\^?\\circ|°)",
-        r"$\\widehat{\1} = \2^\\circ$",
-        text
-    )
+    # 4. CHUẨN HÓA KÝ HIỆU GÓC
+    # Tránh lặp: Bỏ dấu $ và bọc chuẩn cho \widehat hoặc \hat
+    text = re.sub(r"(?:[∠∡∢]|\\angle\s+|[Gg]óc\s+)([A-Za-z]{1,3})\b", r"\\widehat{\1}", text)
+    text = re.sub(r"\\hat\{([A-Za-z]{1,3})\}", r"\\widehat{\1}", text)
+    
+    # Bọc $ quanh các góc chưa có dấu $
+    def wrap_angle_math(m):
+        full = m.group(0)
+        return full if full.startswith("$") else f"${full}$"
+    text = re.sub(r"(?:\$)?(\\widehat\{[A-Za-z]{1,3}\})(?:\$)?", wrap_angle_math, text)
 
-    # Gom các góc đơn lẻ: góc ABC, \widehat{ABC}, \hat{A} -> $\widehat{ABC}$
-    def to_clean_latex_angle(m):
-        name = m.group(1).strip()
-        return f"$\\widehat{{{name}}}$"
+    # 5. CHUẨN HÓA PHÂN SỐ VÀ KÝ HIỆU HÌNH HỌC
+    text = text.replace(r"\frac{", r"\dfrac{")
+    text = re.sub(r"\\parallel|\b//\b", " // ", text)
+    text = re.sub(r"\\perp|£", " ⊥ ", text)
+    text = text.replace(r"\in", " ∈ ")
 
-    text = re.sub(r"(?:[∠∡∢]|\\angle\s*|\\widehat\{|\\hat\{|[Gg]óc\s+)([A-Za-z]{1,3})\b\}?", to_clean_latex_angle, text)
+    # Bọc phân số dfrac trong $...$ nếu chưa được bọc
+    def wrap_dfrac(m):
+        full = m.group(0)
+        return full if full.startswith("$") else f"${full}$"
+    text = re.sub(r"(?:\$)?(\\dfrac\{[^{}]+\}\{[^{}]+\})(?:\$)?", wrap_dfrac, text)
 
-    # 4. CHUẨN HÓA PHÂN SỐ VÀ ĐẲNG THỨC TOÁN HỌC
-    text = re.sub(r"(=|:)\s*\\(d?frac)", r"\1 \\\2", text)
-    text = re.sub(r"\\frac\{", r"\\dfrac{", text)
-
-    # Biến phép chia thường (1/2, AB/2) thành \dfrac
-    text = re.sub(r"(?<![a-zA-Z0-9_\$\.\\])([A-Z]{1,2}|\b\d{1,2}\b)\s*/\s*([A-Z]{1,2}|\b\d{1,2}\b)(?![a-zA-Z0-9_\$\.])", r"\\dfrac{\1}{\2}", text)
-
-    # Bọc đẳng thức chứa phân số vào $...$
-    def wrap_full_equation(match):
-        content = match.group(0).strip()
-        if content.startswith("$") and content.endswith("$"):
-            return content
-        clean_content = content.replace("$", "").strip()
-        return f"${clean_content}$"
-
-    text = re.sub(r"(?:\$)?\b([A-Z]{1,3}\s*=\s*\\dfrac\{[^}]+\}\{[^}]+\}\s*[A-Z]{0,3})(?:\$)?", wrap_full_equation, text)
-    text = re.sub(r"(?<!\$)\\dfrac\{([^}]+)\}\{([^}]+)\}(?!\$)", r"$\\dfrac{\1}{\2}$", text)
-
-    # 5. DỌN DẸP LỖI DẤU $ DƯ THỪA HOẶC LỒNG NHAU
+    # 6. DỌN DẸP DẤU $ DƯ THỪA / LỒNG NHAU
     text = re.sub(r"\${2,}", "$", text)
     text = re.sub(r"\$\s*\$", "", text)
-    text = re.sub(r"\$\s*(\$\\widehat\{[^}]+\}\$)\s*\$", r"\1", text)
-
-    # 6. KÝ HIỆU HÌNH HỌC KHÁC
-    text = re.sub(r"\b([A-Z]{2})\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
-    text = re.sub(r"\\?parallel", " // ", text)
-    text = re.sub(r"\\perp|£", " ⊥ ", text)
-    text = text.replace(r"\in", " thuộc ")
-
-    # Chuẩn hóa độ
-    text = re.sub(r"\b(1[0-8]0|[3469]0)\s*(?:\^?\s*(?:circ|°)|(?=\s*[\.,\)\s]|$))(?!\s*(?:bước|cạnh|đoạn|tam giác|\^))", r"\1°", text)
-    text = text.replace("°°", "°")
+    # Khử trường hợp lồng nhau: $($...$)$
+    text = re.sub(r"\$\s*\$([^$]+)\$\s*\$", r"$\1$", text)
 
     # 7. KHÔI PHỤC ĐIỂM SỐ NGUYÊN VẸN
     for idx, original_score in enumerate(score_placeholders):
         text = text.replace(f"__SCORE_TOKEN_{idx}__", original_score)
 
     return text.strip()
+
 # ================= HÀM ĐỊNH DẠNG BÀI GIẢI AN TOÀN =================
 def format_solution_step_by_step(raw_text: str) -> str:
     """Tách dòng bài giải chuẩn, không làm vỡ các mục a, b, c"""
@@ -193,10 +174,8 @@ def format_solution_step_by_step(raw_text: str) -> str:
     
     text = raw_text.replace("Lời giải chi tiết:", "").replace("Bài giải chi tiết:", "").strip()
     
-    # CHỈ nhận diện a), b), c) là tiêu đề khi đứng ở ĐẦU DÒNG
-    text = re.sub(r"(?m)^\s*([a-c]\))\s*", r"\n\n### **\1** ", text)
-    
-    # Xuống dòng rõ ràng cho các bước suy luận
+    # Nhận diện a), b), c) hoặc 1., 2. là tiêu đề đầu dòng
+    text = re.sub(r"(?m)^\s*([a-d]\))\s*", r"\n\n### **\1** ", text)
     text = re.sub(r"(?<=\.)\s*-\s*", r"\n- ", text)
     text = re.sub(r"\s*=>\s*", r"\n  - $\\Rightarrow$ ", text)
     
@@ -208,6 +187,7 @@ def format_solution_step_by_step(raw_text: str) -> str:
             cleaned_lines.append(format_math(l))
             
     return "\n\n".join(cleaned_lines)
+
 GAME_PROMPT = """
 Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương (Chương trình GDPT 2018 - bộ sách Kết nối tri thức).
 Học sinh lớp 8 (13-14 tuổi).
@@ -267,11 +247,11 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
     for item in inputs:
         if isinstance(item, Image.Image):
             img = item.copy()
-            if max(img.size) > 1000:
-                img.thumbnail((1000, 1000))
+            if max(img.size) > 1024:
+                img.thumbnail((1024, 1024))
             prepared_contents.append(img)
-        else:
-            prepared_contents.append(item)
+        elif item:
+            prepared_contents.append(str(item))
 
     response = client.models.generate_content(
         model=MODEL_NAME,
@@ -284,12 +264,13 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
         raise Exception("Nội dung phản hồi bị rỗng, vui lòng thử lại!")
 
     if is_json:
-        clean_text = re.sub(r"^```json\s*|^```\s*|```$", "", text_out.strip(), flags=re.MULTILINE)
+        clean_text = re.sub(r"^```(?:json)?\s*|```$", "", text_out.strip(), flags=re.MULTILINE)
         match = re.search(r"\{[\s\S]*\}", clean_text)
         target_str = match.group(0) if match else clean_text
         try:
             return json.loads(target_str, strict=False)
         except Exception:
+            # Sửa các ký tự escape backslash trong công thức LaTeX để JSON parse hợp lệ
             fixed_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', target_str)
             return json.loads(fixed_str, strict=False)
 
@@ -353,7 +334,7 @@ with tab1:
     if card:
         total = st.session_state.total_steps
         curr = st.session_state.step
-        progress_val = min(int((curr / total) * 100), 100)
+        progress_val = min(int((curr / max(total, 1)) * 100), 100)
         st.progress(progress_val)
 
         st.markdown(f'<span class="step-badge">CỬA ẢI: BƯỚC {curr} / {total}</span>', unsafe_allow_html=True)
@@ -402,11 +383,11 @@ with tab1:
                 if not st.session_state.reward:
                     sol = card.get("full_solution", "")
                     svg = card.get("svg_code", "")
-                    if not sol:
+                    if not sol and st.session_state.img_data:
                         with st.spinner("Đang mở khóa bài giải và hình vẽ chuẩn..."):
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh và kèm theo mã SVG vẽ lại hình bài toán này.
-                            YÊU CẦU: Trình bày bài giải rõ ràng, các biểu thức tính chu vi/đoạn thẳng giữ nguyên vẹn trên cùng một dòng.
-                            Trả về JSON: {"full_solution": "...", "svg_code": "<svg viewBox='0 0 400 300' ...>...</svg>"}"""
+                            YÊU CẦU: Trình bày bài giải rõ ràng, công thức toán bọc trong $...$.
+                            Trả về JSON: {"full_solution": "...", "svg_code": "<svg viewBox='0 0 500 400' ...>...</svg>"}"""
                             res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
                             sol = res_final.get("full_solution", "")
                             svg = res_final.get("svg_code", "")
@@ -429,7 +410,7 @@ with tab1:
 
                 # HIỂN THỊ BÀI GIẢI LIỀN MẠCH, RÕ RÀNG
                 st.markdown("#### 📝 Lời giải chi tiết:")
-                formatted_solution = format_solution_step_by_step(st.session_state.reward)
+                formatted_solution = format_solution_step_by_step(st.session_state.reward or "")
                 st.markdown(formatted_solution)
 
                 st.write("")
@@ -507,10 +488,10 @@ with tab2:
                 - Tổng điểm: [Ghi điểm số]/10
                 - Nhận xét chi tiết:
                 """
-                score_res = execute_gemini_request([RUBRIC, hw_img])
+                score_res = execute_gemini_request([hw_img, RUBRIC])
                 score_res_clean = format_math(score_res)
 
-                score_match = re.search(r"(\d+([.,]\d+)?)\s*/\s*10", score_res_clean)
+                score_match = re.search(r"(\d+(?:[.,]\d+)?)\s*/\s*10", score_res_clean)
                 extracted_score = score_match.group(1).replace(",", ".") if score_match else "Chưa xác định"
 
                 sub_record = {
