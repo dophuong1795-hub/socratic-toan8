@@ -531,5 +531,4 @@ with tab3:
             type="primary",
             use_container_width=True
         )
-
         st.info("💡 **Cách mở trên Google Sheets:** Mở `sheets.google.com` ➔ Chọn **Tệp (File)** ➔ **Mở (Open)** ➔ Chọn **Tải lên (Upload)** file vừa tải về là toàn bộ bảng điểm sẽ hiển thị đầy đủ, chuẩn font tiếng Việt.")
