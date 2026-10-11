@@ -102,7 +102,7 @@ if not API_KEY:
     st.error("Chưa cấu hình biến GEMINI_API_KEY trong Secrets của Streamlit!")
     st.stop()
 
-# Khởi tạo Gemini Client với model ổn định
+# Khởi tạo Gemini Client
 client = genai.Client(api_key=API_KEY)
 MODEL_NAME = "gemini-2.5-flash"
 
@@ -120,7 +120,7 @@ def format_math(text: str) -> str:
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
     text = re.sub(r"\btriangle\b", "tam giác", text, flags=re.IGNORECASE)
 
-    # 2. BẢO VỆ ĐIỂM SỐ & PHÉP TÍNH ĐẶC BIỆT
+    # 2. Bảo vệ điểm số (tránh bị biến thành phân số)
     score_placeholders = []
     def save_score(m):
         score_placeholders.append(m.group(0))
@@ -128,39 +128,36 @@ def format_math(text: str) -> str:
 
     text = re.sub(r"\b\d+(?:[.,]\d+)?\s*/\s*(?:10|100|\d+(?:[.,]\d+)?(?=\s*(?:điểm|\)|$)))", save_score, text)
 
-    # 3. CHUẨN HÓA ĐỘ (° và ^\circ)
+    # 3. Chuẩn hóa độ
     text = re.sub(r"(\d+)\s*(?:\^?\\circ|°)", r"$\1^\\circ$", text)
 
-    # 4. CHUẨN HÓA KÝ HIỆU GÓC
-    # Tránh lặp: Bỏ dấu $ và bọc chuẩn cho \widehat hoặc \hat
+    # 4. Chuẩn hóa ký hiệu góc
     text = re.sub(r"(?:[∠∡∢]|\\angle\s+|[Gg]óc\s+)([A-Za-z]{1,3})\b", r"\\widehat{\1}", text)
     text = re.sub(r"\\hat\{([A-Za-z]{1,3})\}", r"\\widehat{\1}", text)
     
-    # Bọc $ quanh các góc chưa có dấu $
+    # Bọc $ quanh các góc chưa có $
     def wrap_angle_math(m):
         full = m.group(0)
         return full if full.startswith("$") else f"${full}$"
     text = re.sub(r"(?:\$)?(\\widehat\{[A-Za-z]{1,3}\})(?:\$)?", wrap_angle_math, text)
 
-    # 5. CHUẨN HÓA PHÂN SỐ VÀ KÝ HIỆU HÌNH HỌC
+    # 5. Chuẩn hóa phân số và ký hiệu hình học
     text = text.replace(r"\frac{", r"\dfrac{")
     text = re.sub(r"\\parallel|\b//\b", " // ", text)
     text = re.sub(r"\\perp|£", " ⊥ ", text)
     text = text.replace(r"\in", " ∈ ")
 
-    # Bọc phân số dfrac trong $...$ nếu chưa được bọc
     def wrap_dfrac(m):
         full = m.group(0)
         return full if full.startswith("$") else f"${full}$"
     text = re.sub(r"(?:\$)?(\\dfrac\{[^{}]+\}\{[^{}]+\})(?:\$)?", wrap_dfrac, text)
 
-    # 6. DỌN DẸP DẤU $ DƯ THỪA / LỒNG NHAU
+    # 6. Dọn dẹp $ trùng lặp
     text = re.sub(r"\${2,}", "$", text)
     text = re.sub(r"\$\s*\$", "", text)
-    # Khử trường hợp lồng nhau: $($...$)$
     text = re.sub(r"\$\s*\$([^$]+)\$\s*\$", r"$\1$", text)
 
-    # 7. KHÔI PHỤC ĐIỂM SỐ NGUYÊN VẸN
+    # 7. Khôi phục điểm số
     for idx, original_score in enumerate(score_placeholders):
         text = text.replace(f"__SCORE_TOKEN_{idx}__", original_score)
 
@@ -168,13 +165,10 @@ def format_math(text: str) -> str:
 
 # ================= HÀM ĐỊNH DẠNG BÀI GIẢI AN TOÀN =================
 def format_solution_step_by_step(raw_text: str) -> str:
-    """Tách dòng bài giải chuẩn, không làm vỡ các mục a, b, c"""
     if not raw_text:
         return ""
     
     text = raw_text.replace("Lời giải chi tiết:", "").replace("Bài giải chi tiết:", "").strip()
-    
-    # Nhận diện a), b), c) hoặc 1., 2. là tiêu đề đầu dòng
     text = re.sub(r"(?m)^\s*([a-d]\))\s*", r"\n\n### **\1** ", text)
     text = re.sub(r"(?<=\.)\s*-\s*", r"\n- ", text)
     text = re.sub(r"\s*=>\s*", r"\n  - $\\Rightarrow$ ", text)
@@ -247,8 +241,12 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
     for item in inputs:
         if isinstance(item, Image.Image):
             img = item.copy()
-            if max(img.size) > 1024:
-                img.thumbnail((1024, 1024))
+            # Chuyển đổi định dạng sang RGB để tránh lỗi Alpha channel (RGBA)
+            if img.mode != "RGB":
+                img = img.convert("RGB")
+            # Tối ưu kích thước tránh lỗi tràn bộ nhớ hoặc vượt payload API
+            if max(img.size) > 1200:
+                img.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
             prepared_contents.append(img)
         elif item:
             prepared_contents.append(str(item))
@@ -270,7 +268,7 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
         try:
             return json.loads(target_str, strict=False)
         except Exception:
-            # Sửa các ký tự escape backslash trong công thức LaTeX để JSON parse hợp lệ
+            # Xử lý escape ký tự trong công thức toán LaTeX
             fixed_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', target_str)
             return json.loads(fixed_str, strict=False)
 
@@ -309,9 +307,9 @@ with tab1:
         st.session_state.reward_svg = None
 
     with st.expander("📸 Đề bài / Hình vẽ bài toán", expanded=(st.session_state.card is None)):
-        up_img = st.file_uploader("Tải/chụp ảnh bài tập cần chú ý lên đây:", type=["jpg", "png", "jpeg"], key="up_game_img")
-        if up_img:
-            st.session_state.img_data = Image.open(up_img)
+        up_game_img = st.file_uploader("Tải/chụp ảnh bài tập cần chú ý lên đây:", type=["jpg", "png", "jpeg"], key="up_game_img")
+        if up_game_img:
+            st.session_state.img_data = Image.open(up_game_img)
             st.image(st.session_state.img_data, caption="Hình vẽ bài toán đang giải", use_container_width=True)
 
         if st.session_state.img_data and st.session_state.card is None:
@@ -388,9 +386,12 @@ with tab1:
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh và kèm theo mã SVG vẽ lại hình bài toán này.
                             YÊU CẦU: Trình bày bài giải rõ ràng, công thức toán bọc trong $...$.
                             Trả về JSON: {"full_solution": "...", "svg_code": "<svg viewBox='0 0 500 400' ...>...</svg>"}"""
-                            res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
-                            sol = res_final.get("full_solution", "")
-                            svg = res_final.get("svg_code", "")
+                            try:
+                                res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
+                                sol = res_final.get("full_solution", "")
+                                svg = res_final.get("svg_code", "")
+                            except Exception as e:
+                                sol = "Đã xảy ra lỗi khi tạo lời giải chi tiết."
                     st.session_state.reward = sol
                     st.session_state.reward_svg = svg
 
@@ -401,14 +402,12 @@ with tab1:
                 </div>
                 """, unsafe_allow_html=True)
 
-                # HIỂN THỊ HÌNH VẼ MINH HỌA SVG
                 if st.session_state.reward_svg and "<svg" in st.session_state.reward_svg:
                     st.markdown("#### 📐 Hình vẽ minh họa chuẩn xác:")
                     clean_svg_match = re.search(r"<svg[\s\S]*?</svg>", st.session_state.reward_svg)
                     if clean_svg_match:
                         st.markdown(f'<div class="svg-container">{clean_svg_match.group(0)}</div>', unsafe_allow_html=True)
 
-                # HIỂN THỊ BÀI GIẢI LIỀN MẠCH, RÕ RÀNG
                 st.markdown("#### 📝 Lời giải chi tiết:")
                 formatted_solution = format_solution_step_by_step(st.session_state.reward or "")
                 st.markdown(formatted_solution)
@@ -475,38 +474,42 @@ with tab2:
             st.warning("Em chưa tải ảnh bài làm lên!")
         else:
             with st.spinner("Hệ thống đang chấm bài theo Rubric..."):
-                hw_img = Image.open(up_hw)
-                RUBRIC = f"""
-                Bạn là Giám khảo chấm thi Toán THCS tại Việt Nam.
-                Đề bài: "{topic}".
-                Hãy đọc ảnh chụp bài làm tự luận viết tay và chấm điểm theo Rubric (Thang 10):
-                1. Hình vẽ (2.0 điểm): Đúng hình, ký hiệu góc, trung điểm.
-                2. Lập luận chứng minh (6.0 điểm): Căn cứ định lý, tính chất, dấu hiệu nhận biết, logic.
-                3. Trình bày & Kết luận (2.0 điểm): Rõ ràng, kết luận chuẩn.
+                try:
+                    hw_img = Image.open(up_hw)
+                    RUBRIC = f"""
+                    Bạn là Giám khảo chấm thi Toán THCS tại Việt Nam.
+                    Đề bài: "{topic}".
+                    Hãy đọc ảnh chụp bài làm tự luận viết tay và chấm điểm theo Rubric (Thang 10):
+                    1. Hình vẽ (2.0 điểm): Đúng hình, ký hiệu góc, trung điểm.
+                    2. Lập luận chứng minh (6.0 điểm): Căn cứ định lý, tính chất, dấu hiệu nhận biết, logic.
+                    3. Trình bày & Kết luận (2.0 điểm): Rõ ràng, kết luận chuẩn.
 
-                ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ:
-                - Tổng điểm: [Ghi điểm số]/10
-                - Nhận xét chi tiết:
-                """
-                score_res = execute_gemini_request([hw_img, RUBRIC])
-                score_res_clean = format_math(score_res)
+                    ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ:
+                    - Tổng điểm: [Ghi điểm số]/10
+                    - Nhận xét chi tiết:
+                    """
+                    score_res = execute_gemini_request([hw_img, RUBRIC])
+                    score_res_clean = format_math(score_res)
 
-                score_match = re.search(r"(\d+(?:[.,]\d+)?)\s*/\s*10", score_res_clean)
-                extracted_score = score_match.group(1).replace(",", ".") if score_match else "Chưa xác định"
+                    score_match = re.search(r"(\d+(?:[.,]\d+)?)\s*/\s*10", score_res_clean)
+                    extracted_score = score_match.group(1).replace(",", ".") if score_match else "Chưa xác định"
 
-                sub_record = {
-                    "Thời gian": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                    "Họ và tên": s_name,
-                    "Lớp": s_class,
-                    "Bài tập": topic,
-                    "Điểm số": extracted_score,
-                    "Nhận xét của AI": score_res_clean.replace("\n", " ")
-                }
-                st.session_state.submission_history.append(sub_record)
+                    sub_record = {
+                        "Thời gian": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                        "Họ và tên": s_name,
+                        "Lớp": s_class,
+                        "Bài tập": topic,
+                        "Điểm số": extracted_score,
+                        "Nhận xét của AI": score_res_clean.replace("\n", " ")
+                    }
+                    st.session_state.submission_history.append(sub_record)
 
-                st.success("Đã hoàn tất chấm bài và lưu kết quả vào sổ điểm!")
-                st.markdown(f"### Kết quả của: **{s_name}** - Lớp **{s_class}**")
-                st.markdown(score_res_clean)
+                    st.success("Đã hoàn tất chấm bài và lưu kết quả vào sổ điểm!")
+                    st.markdown(f"### Kết quả của: **{s_name}** - Lớp **{s_class}**")
+                    st.markdown(score_res_clean)
+                except Exception as err:
+                    st.error(f"Lỗi trong quá trình chấm bài: {err}")
+                    st.info("💡 Cô kiểm tra lại định dạng ảnh hoặc kết nối API nhé.")
 
 # ================= TAB 3: BẢNG ĐIỂM & XUẤT GOOGLE SHEETS =================
 with tab3:
@@ -531,4 +534,5 @@ with tab3:
             type="primary",
             use_container_width=True
         )
+
         st.info("💡 **Cách mở trên Google Sheets:** Mở `sheets.google.com` ➔ Chọn **Tệp (File)** ➔ **Mở (Open)** ➔ Chọn **Tải lên (Upload)** file vừa tải về là toàn bộ bảng điểm sẽ hiển thị đầy đủ, chuẩn font tiếng Việt.")
