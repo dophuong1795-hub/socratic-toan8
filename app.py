@@ -106,7 +106,7 @@ if not API_KEY:
 client = genai.Client(api_key=API_KEY)
 MODEL_NAME = "gemini-3.8-flash"
 
-# ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC 8 (BẢN SỬA LỖI TOÀN DIỆN) =================
+# ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC 8 =================
 def format_math(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
@@ -119,7 +119,7 @@ def format_math(text: str) -> str:
     text = re.sub(r"\\therefore|\btherefore\b", " do đó ", text, flags=re.IGNORECASE)
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
 
-    # 2. BẢO VỆ ĐIỂM SỐ (Tránh biến điểm 2.75/6.0 thành phân số vỡ)
+    # 2. BẢO VỆ ĐIỂM SỐ (Tránh biến điểm 2.75/6.0, 5.0/10 thành phân số)
     score_placeholders = []
     def save_score(m):
         score_placeholders.append(m.group(0))
@@ -127,20 +127,20 @@ def format_math(text: str) -> str:
 
     text = re.sub(r"\b\d+(?:\.\d+)?\s*/\s*(?:10|100|\d+(?:\.\d+)?(?=\s*(?:điểm|\)|$)))", save_score, text)
 
-    # 3. CHUẨN HÓA GÓC VÀ SỐ ĐO GÓC (Khắc phục lỗi \widehat{...} bị bôi đỏ)
-    # Gỡ bỏ các dấu $ lẻ loi dính quanh \widehat hoặc \circ để định dạng lại từ đầu
-    text = re.sub(r"\$(?=\\widehat|\s*=\s*\d+)", "", text)
-    text = re.sub(r"(?<=\\widehat\{[A-Za-z]{1,3}\})\$", "", text)
-    text = re.sub(r"(?<=\\circ)\$", "", text)
+    # 3. CHUẨN HÓA GÓC VÀ SỐ ĐO GÓC (Khử lỗi look-behind không cố định)
+    # Xóa dấu $ đứng lẻ loi trước hoặc sau lệnh \widehat mà không dùng lookbehind biến thiên
+    text = re.sub(r"\$\s*(\\widehat\{[A-Za-z]{1,3}\})", r"\1", text)
+    text = re.sub(r"(\\widehat\{[A-Za-z]{1,3}\})\s*\$", r"\1", text)
+    text = re.sub(r"(\\circ)\s*\$", r"\1", text)
 
-    # Gom trọn cụm góc kèm số đo: \widehat{AEM} = 90^\circ hoặc \widehat{AEM} = 90° -> $\widehat{AEM} = 90^\circ$
+    # Gom cụm góc có số đo: \widehat{AEM} = 90^\circ hoặc \widehat{AEM} = 90° -> $\widehat{AEM} = 90^\circ$
     text = re.sub(
         r"\\widehat\{([A-Za-z]{1,3})\}\s*=\s*(\d+)\s*(?:\^?\\circ|°)",
         r"$\\widehat{\1} = \2^\\circ$",
         text
     )
 
-    # Gom các góc đơn lẻ: \widehat{E}, \widehat{AEM}, \hat{A}, góc ABC -> $\widehat{...}$
+    # Gom các góc đơn lẻ: góc ABC, \widehat{ABC}, \hat{A} -> $\widehat{ABC}$
     def to_clean_latex_angle(m):
         name = m.group(1).strip()
         return f"$\\widehat{{{name}}}$"
@@ -166,20 +166,17 @@ def format_math(text: str) -> str:
     text = re.sub(r"(?<!\$)\\dfrac\{([^}]+)\}\{([^}]+)\}(?!\$)", r"$\\dfrac{\1}{\2}$", text)
 
     # 5. DỌN DẸP LỖI DẤU $ DƯ THỪA HOẶC LỒNG NHAU
-    # Gộp các dấu $ liền nhau: $$, $$$ -> $
     text = re.sub(r"\${2,}", "$", text)
-    # Xóa cặp $ rỗng
     text = re.sub(r"\$\s*\$", "", text)
-    # Tránh trường hợp bọc thừa: $ $\widehat{A}$ $ -> $\widehat{A}$
     text = re.sub(r"\$\s*(\$\\widehat\{[^}]+\}\$)\s*\$", r"\1", text)
 
-    # 6. KÝ HIỆU HÌNH HỌC KHÁC: song song //, vuông góc ⊥, thuộc, độ
+    # 6. KÝ HIỆU HÌNH HỌC KHÁC
     text = re.sub(r"\b([A-Z]{2})\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
     text = re.sub(r"\\?parallel", " // ", text)
     text = re.sub(r"\\perp|£", " ⊥ ", text)
     text = text.replace(r"\in", " thuộc ")
 
-    # Chuẩn hóa số đo độ còn lại
+    # Chuẩn hóa độ
     text = re.sub(r"\b(1[0-8]0|[3469]0)\s*(?:\^?\s*(?:circ|°)|(?=\s*[\.,\)\s]|$))(?!\s*(?:bước|cạnh|đoạn|tam giác|\^))", r"\1°", text)
     text = text.replace("°°", "°")
 
