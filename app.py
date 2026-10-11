@@ -460,7 +460,7 @@ with tab2:
         "Bài 3: Hình chữ nhật (Chụp kèm đề bài)",
         "Bài 4: Hình thoi (Chụp kèm đề bài)",
         "Bài 5: Hình vuông (Chụp kèm đề bài)",
-        "Bài 6: Định lý Thalès và Tam giác đồng dạng",
+        "Bài 6: Định lý Thalès và Tam giác đồng dạng (Chụp kèm đề bài)",
         "Bài 7: Bài tập tổng hợp (Chụp kèm đề bài)"
     ])
 
