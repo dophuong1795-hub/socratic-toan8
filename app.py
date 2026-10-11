@@ -5,6 +5,7 @@ from PIL import Image
 import json
 import re
 import pandas as pd
+import requests
 from datetime import datetime
 
 # ================= CẤU HÌNH GIAO DIỆN STREAMLIT =================
@@ -102,15 +103,14 @@ if not API_KEY:
     st.error("Chưa cấu hình biến GEMINI_API_KEY trong Secrets của Streamlit!")
     st.stop()
 
-# Khởi tạo Gemini Client (Dùng model 2.5-flash chính thức để ổn định nhất)
+# Khởi tạo Gemini Client với model ổn định
 client = genai.Client(api_key=API_KEY)
 MODEL_NAME = "gemini-3.8-flash"
 
 # ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC 8 =================
 def format_math(text: str) -> str:
     """
-    Chuẩn hóa toàn bộ ký hiệu LaTeX về Unicode toán học chuẩn THCS.
-    Chống 100% lỗi chữ đỏ, lỗi nghiêng dính chữ tiếng Việt.
+    Chuẩn hóa nhận xét bài chấm về Unicode thuần, chống lỗi chữ đỏ và gãy cú pháp.
     """
     if not text or not isinstance(text, str):
         return ""
@@ -126,8 +126,9 @@ def format_math(text: str) -> str:
     text = re.sub(r"\\(?:widehat|hat)\s*[\{\[]\s*([A-Za-z]{1,3})\s*[\}\]]", r"∠\1", text)
     text = re.sub(r"\\(?:angle)\s+([A-Za-z]{1,3})\b", r"∠\1", text)
 
-    # 4. Chuẩn hóa tam giác: \Delta ABC, \triangle ABC -> ΔABC
-    text = re.sub(r"\\(?:Delta|triangle)\s*([A-Za-z]{3})", r"Δ\1", text)
+    # 4. Chuẩn hóa tam giác: \Delta ABC, \triangle ABC -> Δ ABC
+    text = re.sub(r"\\(?:Delta|triangle)\s*([A-Za-z]{3})", r"Δ \1", text)
+    text = re.sub(r"Δ([A-Za-z]{3})", r"Δ \1", text)
 
     # 5. Chuẩn hóa các phép toán và quan hệ hình học
     text = re.sub(r"\\perp|£", " ⊥ ", text)
@@ -139,8 +140,8 @@ def format_math(text: str) -> str:
     text = re.sub(r"\^?\\circ", "°", text)
     text = text.replace("°°", "°")
 
-    # 7. Chuẩn hóa phân số: \dfrac{a}{b} hoặc \frac{a}{b} -> a/b
-    text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1/\2)", text)
+    # 7. Chuẩn hóa phân số
+    text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1 / \2)", text)
 
     # 8. Chuyển thuật ngữ ngoại lai sang tiếng Việt SGK
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
@@ -153,7 +154,7 @@ def format_math(text: str) -> str:
 
 # ================= HÀM ĐỊNH DẠNG BÀI GIẢI AN TOÀN =================
 def format_solution_step_by_step(raw_text: str) -> str:
-    """Tách dòng bài giải chuẩn, định dạng heading cho các ý a, b, c và phân cấp suy luận"""
+    """Tách dòng bài giải chuẩn, định dạng heading cho các ý a, b, c và phân số gạch ngang đẹp mắt"""
     if not raw_text:
         return ""
     
@@ -162,16 +163,27 @@ def format_solution_step_by_step(raw_text: str) -> str:
     # Chuẩn hóa đầu mục câu a), b), c) hoặc 1., 2.
     text = re.sub(r"(?m)^\s*([a-d]\))\s*", r"\n\n### **\1** ", text)
     
-    # Ngắt dòng đẹp cho các gạch đầu dòng và dấu suy ra
+    # Chuyển đổi tam giác: ΔABC -> $\Delta ABC$
+    text = re.sub(r"Δ\s*([A-Za-z]{3})", r"$\\Delta \1$", text)
+    text = re.sub(r"\\Delta\s*([A-Za-z]{3})", r"$\\Delta \1$", text)
+    
+    # Chuyển các phép chia AB / 2, (AB + AC + BC) / 2 thành phân số KaTeX
+    text = re.sub(r"\(?\b([A-Z]{2}\vert{}\d+)\b\)?\s*/\s*(\d+)", r"$\\dfrac{\1}{\2}$", text)
+    text = re.sub(r"\(([A-Z]{2}\s*\+\s*[A-Z]{2}\s*\+\s*[A-Z]{2})\)\s*/\s*(\d+)", r"$\\dfrac{\1}{\2}$", text)
+    text = re.sub(r"P\(([A-Za-z]{3})\)\s*/\s*(\d+)", r"$\\dfrac{P(\1)}{\2}$", text)
+    
+    # Định dạng dấu gạch đầu dòng và mũi tên suy ra
     text = re.sub(r"(?<=\.)\s*-\s*", r"\n- ", text)
-    text = re.sub(r"\s*(?:=>|\\Rightarrow)\s*", r"\n  - ⇒ ", text)
+    text = re.sub(r"\s*(?:=>|⇒|\\Rightarrow)\s*", r"\n  - $\\Rightarrow$ ", text)
     
     lines = text.split("\n")
     cleaned_lines = []
     for line in lines:
         l = line.strip()
         if l:
-            cleaned_lines.append(format_math(l))
+            l = re.sub(r"\${2,}", "$", l)
+            l = re.sub(r"\$\s*\$", "", l)
+            cleaned_lines.append(l)
             
     return "\n\n".join(cleaned_lines)
 
@@ -508,6 +520,7 @@ Gợi ý cách trình bày chuẩn để đạt điểm tối đa:
                     score_match = re.search(r"(\d+(?:[.,]\d+)?)\s*/\s*10", score_res_clean)
                     extracted_score = score_match.group(1).replace(",", ".") if score_match else "Chưa xác định"
 
+                    # 1. Lưu tạm vào phiên hiện tại
                     sub_record = {
                         "Thời gian": datetime.now().strftime("%d/%m/%Y %H:%M"),
                         "Họ và tên": s_name,
@@ -518,35 +531,62 @@ Gợi ý cách trình bày chuẩn để đạt điểm tối đa:
                     }
                     st.session_state.submission_history.append(sub_record)
 
-                    st.success("Đã hoàn tất chấm bài và lưu kết quả vào sổ điểm!")
+                    # 2. TỰ ĐỘNG GỬI SANG GOOGLE SHEETS
+                    webhook_url = st.secrets.get("GOOGLE_SHEET_WEBHOOK_URL")
+                    if webhook_url:
+                        payload = {
+                            "time": sub_record["Thời gian"],
+                            "name": s_name,
+                            "student_class": s_class,
+                            "topic": topic,
+                            "score": extracted_score,
+                            "feedback": sub_record["Nhận xét của AI"]
+                        }
+                        try:
+                            requests.post(webhook_url, json=payload, timeout=5)
+                        except Exception:
+                            pass  # Không ngắt mạch bài làm nếu đường truyền Google Sheets gián đoạn
+
+                    st.success("🎉 Đã hoàn tất chấm bài và tự động cập nhật vào sổ điểm của cô!")
                     st.markdown(f"### Kết quả của: **{s_name}** - Lớp **{s_class}**")
                     st.markdown(score_res_clean)
                 except Exception as err:
                     st.error(f"Lỗi trong quá trình chấm bài: {err}")
                     st.info("💡 Cô kiểm tra lại định dạng ảnh hoặc kết nối API nhé.")
 
-# ================= TAB 3: BẢNG ĐIỂM & XUẤT GOOGLE SHEETS =================
+# ================= TAB 3: BẢNG ĐIỂM (BẢO MẬT & XUẤT GOOGLE SHEETS) =================
 with tab3:
-    st.markdown("### 📊 Sổ Theo Dõi Điểm & Xuất Google Sheets")
-    st.caption("Danh sách học sinh đã nộp bài tập và điểm số được chấm tự động.")
+    st.markdown("### 🔒 Khu Vực Quản Lý Điểm Của Giáo Viên")
+    st.caption("Dữ liệu điểm số được bảo mật để đảm bảo tính riêng tư của học sinh.")
 
-    if len(st.session_state.submission_history) == 0:
-        st.info("Chưa có học sinh nào nộp bài trong phiên làm việc này.")
+    teacher_password = st.text_input("🔑 Nhập mật khẩu giáo viên để xem sổ điểm:", type="password")
+    ADMIN_PASS = "CoMaiPhuong2026" 
+
+    if teacher_password:
+        if teacher_password == ADMIN_PASS:
+            st.success("🔓 Xác thực thành công! Chào cô Mai Phương.")
+            
+            if len(st.session_state.submission_history) == 0:
+                st.info("Chưa có học sinh nào nộp bài trong phiên làm việc này.")
+            else:
+                df = pd.DataFrame(st.session_state.submission_history)
+                st.dataframe(df, use_container_width=True)
+
+                csv_data = df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
+
+                st.write("---")
+                st.markdown("**📥 Tải file để mở thẳng trên Google Sheets hoặc Excel:**")
+                st.download_button(
+                    label="📗 Tải file bảng điểm (.CSV cho Google Sheets)",
+                    data=csv_data,
+                    file_name=f"Bang_Diem_HinhHoc8_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    mime="text/csv",
+                    type="primary",
+                    use_container_width=True
+                )
+
+                st.info("💡 **Cách mở trên Google Sheets:** Mở `sheets.google.com` ➔ Chọn **Tệp (File)** ➔ **Mở (Open)** ➔ Chọn **Tải lên (Upload)** file vừa tải về.")
+        else:
+            st.error("⛔ Mật khẩu không chính xác! Học sinh vui lòng không truy cập khu vực này.")
     else:
-        df = pd.DataFrame(st.session_state.submission_history)
-        st.dataframe(df, use_container_width=True)
-
-        csv_data = df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
-
-        st.write("---")
-        st.markdown("**📥 Tải file để mở thẳng trên Google Sheets hoặc Excel:**")
-        st.download_button(
-            label="📗 Tải file bảng điểm (.CSV cho Google Sheets)",
-            data=csv_data,
-            file_name=f"Bang_Diem_HinhHoc8_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-            mime="text/csv",
-            type="primary",
-            use_container_width=True
-        )
-
-        st.info("💡 **Cách mở trên Google Sheets:** Mở `sheets.google.com` ➔ Chọn **Tệp (File)** ➔ **Mở (Open)** ➔ Chọn **Tải lên (Upload)** file vừa tải về là toàn bộ bảng điểm sẽ hiển thị đầy đủ, chuẩn font tiếng Việt.")
+        st.info("👉 Vui lòng nhập mật khẩu để mở khóa sổ theo dõi điểm.")
