@@ -106,21 +106,18 @@ if not API_KEY:
 client = genai.Client(api_key=API_KEY)
 MODEL_NAME = "gemini-3.8-flash"
 
+import re
+
 # ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC 8 =================
 def format_math(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
 
-    # 1. Khử bỏ rác hệ thống & suy nghĩ nội bộ AI
+    # 1. KHỬ BỎ RÁC SUY NGHĨ NỘI BỘ CỦA AI
     text = re.sub(r"^(?:User Safety|Thinking Process|Thought):[^\n]*\n?", "", text, flags=re.IGNORECASE)
     text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"\\implies|\bimplies\b", " suy ra ", text, flags=re.IGNORECASE)
-    text = re.sub(r"\\because|\bbecause\b", " vì ", text, flags=re.IGNORECASE)
-    text = re.sub(r"\\therefore|\btherefore\b", " do đó ", text, flags=re.IGNORECASE)
-    text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
-    text = re.sub(r"\btriangle\b", "tam giác", text, flags=re.IGNORECASE)
 
-    # 2. Bảo vệ điểm số (tránh bị biến thành phân số)
+    # 2. BẢO VỆ ĐIỂM SỐ (Tránh biến 1.0/2.0 hoặc 8/10 thành phân số hay công thức)
     score_placeholders = []
     def save_score(m):
         score_placeholders.append(m.group(0))
@@ -128,50 +125,89 @@ def format_math(text: str) -> str:
 
     text = re.sub(r"\b\d+(?:[.,]\d+)?\s*/\s*(?:10|100|\d+(?:[.,]\d+)?(?=\s*(?:điểm|\)|$)))", save_score, text)
 
-    # 3. Chuẩn hóa độ
-    text = re.sub(r"(\d+)\s*(?:\^?\\circ|°)", r"$\1^\\circ$", text)
-
-    # 4. Chuẩn hóa ký hiệu góc
-    text = re.sub(r"(?:[∠∡∢]|\\angle\s+|[Gg]óc\s+)([A-Za-z]{1,3})\b", r"\\widehat{\1}", text)
+    # 3. SỬA CÁC LỖI GÕ KÝ HIỆU SAI CƠ BẢN CỦA AI
+    # Sửa lỗi gõ nhầm ngoặc vuông: \widehat[ABC} -> \widehat{ABC}
+    text = re.sub(r"\\widehat\[\s*([A-Za-z]{1,3})\s*[\]\}]", r"\\widehat{\1}", text)
+    # Sửa lỗi \hat{A} -> \widehat{A}
     text = re.sub(r"\\hat\{([A-Za-z]{1,3})\}", r"\\widehat{\1}", text)
+    # Chuẩn hóa góc dạng chữ hoặc ký hiệu unicode: góc ABC, ∠ABC -> \widehat{ABC}
+    text = re.sub(r"(?:[∠∡∢]|\\angle\s+|[Gg]óc\s+)([A-Za-z]{1,3})\b", r"\\widehat{\1}", text)
+
+    # 4. TÁCH TỪ TIẾNG VIỆT RA KHỎI KHỐI TOÁN $ ... $ (Xử lý triệt để lỗi chữ dính chùm)
+    def clean_vietnamese_in_math(match):
+        inner = match.group(1)
+        # Các từ giải thích thường bị AI nhét vào trong $...$
+        words = r"(?:do|vì|tại|vuông|cân|đều|tam giác|tứ giác|hình|và|thuộc|cắt|là|mà|phải|gọi|tên|góc)"
+        # Đẩy từ tiếng Việt ra ngoài dấu $
+        inner = re.sub(rf"\b({words})\b", r"$ \1 $", inner, flags=re.IGNORECASE)
+        return f"${inner}$"
+
+    text = re.sub(r"\$([^$]+)\$", clean_vietnamese_in_math, text)
+
+    # 5. CHUYỂN ĐỔI THUẬT NGỮ NGOẠI LAI SANG CHUẨN SGK VIỆT NAM
+    text = re.sub(r"\\implies|\bimplies\b", " suy ra ", text, flags=re.IGNORECASE)
+    text = re.sub(r"\\because|\bbecause\b", " vì ", text, flags=re.IGNORECASE)
+    text = re.sub(r"\\therefore|\btherefore\b", " do đó ", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
+
+    # 6. CHUẨN HÓA KÝ HIỆU HÌNH HỌC & ĐỘ
+    # Chuẩn hóa tam giác: \Delta ABC hoặc \triangle ABC -> \Delta ABC
+    text = re.sub(r"\\(?:triangle|Delta)\s*([A-Za-z]{3})", r"\\Delta \1", text)
     
-    # Bọc $ quanh các góc chưa có $
-    def wrap_angle_math(m):
-        full = m.group(0)
-        return full if full.startswith("$") else f"${full}$"
-    text = re.sub(r"(?:\$)?(\\widehat\{[A-Za-z]{1,3}\})(?:\$)?", wrap_angle_math, text)
-
-    # 5. Chuẩn hóa phân số và ký hiệu hình học
+    # Ký hiệu vuông góc, song song, suy ra, thuộc
+    text = re.sub(r"\\perp|£", r" \\perp ", text)
+    text = re.sub(r"\\parallel|(?<!/)\/\/(?!/)", r" // ", text)
+    text = re.sub(r"\\Rightarrow|=>", r" \\Rightarrow ", text)
+    text = text.replace(r"\in", r" \in ")
     text = text.replace(r"\frac{", r"\dfrac{")
-    text = re.sub(r"\\parallel|\b//\b", " // ", text)
-    text = re.sub(r"\\perp|£", " ⊥ ", text)
-    text = text.replace(r"\in", " ∈ ")
 
-    def wrap_dfrac(m):
-        full = m.group(0)
-        return full if full.startswith("$") else f"${full}$"
-    text = re.sub(r"(?:\$)?(\\dfrac\{[^{}]+\}\{[^{}]+\})(?:\$)?", wrap_dfrac, text)
+    # Chuẩn hóa số đo độ: 90^\circ, 90° -> 90^\circ
+    text = re.sub(r"(\d+)\s*(?:\^?\\circ|°)", r"\1^\\circ", text)
 
-    # 6. Dọn dẹp $ trùng lặp
-    text = re.sub(r"\${2,}", "$", text)
-    text = re.sub(r"\$\s*\$", "", text)
-    text = re.sub(r"\$\s*\$([^$]+)\$\s*\$", r"$\1$", text)
+    # 7. BỌC CÁC BIỂU THỨC TOÁN RỜI RẠC VÀO CẶP $ DUY NHẤT
+    # Bọc các phép toán hình học chuẩn (góc, tam giác, vuông góc, song song)
+    patterns = [
+        r"\\widehat\{[A-Za-z]{1,3}\}(?:\s*=\s*\d+\^\\circ)?",
+        r"\\Delta\s*[A-Za-z]{3}",
+        r"[A-Za-z]{1,3}\s*\\perp\s*[A-Za-z]{1,3}",
+        r"[A-Za-z]{1,3}\s*//\s*[A-Za-z]{1,3}",
+        r"[A-Za-z]{1,3}\s*\\in\s*[A-Za-z]{1,3}",
+        r"\\dfrac\{[^{}]+\}\{[^{}]+\}"
+    ]
+    
+    for pat in patterns:
+        def wrap_match(m):
+            val = m.group(0).strip()
+            return f"${val}$"
+        text = re.sub(rf"(?<!\$)(?:{pat})(?!\$)", wrap_match, text)
 
-    # 7. Khôi phục điểm số
+    # 8. DỌN DẸP DẤU $ DƯ THỪA, LỒNG NHAU HOẶC RỖNG
+    text = re.sub(r"\${2,}", "$", text)                     # Đổi $$$ thành $
+    text = re.sub(r"\$\s*\$", "", text)                      # Xóa $ $ rỗng
+    text = re.sub(r"\$\s*\$([^$]+)\$\s*\$", r"$\1$", text)   # Khử lồng $($...$)$
+    text = re.sub(r"\$\s*([A-Za-z0-9\\^_{}= ]+)\s*\$", r"$\1$", text)
+
+    # 9. KHÔI PHỤC ĐIỂM SỐ NGUYÊN BẢN
     for idx, original_score in enumerate(score_placeholders):
         text = text.replace(f"__SCORE_TOKEN_{idx}__", original_score)
 
     return text.strip()
 
+
 # ================= HÀM ĐỊNH DẠNG BÀI GIẢI AN TOÀN =================
 def format_solution_step_by_step(raw_text: str) -> str:
+    """Tách dòng bài giải chuẩn, định dạng heading cho các ý a, b, c và phân cấp suy luận"""
     if not raw_text:
         return ""
     
     text = raw_text.replace("Lời giải chi tiết:", "").replace("Bài giải chi tiết:", "").strip()
+    
+    # Chuẩn hóa đầu mục câu a), b), c) hoặc 1., 2.
     text = re.sub(r"(?m)^\s*([a-d]\))\s*", r"\n\n### **\1** ", text)
+    
+    # Ngắt dòng đẹp cho các gạch đầu dòng và dấu suy ra
     text = re.sub(r"(?<=\.)\s*-\s*", r"\n- ", text)
-    text = re.sub(r"\s*=>\s*", r"\n  - $\\Rightarrow$ ", text)
+    text = re.sub(r"\s*(?:=>|\\Rightarrow)\s*", r"\n  - $\\Rightarrow$ ", text)
     
     lines = text.split("\n")
     cleaned_lines = []
