@@ -106,7 +106,7 @@ if not API_KEY:
 client = genai.Client(api_key=API_KEY)
 MODEL_NAME = "gemini-3.8-flash"
 
-# ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC 8 (BẢN TỐI ƯU) =================
+# ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC 8 (BẢN SỬA LỖI TOÀN DIỆN) =================
 def format_math(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
@@ -119,49 +119,73 @@ def format_math(text: str) -> str:
     text = re.sub(r"\\therefore|\btherefore\b", " do đó ", text, flags=re.IGNORECASE)
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
 
-    # 2. Xử lý dính ký tự trước phân số (ví dụ: "=\dfrac" -> "= \dfrac")
+    # 2. BẢO VỆ ĐIỂM SỐ (Tránh biến điểm 2.75/6.0 thành phân số vỡ)
+    score_placeholders = []
+    def save_score(m):
+        score_placeholders.append(m.group(0))
+        return f"__SCORE_TOKEN_{len(score_placeholders)-1}__"
+
+    text = re.sub(r"\b\d+(?:\.\d+)?\s*/\s*(?:10|100|\d+(?:\.\d+)?(?=\s*(?:điểm|\)|$)))", save_score, text)
+
+    # 3. CHUẨN HÓA GÓC VÀ SỐ ĐO GÓC (Khắc phục lỗi \widehat{...} bị bôi đỏ)
+    # Gỡ bỏ các dấu $ lẻ loi dính quanh \widehat hoặc \circ để định dạng lại từ đầu
+    text = re.sub(r"\$(?=\\widehat|\s*=\s*\d+)", "", text)
+    text = re.sub(r"(?<=\\widehat\{[A-Za-z]{1,3}\})\$", "", text)
+    text = re.sub(r"(?<=\\circ)\$", "", text)
+
+    # Gom trọn cụm góc kèm số đo: \widehat{AEM} = 90^\circ hoặc \widehat{AEM} = 90° -> $\widehat{AEM} = 90^\circ$
+    text = re.sub(
+        r"\\widehat\{([A-Za-z]{1,3})\}\s*=\s*(\d+)\s*(?:\^?\\circ|°)",
+        r"$\\widehat{\1} = \2^\\circ$",
+        text
+    )
+
+    # Gom các góc đơn lẻ: \widehat{E}, \widehat{AEM}, \hat{A}, góc ABC -> $\widehat{...}$
+    def to_clean_latex_angle(m):
+        name = m.group(1).strip()
+        return f"$\\widehat{{{name}}}$"
+
+    text = re.sub(r"(?:[∠∡∢]|\\angle\s*|\\widehat\{|\\hat\{|[Gg]óc\s+)([A-Za-z]{1,3})\b\}?", to_clean_latex_angle, text)
+
+    # 4. CHUẨN HÓA PHÂN SỐ VÀ ĐẲNG THỨC TOÁN HỌC
     text = re.sub(r"(=|:)\s*\\(d?frac)", r"\1 \\\2", text)
     text = re.sub(r"\\frac\{", r"\\dfrac{", text)
 
-    # Chuẩn hóa dạng phân số chia thường: AC/2, AB/2, 1/2 -> \dfrac
-    text = re.sub(r"(?<![a-zA-Z0-9_\$\\])([A-Z]{1,2}|\d+)\s*/\s*([A-Z]{1,2}|\d+)(?![a-zA-Z0-9_\$])", r"\\dfrac{\1}{\2}", text)
+    # Biến phép chia thường (1/2, AB/2) thành \dfrac
+    text = re.sub(r"(?<![a-zA-Z0-9_\$\.\\])([A-Z]{1,2}|\b\d{1,2}\b)\s*/\s*([A-Z]{1,2}|\b\d{1,2}\b)(?![a-zA-Z0-9_\$\.])", r"\\dfrac{\1}{\2}", text)
 
-    # 3. Gom và bọc trọn vẹn đẳng thức chứa phân số vào $...$
-    # Bắt các trường hợp: "HI = \dfrac{1}{2}AB" hoặc "OM = \dfrac{1}{2} AH"
+    # Bọc đẳng thức chứa phân số vào $...$
     def wrap_full_equation(match):
         content = match.group(0).strip()
-        # Nếu đã có dấu $ bọc ngoài thì giữ nguyên
         if content.startswith("$") and content.endswith("$"):
             return content
         clean_content = content.replace("$", "").strip()
         return f"${clean_content}$"
 
-    # Regex nhận diện toàn bộ cụm: Tên đoạn thẳng = \dfrac{...}{...} Tên đoạn thẳng
     text = re.sub(r"(?:\$)?\b([A-Z]{1,3}\s*=\s*\\dfrac\{[^}]+\}\{[^}]+\}\s*[A-Z]{0,3})(?:\$)?", wrap_full_equation, text)
-
-    # Nếu còn phân số đứng đơn lẻ chưa có $ bọc ngoài
     text = re.sub(r"(?<!\$)\\dfrac\{([^}]+)\}\{([^}]+)\}(?!\$)", r"$\\dfrac{\1}{\2}$", text)
 
-    # 4. Làm sạch các dấu $ bị lặp dư ($$ -> $ hoặc $ $ rỗng)
+    # 5. DỌN DẸP LỖI DẤU $ DƯ THỪA HOẶC LỒNG NHAU
+    # Gộp các dấu $ liền nhau: $$, $$$ -> $
     text = re.sub(r"\${2,}", "$", text)
+    # Xóa cặp $ rỗng
     text = re.sub(r"\$\s*\$", "", text)
+    # Tránh trường hợp bọc thừa: $ $\widehat{A}$ $ -> $\widehat{A}$
+    text = re.sub(r"\$\s*(\$\\widehat\{[^}]+\}\$)\s*\$", r"\1", text)
 
-    # 5. Chuẩn hóa góc: góc A, góc ABC, \widehat{ABC}
-    def to_latex_angle(m):
-        name = m.group(1).strip()
-        return f"$\\widehat{{{name}}}$"
-
-    text = re.sub(r"(?:[∠∡∢]|\\angle\s*|\\widehat\{|\\hat\{|[Gg]óc\s+)([A-Z]{1,3})\b\}?", to_latex_angle, text)
-
-    # 6. Ký hiệu hình học khác: song song //, vuông góc ⊥, thuộc
+    # 6. KÝ HIỆU HÌNH HỌC KHÁC: song song //, vuông góc ⊥, thuộc, độ
     text = re.sub(r"\b([A-Z]{2})\s*(?://|riangle|°)\s*([A-Z]{2})\b", r"\1 // \2", text)
     text = re.sub(r"\\?parallel", " // ", text)
     text = re.sub(r"\\perp|£", " ⊥ ", text)
     text = text.replace(r"\in", " thuộc ")
 
-    # 7. Chuẩn hóa độ
-    text = re.sub(r"\b(1[0-8]0|[3469]0)\s*(?:\^?\s*(?:circ|°)|(?=\s*[\.,\)\s]|$))(?!\s*(?:bước|cạnh|đoạn|tam giác))", r"\1°", text)
+    # Chuẩn hóa số đo độ còn lại
+    text = re.sub(r"\b(1[0-8]0|[3469]0)\s*(?:\^?\s*(?:circ|°)|(?=\s*[\.,\)\s]|$))(?!\s*(?:bước|cạnh|đoạn|tam giác|\^))", r"\1°", text)
     text = text.replace("°°", "°")
+
+    # 7. KHÔI PHỤC ĐIỂM SỐ NGUYÊN VẸN
+    for idx, original_score in enumerate(score_placeholders):
+        text = text.replace(f"__SCORE_TOKEN_{idx}__", original_score)
 
     return text.strip()
 # ================= HÀM ĐỊNH DẠNG BÀI GIẢI AN TOÀN =================
@@ -466,7 +490,7 @@ with tab2:
 
     up_hw = st.file_uploader("📸 Chụp ảnh bài giải viết tay trong vở:", type=["jpg", "png", "jpeg"], key="hw_submit_img")
 
-    if st.button("🚀 Nộp bài & Nhận kết quả chấm", type="primary", use_container_width=True):
+    if st.button("🚀 Nộp bài và nhận kết quả", type="primary", use_container_width=True):
         if not s_name:
             st.warning("Em hãy điền Họ và tên trước khi nộp nhé!")
         elif not up_hw:
