@@ -10,7 +10,7 @@ from datetime import datetime
 
 # ================= CẤU HÌNH GIAO DIỆN STREAMLIT =================
 st.set_page_config(
-    page_title="Đấu Trường Hình Học 8 - Cô Mai Phương",
+    page_title="Đấu Trường Toán Học 8 - Cô Mai Phương",
     page_icon="📐",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -103,78 +103,106 @@ if not API_KEY:
     st.error("Chưa cấu hình biến GEMINI_API_KEY trong Secrets của Streamlit!")
     st.stop()
 
-# Khởi tạo Gemini Client với model ổn định
+# Khởi tạo Gemini Client
 client = genai.Client(api_key=API_KEY)
-MODEL_NAME = "gemini-3.8-flash"
+MODEL_NAME = "gemini-2.5-flash"
 
-# ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC 8 =================
+# ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC (ĐẠI SỐ & HÌNH HỌC) =================
 def format_math(text: str) -> str:
     """
-    Chuẩn hóa nhận xét bài chấm về Unicode thuần, chống lỗi chữ đỏ và gãy cú pháp.
+    Chuẩn hóa biểu thức cả Toán Số (Đại số) và Toán Hình về Unicode sạch,
+    chống lỗi gãy cú pháp, chữ đỏ và hiển thị thân thiện trên web.
     """
     if not text or not isinstance(text, str):
         return ""
 
-    # 1. Khử rác hệ thống & suy nghĩ nội bộ AI
+    # 1. Khử log suy nghĩ nội bộ AI
     text = re.sub(r"^(?:User Safety|Thinking Process|Thought):[^\n]*\n?", "", text, flags=re.IGNORECASE)
     text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
 
-    # 2. Xóa bỏ dấu $ để đưa về văn bản Unicode tự nhiên
+    # 2. Xóa bỏ dấu $ đơn thuần để hiển thị Unicode mượt mà
     text = text.replace("$", "")
 
-    # 3. Chuẩn hóa góc: \widehat{AEM}, \widehat[AEM}, \hat{A} -> ∠AEM, ∠A
-    text = re.sub(r"\\(?:widehat|hat)\s*[\{\[]\s*([A-Za-z]{1,3})\s*[\}\]]", r"∠\1", text)
-    text = re.sub(r"\\(?:angle)\s+([A-Za-z]{1,3})\b", r"∠\1", text)
+    # --- [A. NHÓM TOÁN HÌNH] ---
+    # Chuẩn hóa góc: \widehat{AEM}, \hat{A} -> ∠AEM, ∠A
+    text = re.sub(r"\\(?:widehat|hat)\s*[\{\[]\s*([A-Za-z0-9]{1,3})\s*[\}\]]", r"∠\1", text)
+    text = re.sub(r"\\(?:angle)\s+([A-Za-z0-9]{1,3})\b", r"∠\1", text)
 
-    # 4. Chuẩn hóa tam giác: \Delta ABC, \triangle ABC -> Δ ABC
+    # Chuẩn hóa tam giác: \Delta ABC, \triangle ABC -> Δ ABC
     text = re.sub(r"\\(?:Delta|triangle)\s*([A-Za-z]{3})", r"Δ \1", text)
     text = re.sub(r"Δ([A-Za-z]{3})", r"Δ \1", text)
 
-    # 5. Chuẩn hóa các phép toán và quan hệ hình học
+    # Quan hệ hình học: vuông góc, song song, thuộc
     text = re.sub(r"\\perp|£", " ⊥ ", text)
     text = re.sub(r"\\parallel", " // ", text)
-    text = re.sub(r"\\(?:Rightarrow|implies)|=>", " ⇒ ", text)
     text = re.sub(r"\\in", " ∈ ", text)
 
-    # 6. Chuẩn hóa số đo độ: 90^\circ, 90 ^\circ -> 90°
+    # Số đo độ: 90^\circ, 90 ^\circ -> 90°
     text = re.sub(r"\^?\\circ", "°", text)
     text = text.replace("°°", "°")
 
-    # 7. Chuẩn hóa phân số
+    # --- [B. NHÓM TOÁN SỐ (ĐẠI SỐ / SỐ HỌC)] ---
+    # Phép toán so sánh & suy luận đại số
+    text = re.sub(r"\\(?:Leftrightarrow|iff)|<=>", " ⇔ ", text)
+    text = re.sub(r"\\(?:Rightarrow|implies)|=>", " ⇒ ", text)
+    text = re.sub(r"\\le(?:q)?|<=|≤", " ≤ ", text)
+    text = re.sub(r"\\ge(?:q)?|>=|≥", " ≥ ", text)
+    text = re.sub(r"\\ne(?:q)?|!=|≠", " ≠ ", text)
+    text = re.sub(r"\\pm|±", " ± ", text)
+    text = re.sub(r"\\times|\\cdot|\*", " · ", text)
+
+    # Căn thức: \sqrt{x+1} -> √(x+1), \sqrt[3]{x} -> ∛(x)
+    text = re.sub(r"\\sqrt\[3\]\{([^{}]+)\}", r"∛(\1)", text)
+    text = re.sub(r"\\sqrt\{([^{}]+)\}", r"√(\1)", text)
+    text = re.sub(r"\\sqrt\s*([0-9a-zA-Z]+)", r"√\1", text)
+
+    # Lũy thừa thông dụng (Unicode superscript)
+    superscripts = {
+        "^0": "⁰", "^1": "¹", "^2": "²", "^3": "³", "^4": "⁴",
+        "^5": "⁵", "^6": "⁶", "^7": "⁷", "^8": "⁸", "^9": "⁹",
+        "^{2}": "²", "^{3}": "³", "^{n}": "ⁿ"
+    }
+    for k, v in superscripts.items():
+        text = text.replace(k, v)
+
+    # Chuẩn hóa phân số: \frac{a}{b} -> (a / b)
     text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1 / \2)", text)
 
-    # 8. Chuyển thuật ngữ ngoại lai sang tiếng Việt SGK
+    # --- [C. CHUẨN HÓA THUẬT NGỮ SGK TOÁN 8] ---
     text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bpolynomial\b", "đa thức", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bfactorization\b", "phân tích đa thức thành nhân tử", text, flags=re.IGNORECASE)
     text = re.sub(r"\\because|\bbecause\b", "vì", text, flags=re.IGNORECASE)
     text = re.sub(r"\\therefore|\btherefore\b", "do đó", text, flags=re.IGNORECASE)
 
-    # 9. Dọn dẹp khoảng trắng dư thừa
+    # Dọn dẹp khoảng trắng
     text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
 
 # ================= HÀM ĐỊNH DẠNG BÀI GIẢI AN TOÀN =================
 def format_solution_step_by_step(raw_text: str) -> str:
-    """Tách dòng bài giải chuẩn, định dạng heading cho các ý a, b, c và phân số gạch ngang đẹp mắt"""
+    """Tách dòng bài giải chuẩn, hỗ trợ cả công thức Đại số KaTeX và lập luận Hình học"""
     if not raw_text:
         return ""
     
     text = raw_text.replace("Lời giải chi tiết:", "").replace("Bài giải chi tiết:", "").strip()
     
-    # Chuẩn hóa đầu mục câu a), b), c) hoặc 1., 2.
+    # 1. Heading cho các ý a), b), c) hoặc câu 1, 2
     text = re.sub(r"(?m)^\s*([a-d]\))\s*", r"\n\n### **\1** ", text)
+    text = re.sub(r"(?m)^\s*(Câu\s+\d+[\:\.]?)\s*", r"\n\n### **\1** ", text)
+
+    # 2. Xử lý biểu thức Đại số sang KaTeX để hiển thị gạch ngang phân số đẹp mắt
+    # Chuyển đổi (a)/(b) hoặc phân thức đại số
+    text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"$\\dfrac{\1}{\2}$", text)
+    text = re.sub(r"\(([a-zA-Z0-9\+\-\*\s]+)\)\s*/\s*([a-zA-Z0-9\+\-\*\s]+)", r"$\\dfrac{\1}{\2}$", text)
     
-    # Chuyển đổi tam giác: ΔABC -> $\Delta ABC$
+    # 3. Chuyển đổi tam giác: ΔABC -> $\Delta ABC$
     text = re.sub(r"Δ\s*([A-Za-z]{3})", r"$\\Delta \1$", text)
-    text = re.sub(r"\\Delta\s*([A-Za-z]{3})", r"$\\Delta \1$", text)
     
-    # Chuyển các phép chia AB / 2, (AB + AC + BC) / 2 thành phân số KaTeX
-    text = re.sub(r"\(?\b([A-Z]{2}\vert{}\d+)\b\)?\s*/\s*(\d+)", r"$\\dfrac{\1}{\2}$", text)
-    text = re.sub(r"\(([A-Z]{2}\s*\+\s*[A-Z]{2}\s*\+\s*[A-Z]{2})\)\s*/\s*(\d+)", r"$\\dfrac{\1}{\2}$", text)
-    text = re.sub(r"P\(([A-Za-z]{3})\)\s*/\s*(\d+)", r"$\\dfrac{P(\1)}{\2}$", text)
-    
-    # Định dạng dấu gạch đầu dòng và mũi tên suy ra
+    # 4. Định dạng gạch đầu dòng và mũi tên suy luận
     text = re.sub(r"(?<=\.)\s*-\s*", r"\n- ", text)
     text = re.sub(r"\s*(?:=>|⇒|\\Rightarrow)\s*", r"\n  - $\\Rightarrow$ ", text)
+    text = re.sub(r"\s*(?:<=>|⇔|\\Leftrightarrow)\s*", r"\n  - $\\Leftrightarrow$ ", text)
     
     lines = text.split("\n")
     cleaned_lines = []
@@ -188,46 +216,44 @@ def format_solution_step_by_step(raw_text: str) -> str:
     return "\n\n".join(cleaned_lines)
 
 GAME_PROMPT = """
-Bạn là Trợ lý Sư phạm Hình học 8 của Cô Mai Phương (Chương trình GDPT 2018 - bộ sách Kết nối tri thức).
-Học sinh lớp 8 (13-14 tuổi).
+Bạn là Trợ lý Sư phạm Toán 8 (Cả Đại số và Hình học) của Cô Mai Phương (Chương trình GDPT 2018 - Kết nối tri thức).
+Đối tượng học sinh: Lớp 8 (13-14 tuổi).
 
-YÊU CẦU NGÔN NGỮ & SƯ PHẠM:
-1. Lời văn gần gũi, ngắn gọn, dễ hiểu như lời cô giảng trên lớp.
-2. TUYỆT ĐỐI KHÔNG chêm tiếng Anh ('hypotenuse', 'triangle'). Dùng đúng từ SGK: 'cạnh huyền', 'đường trung tuyến', 'cạnh góc vuông'.
-3. NẾU CÓ TAM GIÁC CON: Phải nói rõ tên tam giác để học sinh không nhầm lẫn.
-4. ĐỘ DÀI:
-   - Câu hỏi: Tối đa 2 câu, hỏi thẳng vào trọng tâm.
-   - Mỗi lựa chọn (options): Ngắn gọn 1 đến 2 dòng. KHÔNG ghi tiền tố 'A. ', 'B. ' ở đầu câu.
-5. KÝ HIỆU TOÁN: Dùng ký hiệu Unicode thuần trực tiếp, KHÔNG dùng mã LaTeX:
-   - Dùng: ∠ABC = 90°, ΔABC, AB // CD, ME ⊥ AB, M ∈ BC, ⇒.
+QUY TẮC SƯ PHẠM:
+1. Nhận diện dạng bài từ hình ảnh/đề bài:
+   - NẾU LÀ TOÁN SỐ (Đại số / Số học / Thống kê): Đơn thức, Đa thức, Hằng đẳng thức đáng nhớ, Phân thức đại số, Phương trình bậc nhất, Hàm số bậc nhất.
+   - NẾU LÀ TOÁN HÌNH: Tứ giác, Định lý Thalès, Tam giác đồng dạng, Hình khối không gian.
+2. Lời văn gần gũi, chuẩn ngôn ngữ SGK Toán 8 Việt Nam. KHÔNG dùng tiếng Anh thuật ngữ.
+3. Câu hỏi tối đa 2 câu, hỏi trực diện. 4 lựa chọn ngắn gọn (1-2 dòng), KHÔNG ghi tiền tố 'A.', 'B.'.
+4. KÝ HIỆU TOÁN BẮT BUỘC DÙNG UNICODE THUẦN (KHÔNG dùng LaTeX gạch chéo ngược):
+   - Đại số: ⇔, ⇒, ≤, ≥, ≠, √, ², ³, ±, x = 2.
+   - Hình học: ∠ABC = 90°, ΔABC, AB // CD, ME ⊥ AB, M ∈ BC.
 
-CẤU TRÚC 3 BƯỚC THỬ THÁCH:
-- Bước 1: Khai thác yếu tố quan trọng từ hình vẽ hoặc giả thiết ban đầu.
-- Bước 2: Dẫn dắt chứng minh quan hệ trung gian (cộng góc, hai tam giác bằng nhau, hình bình hành, đường trung bình).
-- Bước 3: Đạt được điều cần chứng minh của đề bài.
+CẤU TRÚC 3 BƯỚC THỬ THÁCH (Socratic Gamification):
+- Bước 1: Khai thác giả thiết cốt lõi (điều kiện xác định, hằng đẳng thức liên quan, yếu tố hình học ban đầu).
+- Bước 2: Bước biến đổi trung gian (phân tích nhân tử, quy đồng, chứng minh hình bình hành / tam giác đồng dạng).
+- Bước 3: Đưa ra đáp số cuối cùng hoặc kết luận điều phải chứng minh.
 
 KHI is_finished = true:
-- Viết bài giải mẫu (full_solution) từng ý rõ ràng bằng \\n để học sinh ghi vào vở. Dùng ký hiệu Unicode thuần (∠, ⊥, //, Δ, °).
-- QUY TẮC VẼ HÌNH SVG (svg_code):
-  + Sử dụng khung viewBox='0 0 500 400'.
-  + Vẽ các đoạn thẳng nét rõ (<line ... stroke='#1E293B' stroke-width='2'/>).
-  + Các điểm chấm tròn đen tại tọa độ (x, y) bằng <circle cx='...' cy='...' r='4' fill='#0F172A'/>.
-  + BẮT BUỘC ĐẶT TÊN TỪNG ĐIỂM NGAY CẠNH TỌA ĐỘ ĐIỂM ĐÓ: Dùng riêng từng thẻ <text x='...' y='...' font-size='15' font-weight='bold' fill='#0F172A'>A</text> nằm lệch khỏi chấm tròn 10-15px (trên/dưới/trái/phải). TUYỆT ĐỐI KHÔNG viết chung một chuỗi các chữ cái cạnh nhau.
-  + Thể hiện ký hiệu góc vuông bằng hình vuông nhỏ hoặc góc chuẩn.
+- full_solution: Bài giải chi tiết hoàn chỉnh mẫu mực, từng bước rõ ràng để chép vở.
+- svg_code: 
+   + NẾU LÀ BÀI TOÁN HÌNH: BẮT BUỘC sinh mã SVG khung <svg viewBox='0 0 500 400'> với các đoạn thẳng rõ nét, các đỉnh có nhãn riêng biệt bằng thẻ <text>, cạnh khuất nét đứt (stroke-dasharray='4,4').
+   + NẾU LÀ BÀI TOÁN SỐ: Trả về chuỗi rỗng "" (không cần hình vẽ).
 
-BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU:
+TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
 {
   "total_steps": 3,
+  "subject_type": "algebra" HOẶC "geometry",
   "feedback": "Khen ngợi/động viên ngắn 1 câu",
-  "question": "Câu hỏi ngắn gọn, gợi ý trực diện vào mắt xích cần tìm",
+  "question": "Câu hỏi gợi mở ngắn",
   "options": [
-    "Phương án ngắn 1",
-    "Phương án ngắn 2",
-    "Phương án ngắn 3",
-    "Phương án ngắn 4"
+    "Phương án 1",
+    "Phương án 2",
+    "Phương án 3",
+    "Phương án 4"
   ],
   "correct_index": 0,
-  "explanation": "Giải thích ngắn 2-3 câu vì sao đúng theo định lý nào trong SGK Toán 8",
+  "explanation": "Giải thích ngắn vì sao đúng theo định lý/hằng đẳng thức nào",
   "is_finished": false,
   "full_solution": "",
   "svg_code": ""
@@ -247,10 +273,8 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
     for item in inputs:
         if isinstance(item, Image.Image):
             img = item.copy()
-            # Chuyển đổi định dạng sang RGB để tránh lỗi Alpha channel (RGBA)
             if img.mode != "RGB":
                 img = img.convert("RGB")
-            # Tối ưu kích thước tránh lỗi tràn bộ nhớ hoặc vượt payload API
             if max(img.size) > 1200:
                 img.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
             prepared_contents.append(img)
@@ -274,7 +298,6 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
         try:
             return json.loads(target_str, strict=False)
         except Exception:
-            # Xử lý escape ký tự trong công thức toán
             fixed_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', target_str)
             return json.loads(fixed_str, strict=False)
 
@@ -286,14 +309,14 @@ if "submission_history" not in st.session_state:
 # ================= BANNER TIÊU ĐỀ =================
 st.markdown("""
 <div class="hero-banner">
-    <h1>📐 ĐẤU TRƯỜNG HÌNH HỌC 8</h1>
-    <p>Học toán gợi mở cùng cô Mai Phương • Chinh phục thử thách từng bước</p>
+    <h1>📐 ĐẤU TRƯỜNG TOÁN HỌC 8</h1>
+    <p>Chinh phục Đại số & Hình học cùng cô Mai Phương • Học tập gợi mở theo từng bước</p>
 </div>
 """, unsafe_allow_html=True)
 
-tab1, tab2, tab3 = st.tabs(["🎮 Thử thách hình học", "📝 Nộp Bài Tập", "📊 Bảng Điểm"])
+tab1, tab2, tab3 = st.tabs(["🎮 Thử Thách Tương Tác", "📝 Nộp Bài Tập", "📊 Bảng Điểm Lớp"])
 
-# ================= TAB 1: GAME TƯƠNG TÁC =================
+# ================= TAB 1: GAME TƯƠNG TÁC (ĐẠI SỐ & HÌNH HỌC) =================
 with tab1:
     if "step" not in st.session_state:
         st.session_state.step = 1
@@ -312,17 +335,19 @@ with tab1:
     if "reward_svg" not in st.session_state:
         st.session_state.reward_svg = None
 
-    with st.expander("📸 Đề bài / Hình vẽ bài toán", expanded=(st.session_state.card is None)):
-        up_game_img = st.file_uploader("Tải/chụp ảnh bài tập cần chú ý lên đây:", type=["jpg", "png", "jpeg"], key="up_game_img")
+    with st.expander("📸 Đề bài / Ảnh chụp bài toán (Số học, Đại số hoặc Hình học)", expanded=(st.session_state.card is None)):
+        up_game_img = st.file_uploader("Tải/chụp ảnh bài toán (hỗ trợ cả Đại số và Hình học):", type=["jpg", "png", "jpeg"], key="up_game_img")
+        math_mode = st.radio("Phân loại môn:", ["Tự động nhận diện", "Toán Số (Đại số)", "Toán Hình (Hình học)"], horizontal=True)
+        
         if up_game_img:
             st.session_state.img_data = Image.open(up_game_img)
-            st.image(st.session_state.img_data, caption="Hình vẽ bài toán đang giải", use_container_width=True)
+            st.image(st.session_state.img_data, caption="Ảnh đề bài đang xử lý", use_container_width=True)
 
         if st.session_state.img_data and st.session_state.card is None:
             if st.button("🚀 Bắt đầu nhận Thử thách Bước 1!", type="primary", use_container_width=True):
-                with st.spinner("Đợi cô một chút..."):
+                with st.spinner("Đợi cô phân tích đề bài một chút nhé..."):
                     try:
-                        p_start = "Tạo câu hỏi thử thách Bước 1 ngắn gọn, tập trung khai thác giả thiết khởi đầu."
+                        p_start = f"Tạo câu hỏi thử thách Bước 1 ngắn gọn. Phân loại yêu cầu: {math_mode}."
                         c_data = execute_gemini_request([st.session_state.img_data, p_start], GAME_PROMPT, is_json=True)
                         st.session_state.card = c_data
                         st.session_state.total_steps = c_data.get("total_steps", 3)
@@ -341,7 +366,9 @@ with tab1:
         progress_val = min(int((curr / max(total, 1)) * 100), 100)
         st.progress(progress_val)
 
-        st.markdown(f'<span class="step-badge">CỬA ẢI: BƯỚC {curr} / {total}</span>', unsafe_allow_html=True)
+        badge_type = "ĐẠI SỐ" if card.get("subject_type") == "algebra" else "HÌNH HỌC"
+        st.markdown(f'<span class="step-badge">[{badge_type}] CỬA ẢI: BƯỚC {curr} / {total}</span>', unsafe_allow_html=True)
+        
         fb = format_math(card.get("feedback", ""))
         if fb:
             st.info(f"💡 {fb}")
@@ -388,10 +415,12 @@ with tab1:
                     sol = card.get("full_solution", "")
                     svg = card.get("svg_code", "")
                     if not sol and st.session_state.img_data:
-                        with st.spinner("Đang mở khóa bài giải và hình vẽ chuẩn..."):
-                            p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh và kèm theo mã SVG vẽ lại hình bài toán này.
-                            YÊU CẦU: Trình bày bài giải rõ ràng, dùng ký hiệu Unicode (∠, ⊥, //, Δ, °).
-                            Trả về JSON: {"full_solution": "...", "svg_code": "<svg viewBox='0 0 500 400' ...>...</svg>"}"""
+                        with st.spinner("Đang mở khóa bài giải hoàn chỉnh..."):
+                            p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh. 
+                            Nếu là Toán Hình: Sinh kèm mã SVG chuẩn.
+                            Nếu là Toán Số: Trình bày các bước biến đổi đại số rõ ràng.
+                            YÊU CẦU KÝ HIỆU: Dùng ký hiệu Unicode thuần (⇔, ⇒, ≤, ≥, √, ², ∠, ⊥, //, Δ, °).
+                            Trả về JSON: {"full_solution": "...", "svg_code": "..."}"""
                             try:
                                 res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
                                 sol = res_final.get("full_solution", "")
@@ -403,8 +432,8 @@ with tab1:
 
                 st.markdown("""
                 <div class="reward-box">
-                    <h3 style="color: #15803D; margin-top:0;">🎁 PHẦN THƯỞNG: HÌNH VẼ & BÀI GIẢI MẪU HOÀN CHỈNH</h3>
-                    <p style="color: #166534; font-size: 14px;">Em hãy quan sát hình vẽ chuẩn, đối chiếu lập luận và trình bày thật đẹp vào vở nhé!</p>
+                    <h3 style="color: #15803D; margin-top:0;">🎁 PHẦN THƯỞNG: BÀI GIẢI MẪU HOÀN CHỈNH</h3>
+                    <p style="color: #166534; font-size: 14px;">Em hãy đối chiếu các bước lập luận và ghi chép cẩn thận vào vở nhé!</p>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -419,14 +448,14 @@ with tab1:
                 st.markdown(formatted_solution)
 
                 st.write("")
-                st.success("📝 **Bước tiếp theo:** Hãy chuyển sang tab **'Nộp Bài Tập'** ở trên để chụp ảnh bài vở nộp cô chấm nhé!")
+                st.success("📝 **Bước tiếp theo:** Hãy chuyển sang tab **'Nộp Bài Tập'** để nộp bài làm của em cho cô chấm nhé!")
             else:
                 st.write("")
                 if st.button("➡️ Sang thử thách tiếp theo", type="primary", use_container_width=True):
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. 
-                        Nhớ giữ câu hỏi và 4 phương án ngắn gọn, dễ hiểu cho học sinh lớp 8. Dùng ký hiệu Unicode thuần: ∠ABC, ⊥, //, Δ, °.
-                        Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải chi tiết từng ý vào full_solution và sinh mã vẽ hình chuẩn vào svg_code."""
+                        Giữ câu hỏi và 4 phương án ngắn gọn, dễ hiểu cho học sinh lớp 8. Dùng ký hiệu Unicode thuần: ⇔, ⇒, ≤, ≥, √, ², ∠, ⊥, //, Δ, °.
+                        Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải chi tiết vào full_solution (và svg_code nếu là hình học)."""
                         try:
                             st.session_state.card = execute_gemini_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
                             st.session_state.step += 1
@@ -447,11 +476,11 @@ with tab1:
             st.session_state.reward_svg = None
             st.rerun()
 
-# ================= TAB 2: NỘP BÀI & CHẤM ĐIỂM =================
+# ================= TAB 2: NỘP BÀI & CHẤM ĐIỂM (CẢ ĐẠI SỐ & HÌNH HỌC) =================
 with tab2:
     st.markdown("""
     <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 15px; border-radius: 14px; margin-bottom: 20px;">
-        <span style="font-weight: 700; color: #334155;">📋 Chấm tự luận bằng AI theo Rubric chuẩn môn Toán THCS</span>
+        <span style="font-weight: 700; color: #334155;">📋 Chấm tự luận bằng AI theo Rubric chuẩn môn Toán THCS (Đại số & Hình học)</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -461,14 +490,24 @@ with tab2:
     with c2:
         s_class = st.selectbox("Lớp:", ["8A13", "8A18"])
 
-    topic = st.selectbox("Chọn dạng bài tập nộp:", [
-        "Bài 1: Hình thang cân (Chụp kèm đề bài)",
-        "Bài 2: Hình bình hành (Chụp kèm đề bài)",
-        "Bài 3: Hình chữ nhật (Chụp kèm đề bài)",
-        "Bài 4: Hình thoi (Chụp kèm đề bài)",
-        "Bài 5: Hình vuông (Chụp kèm đề bài)",
-        "Bài 6: Định lý Thalès và Tam giác đồng dạng (Chụp kèm đề bài)",
-        "Bài 7: Bài tập tổng hợp (Chụp kèm đề bài)"
+    # Danh mục phong phú cả Đại số và Hình học 8
+    topic = st.selectbox("Chọn chuyên đề bài tập nộp:", [
+        # --- Đại số 8 ---
+        "Đại số 8: Đơn thức và Đa thức nhiều biến",
+        "Đại số 8: Các hằng đẳng thức đáng nhớ",
+        "Đại số 8: Phân tích đa thức thành nhân tử",
+        "Đại số 8: Phân thức đại số và rút gọn phân thức",
+        "Đại số 8: Phương trình bậc nhất một ẩn",
+        "Đại số 8: Giải bài toán bằng cách lập phương trình",
+        "Đại số 8: Hàm số bậc nhất và đồ thị",
+        # --- Hình học 8 ---
+        "Hình học 8: Tứ giác và Hình thang cân",
+        "Hình học 8: Hình bình hành và Hình chữ nhật",
+        "Hình học 8: Hình thoi và Hình vuông",
+        "Hình học 8: Định lý Thalès trong tam giác",
+        "Hình học 8: Tam giác đồng dạng và định lý liên quan",
+        "Hình học 8: Hình chóp tam giác đều & tứ giác đều",
+        "Bài kiểm tra tổng hợp (Số và Hình)"
     ])
 
     up_hw = st.file_uploader("📸 Chụp ảnh bài giải viết tay trong vở:", type=["jpg", "png", "jpeg"], key="hw_submit_img")
@@ -479,30 +518,32 @@ with tab2:
         elif not up_hw:
             st.warning("Em chưa tải ảnh bài làm lên!")
         else:
-            with st.spinner("Hệ thống đang chấm bài theo Rubric..."):
+            with st.spinner("Cô đang chấm bài chi tiết theo Rubric môn Toán..."):
                 try:
                     hw_img = Image.open(up_hw)
                     RUBRIC = f"""
 Bạn là Giám khảo chấm thi môn Toán THCS tại Việt Nam.
-Đề bài: "{topic}".
-Hãy đọc ảnh bài làm viết tay của học sinh và nhận xét theo Rubric thang điểm 10.
+Chuyên đề nộp: "{topic}".
+Đọc ảnh bài làm viết tay của học sinh và đánh giá theo Rubric thang điểm 10.
 
-QUY TẮC BẮT BUỘC VỀ KÝ HIỆU TOÁN (DÙNG UNICODE THUẦN):
-1. TUYỆT ĐỐI KHÔNG dùng mã lệnh LaTeX có dấu gạch chéo ngược (KHÔNG viết \\perp, \\Rightarrow, \\widehat, \\in, $).
-2. DÙNG KÝ HIỆU UNICODE DỄ ĐỌC:
-   - Ký hiệu góc: viết ∠AEM = 90° hoặc ∠A = 90°.
-   - Vuông góc: dùng dấu ⊥ (ví dụ: ME ⊥ AB tại E).
-   - Suy ra: dùng dấu ⇒ (ví dụ: ME ⊥ AB ⇒ ∠AEM = 90°).
-   - Thuộc: dùng dấu ∈ (ví dụ: M ∈ BC).
-   - Tam giác: dùng ký hiệu Δ (ví dụ: ΔABC vuông tại A).
-   - Độ: dùng ký hiệu ° (ví dụ: 90°).
+HƯỚNG DẪN ĐẶC THÙ THEO DẠNG TOÁN:
+1. NẾU LÀ TOÁN ĐẠI SỐ (Số học):
+   - Đánh giá: Tìm ĐKXĐ, biến đổi đại số đúng công thức/hằng đẳng thức, thứ tự thực hiện phép tính, kết luận tập nghiệm/giá trị.
+2. NẾU LÀ TOÁN HÌNH HỌC:
+   - Đánh giá: Vẽ hình đúng quy ước (ký hiệu góc, cạnh bằng nhau), lập luận logic chặt chẽ, dẫn chứng định lý rõ ràng.
+
+QUY TẮC BẮT BUỘC KÝ HIỆU (UNICODE THUẦN):
+- TUYỆT ĐỐI KHÔNG dùng mã LaTeX có dấu gạch chéo ngược (\\frac, \\perp, \\Rightarrow, \\sqrt, $).
+- DÙNG KÝ HIỆU UNICODE:
+  + Đại số: ⇔, ⇒, ≤, ≥, ≠, √, ², ³, ±.
+  + Hình học: ∠ABC = 90°, dấu ⊥, dấu //, dấu ∈, dấu Δ, số đo °.
 
 ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ:
 - Tổng điểm: [Điểm số]/10
-1. Hình vẽ ([Điểm]/2.0 điểm):
+1. Kỹ năng nền tảng / Hình vẽ ([Điểm]/2.0 điểm):
    - Ưu điểm: ...
-   - Hạn chế (Trừ điểm): ...
-2. Lập luận chứng minh ([Điểm]/6.0 điểm):
+   - Hạn chế: ...
+2. Quá trình biến đổi & Lập luận ([Điểm]/6.0 điểm):
    - Ưu điểm: ...
    - Hạn chế: ...
 3. Trình bày & Kết luận ([Điểm]/2.0 điểm):
@@ -520,7 +561,7 @@ Gợi ý cách trình bày chuẩn để đạt điểm tối đa:
                     score_match = re.search(r"(\d+(?:[.,]\d+)?)\s*/\s*10", score_res_clean)
                     extracted_score = score_match.group(1).replace(",", ".") if score_match else "Chưa xác định"
 
-                    # 1. Lưu tạm vào phiên hiện tại
+                    # 1. Lưu phiên hiện tại
                     sub_record = {
                         "Thời gian": datetime.now().strftime("%d/%m/%Y %H:%M"),
                         "Họ và tên": s_name,
@@ -545,14 +586,14 @@ Gợi ý cách trình bày chuẩn để đạt điểm tối đa:
                         try:
                             requests.post(webhook_url, json=payload, timeout=5)
                         except Exception:
-                            pass  # Không ngắt mạch bài làm nếu đường truyền Google Sheets gián đoạn
+                            pass
 
                     st.success("🎉 Đã hoàn tất chấm bài và tự động cập nhật vào sổ điểm của cô!")
                     st.markdown(f"### Kết quả của: **{s_name}** - Lớp **{s_class}**")
                     st.markdown(score_res_clean)
                 except Exception as err:
                     st.error(f"Lỗi trong quá trình chấm bài: {err}")
-                    st.info("💡 Cô kiểm tra lại định dạng ảnh hoặc kết nối API nhé.")
+                    st.info("💡 Cô kiểm tra lại ảnh bài làm hoặc kết nối API nhé.")
 
 # ================= TAB 3: BẢNG ĐIỂM (BẢO MẬT & XUẤT GOOGLE SHEETS) =================
 with tab3:
@@ -579,7 +620,7 @@ with tab3:
                 st.download_button(
                     label="📗 Tải file bảng điểm (.CSV cho Google Sheets)",
                     data=csv_data,
-                    file_name=f"Bang_Diem_HinhHoc8_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    file_name=f"Bang_Diem_Toan8_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                     mime="text/csv",
                     type="primary",
                     use_container_width=True
