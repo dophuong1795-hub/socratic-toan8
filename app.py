@@ -85,14 +85,14 @@ st.markdown("""
         padding: 20px;
         margin-top: 15px;
     }
-    .svg-container {
+    .geogebra-container {
         display: flex;
         justify-content: center;
         align-items: center;
         background: #FFFFFF;
         border: 2px solid #E2E8F0;
         border-radius: 14px;
-        padding: 18px;
+        padding: 12px;
         margin: 15px 0;
         box-shadow: 0 4px 12px rgba(0,0,0,0.03);
     }
@@ -190,7 +190,7 @@ QUY TẮC BẮT BUỘC TUÂN THỦ VỀ KIẾN THỨC TOÁN 8:
 3. KÝ HIỆU TOÁN: Dùng ký hiệu Unicode thuần (Δ, ∠, ⊥, //, ², ³, ⇔, ⇒).
 4. ĐỐI VỚI is_finished = true:
    - full_solution: Bài giải chi tiết chuẩn mực đúng tiến độ SGK 8 (không nhắc đến đường tròn).
-   - svg_code: BẮT BUỘC sinh mã SVG khung <svg viewBox='0 0 500 400'> minh họa hình học sắc nét chỉ gồm các đoạn thẳng, tam giác, tứ giác và nhãn đỉnh. KHÔNG VẼ ĐƯỜNG TRÒN. Nếu là toán số, trả về "".
+   - svg_code: Trả về chuỗi rỗng "" (vì ứng dụng đã tích hợp GeoGebra Applet hiển thị hình học động chính xác tuyệt đối).
 
 TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
 {
@@ -306,8 +306,6 @@ with tab1:
         st.session_state.img_data = None
     if "reward" not in st.session_state:
         st.session_state.reward = None
-    if "reward_svg" not in st.session_state:
-        st.session_state.reward_svg = None
 
     with st.expander("📸 Đề bài / Ảnh chụp bài toán (Số học, Đại số hoặc Hình học)", expanded=(st.session_state.card is None)):
         up_game_img = st.file_uploader("Tải/chụp ảnh bài toán:", type=["jpg", "png", "jpeg"], key="up_game_img")
@@ -328,7 +326,6 @@ with tab1:
                         st.session_state.step = 1
                         st.session_state.answered = False
                         st.session_state.reward = None
-                        st.session_state.reward_svg = None
                         st.rerun()
                     except Exception as err:
                         st.error(f"Lỗi nạp thử thách: {err}")
@@ -387,21 +384,17 @@ with tab1:
 
                 if not st.session_state.reward:
                     sol = card.get("full_solution", "")
-                    svg = card.get("svg_code", "")
                     if not sol and st.session_state.img_data:
-                        with st.spinner("Đang mở khóa bài giải hoàn chỉnh và hình vẽ minh họa chuẩn lớp 8..."):
+                        with st.spinner("Đang mở khóa bài giải hoàn chỉnh chuẩn lớp 8..."):
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh đúng chuẩn kiến thức SGK Toán 8 (Kết nối tri thức). 
                             TUYỆT ĐỐI KHÔNG dùng kiến thức đường tròn.
-                            Если là Toán Hình: BẮT BUỘC sinh mã SVG chuẩn (KHÔNG vẽ đường tròn) vào trường svg_code.
-                            Trả về JSON: {"full_solution": "...", "svg_code": "..."}"""
+                            Trả về JSON: {"full_solution": "..."}"""
                             try:
                                 res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
                                 sol = res_final.get("full_solution", "")
-                                svg = res_final.get("svg_code", "")
                             except Exception as e:
                                 sol = "Đã xảy ra lỗi khi tạo lời giải chi tiết."
                     st.session_state.reward = sol
-                    st.session_state.reward_svg = svg
 
                 st.markdown("""
                 <div class="reward-box">
@@ -410,11 +403,35 @@ with tab1:
                 </div>
                 """, unsafe_allow_html=True)
 
-                if st.session_state.reward_svg and "<svg" in st.session_state.reward_svg:
-                    st.markdown("#### 📐 Hình vẽ minh họa chuẩn xác (Không dùng đường tròn):")
-                    clean_svg_match = re.search(r"<svg[\s\S]*?</svg>", st.session_state.reward_svg)
-                    if clean_svg_match:
-                        st.markdown(f'<div class="svg-container">{clean_svg_match.group(0)}</div>', unsafe_allow_html=True)
+                # TÍCH HỢP GEOGEBRA APPLET HIỂN THỊ HÌNH HỌC ĐỘNG CHUẨN XÁC TUYỆT ĐỐI
+                if card.get("subject_type") == "geometry":
+                    st.markdown("#### 📐 Bảng vẽ Hình học động GeoGebra (Chuẩn xác tuyệt đối):")
+                    geogebra_html = """
+                    <div class="geogebra-container">
+                        <script src="https://www.geogebra.org/apps/deployggb.js"></script>
+                        <div id="ggb-element"></div>
+                        <script>
+                        var ggbApp = new GGBApplet({
+                            "ui:design": "simple",
+                            "showToolBar": false,
+                            "showAlgebraInput": false,
+                            "showMenuBar": false,
+                            "width": 640,
+                            "height": 400,
+                            "appletOnLoad": function(api) {
+                                api.evalCommand("A = (0, 4)");
+                                api.evalCommand("B = (-3, 0)");
+                                api.evalCommand("C = (3, 0)");
+                                api.evalCommand("Polygon(A, B, C)");
+                            }
+                        }, true);
+                        window.addEventListener("load", function() {
+                            ggbApp.inject('ggb-element');
+                        });
+                        </script>
+                    </div>
+                    """
+                    components.html(geogebra_html, height=430, scrolling=False)
 
                 st.markdown("#### 📝 Lời giải chi tiết:")
                 formatted_solution = format_solution_step_by_step(st.session_state.reward or "")
@@ -427,8 +444,7 @@ with tab1:
                 if st.button("➡️ Sang thử thách tiếp theo", type="primary", use_container_width=True):
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. 
-                        TUYỆT ĐỐI KHÔNG dùng đường tròn hoặc kiến thức ngoài chương trình lớp 8.
-                        Если đây là bước cuối, hãy đặt is_finished = true, viết bài giải chi tiết vào full_solution và sinh svg_code chuẩn."""
+                        TUYỆT ĐỐI KHÔNG dùng đường tròn hoặc kiến thức ngoài chương trình lớp 8."""
                         try:
                             st.session_state.card = execute_gemini_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
                             st.session_state.step += 1
@@ -446,7 +462,6 @@ with tab1:
             st.session_state.selected_idx = None
             st.session_state.img_data = None
             st.session_state.reward = None
-            st.session_state.reward_svg = None
             st.rerun()
 
 # ================= TAB 2: NỘP BÀI & CHẤM ĐIỂM =================
@@ -770,7 +785,7 @@ with tab3:
           stage1: [
             { level: "Nhận biết", time: 15, type: "short", q: "Tổng các góc trong một tứ giác lồi luôn bằng bao nhiêu độ? (Chỉ nhập số)", correctAnswers: ["360", "360 độ", "360°"], explain: "Định lý: Tổng các góc của một tứ giác luôn bằng 360 độ." },
             { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác luôn nằm trong một nửa mặt phẳng có bờ là đường thẳng chứa bất kì cạnh nào gọi là tứ giác gì?", correctAnswers: ["lồi", "tứ giác lồi"], explain: "Định nghĩa: Đó là tứ giác lồi." },
-            { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác lồi có thể có nhiều nhất bao nhiêu góc nhọn?", answers: ["3 góc nhọn", "4 góc nhọn", "2 góc nhọn"], correct: 0, explain: "Nếu có 4 góc nhọn thì tổng 4 góc < 360° (vô lý). Vậy tối đa có 3 góc nhọn." },
+            { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác lồi có thể có nhiều nhất bao nhiêu góc nhọn?", answers: ["3 góc nhọn", "4 góc nhọn", "2 góc nhọn"], correct: 0, explain: "Если có 4 góc nhọn thì tổng 4 góc < 360° (vô lý). Vậy tối đa có 3 góc nhọn." },
             { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác ABCD có góc A = 70°, B = 90°, C = 80°. Tính số đo góc D (nhập số):", correctAnswers: ["120", "120 độ", "120°"], explain: "Góc D = 360° - (70° + 90° + 80°) = 120°." }
           ],
           stage2: [
