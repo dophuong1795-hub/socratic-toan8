@@ -106,7 +106,7 @@ if not API_KEY:
 
 # Khởi tạo Gemini Client
 client = genai.Client(api_key=API_KEY)
-MODEL_NAME = "gemini-3.8-flash"
+MODEL_NAME = "gemini-2.5-flash"
 
 # ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC =================
 def format_math(text: str) -> str:
@@ -117,20 +117,17 @@ def format_math(text: str) -> str:
     text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
     text = text.replace("$", "")
 
-    # Chuẩn hóa góc, tam giác
     text = re.sub(r"\\(?:widehat|hat)\s*[\{\[]\s*([A-Za-z0-9]{1,3})\s*[\}\]]", r"∠\1", text)
     text = re.sub(r"\\(?:angle)\s+([A-Za-z0-9]{1,3})\b", r"∠\1", text)
     text = re.sub(r"\\(?:Delta|triangle)\s*([A-Za-z]{3})", r"Δ \1", text)
     text = re.sub(r"Δ([A-Za-z]{3})", r"Δ \1", text)
 
-    # Quan hệ hình học
     text = re.sub(r"\\perp|£", " ⊥ ", text)
     text = re.sub(r"\\parallel", " // ", text)
     text = re.sub(r"\\in", " ∈ ", text)
     text = re.sub(r"\^?\\circ", "°", text)
     text = text.replace("°°", "°")
 
-    # Phép toán đại số
     text = re.sub(r"\\(?:Leftrightarrow|iff)|<=>", " ⇔ ", text)
     text = re.sub(r"\\(?:Rightarrow|implies)|=>", " ⇒ ", text)
     text = re.sub(r"\\le(?:q)?|<=|≤", " ≤ ", text)
@@ -161,7 +158,6 @@ def format_math(text: str) -> str:
     text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
 
-# ================= HÀM ĐỊNH DẠNG BÀI GIẢI AN TOÀN =================
 def format_solution_step_by_step(raw_text: str) -> str:
     if not raw_text:
         return ""
@@ -284,7 +280,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# THÊM TAB 4 DÀNH CHO GAME BOWSER
 tab1, tab2, tab3, tab4 = st.tabs([
     "🎮 Thử Thách Tương Tác", 
     "📝 Nộp Bài Tập", 
@@ -292,7 +287,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "🍄 Đại Chiến Bowser"
 ])
 
-# ================= TAB 1: GAME TƯƠNG TÁC (ĐẠI SỐ & HÌNH HỌC) =================
+# ================= TAB 1: GAME TƯƠNG TÁC =================
 with tab1:
     if "step" not in st.session_state:
         st.session_state.step = 1
@@ -312,7 +307,7 @@ with tab1:
         st.session_state.reward_svg = None
 
     with st.expander("📸 Đề bài / Ảnh chụp bài toán (Số học, Đại số hoặc Hình học)", expanded=(st.session_state.card is None)):
-        up_game_img = st.file_uploader("Tải/chụp ảnh bài toán (hỗ trợ cả Đại số và Hình học):", type=["jpg", "png", "jpeg"], key="up_game_img")
+        up_game_img = st.file_uploader("Tải/chụp ảnh bài toán:", type=["jpg", "png", "jpeg"], key="up_game_img")
         math_mode = st.radio("Phân loại môn:", ["Tự động nhận diện", "Toán Số (Đại số)", "Toán Hình (Hình học)"], horizontal=True)
         
         if up_game_img:
@@ -602,10 +597,8 @@ with tab4:
     st.subheader("🍄 Vượt Ải Tứ Giác - Đại Chiến Bowser")
     st.caption("Auto-runner vượt 5 ải Hình học 8 (KNTT) & Hạ gục Bowser nhận +5 điểm cộng thực tế từ Cô Mai Phương!")
 
-    # Lấy Webhook Google Sheet từ secrets (nếu có) để truyền trực tiếp vào HTML Game
-    sheet_webhook = st.secrets.get("GOOGLE_SHEET_WEBAPP_URL", "https://script.google.com/macros/s/AKfycbwYEXAMPLE_REPLACE_HERE/exec")
+    sheet_webhook = st.secrets.get("GOOGLE_SHEET_WEBHOOK_URL", "https://script.google.com/macros/s/AKfycbwYEXAMPLE_REPLACE_HERE/exec")
 
-    # Mã nguồn Game hoàn chỉnh đã escape an toàn ký tự f-string
     mario_game_code = """
     <!DOCTYPE html>
     <html lang="vi">
@@ -630,7 +623,6 @@ with tab4:
     </head>
     <body class="bg-slate-950 text-slate-100 font-body min-h-screen flex flex-col items-center justify-start p-2 select-none">
 
-      <!-- 1. MÀN HÌNH ĐĂNG NHẬP -->
       <div id="login-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border-2 border-amber-400/80 rounded-2xl max-w-md w-full p-6 shadow-2xl text-center">
           <div class="inline-block p-3 bg-red-600 rounded-2xl shadow-lg mb-3">
@@ -662,7 +654,6 @@ with tab4:
         </div>
       </div>
 
-      <!-- 2. HUD THANH THÔNG TIN -->
       <header class="w-full max-w-2xl flex items-center justify-between bg-slate-900/90 border border-slate-800 px-3 py-2 rounded-2xl mb-2 shadow-lg">
         <div class="flex items-center space-x-2">
           <div class="w-7 h-7 rounded-lg bg-red-600 flex items-center justify-center font-pixel text-white text-[10px]">M</div>
@@ -685,12 +676,10 @@ with tab4:
         </div>
       </header>
 
-      <!-- KHUNG CANVAS -->
       <main id="game-arena" class="relative w-full max-w-2xl aspect-[16/9] bg-sky-400 rounded-2xl border-2 border-amber-400/80 shadow-2xl overflow-hidden">
         <canvas id="gameCanvas" width="860" height="484" class="w-full h-full block"></canvas>
       </main>
 
-      <!-- 3. MODAL CÂU HỎI TOÀN MÀN HÌNH -->
       <div id="quiz-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-3 hidden">
         <div class="bg-slate-900 border-2 border-sky-400/90 rounded-2xl max-w-xl w-full p-4 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
           
@@ -725,7 +714,6 @@ with tab4:
         </div>
       </div>
 
-      <!-- 4. MODAL QUA ẢI -->
       <div id="stage-clear-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 hidden">
         <div class="bg-slate-900 border-2 border-emerald-400 rounded-2xl max-w-md w-full p-6 text-center shadow-2xl">
           <div class="text-3xl mb-2">🌟</div>
@@ -740,7 +728,6 @@ with tab4:
         </div>
       </div>
 
-      <!-- 5. BẢNG TỔNG KẾT & GỬI GOOGLE SHEETS -->
       <div id="summary-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-3 hidden">
         <div class="bg-slate-900 border-2 border-amber-400 rounded-2xl max-w-md w-full p-5 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
           
@@ -1269,8 +1256,5 @@ with tab4:
     </html>
     """
 
-    # Thay thế webhook URL vào chuỗi HTML
     mario_game_code = mario_game_code.replace("WEBHOOK_URL_PLACEHOLDER", sheet_webhook)
-
-    # Nhúng game vào tab 4 với scrolling=True
     components.html(mario_game_code, height=720, scrolling=True)
