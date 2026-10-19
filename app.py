@@ -129,7 +129,7 @@ def format_math(text: str) -> str:
     text = re.sub(r"\\notin", " ∉ ", text)
     text = re.sub(r"\^?\\circ", "°", text)
     text = re.sub(r"\\degree", "°", text)
-    text = text.replace("°°", "°")
+    text = re.replace("°°", "°")
 
     text = re.sub(r"\\(?:Leftrightarrow|iff)|<=>", " ⇔ ", text)
     text = re.sub(r"\\(?:Rightarrow|implies)|=>", " ⇒ ", text)
@@ -183,14 +183,14 @@ def format_solution_step_by_step(raw_text: str) -> str:
 
 GAME_PROMPT = """
 Bạn là Trợ lý Sư phạm Toán 8 của Cô Mai Phương theo chuẩn chương trình GDPT 2018 (Kết nối tri thức).
-QUY TẮC PHÂN PHỐI CHƯƠNG TRÌNH TOÁN 8 (BẮT BUỘC TUÂN THỦ):
-1. ĐỐI VỚI HÌNH HỌC: 
-   - Chương III: Tứ giác (Hình thang, Hình bình hành, Hình chữ nhật, Hình thoi, Hình vuông). TUYỆT ĐỐI KHÔNG dùng kiến thức "Đường trung bình của tam giác/hình thang" vì kiến thức này thuộc Chương IV (học sau).
-   - Chỉ sử dụng định nghĩa, tính chất, dấu hiệu nhận biết tứ giác, quan hệ song song/vuông góc hoặc định lý Pythagore.
-2. KÝ HIỆU TOÁN: Dùng ký hiệu Unicode chuẩn (Δ, ∠, ⊥, //, ², ³, ⇔, ⇒).
-3. ĐỐI VỚI is_finished = true:
-   - full_solution: Bài giải chi tiết chuẩn mực đúng tiến độ SGK 8.
-   - svg_code: BẮT BUỘC sinh mã SVG khung <svg viewBox='0 0 500 400'> minh họa hình học rõ nét, có nhãn điểm, nét đứt cạnh khuất (nếu là hình học). Nếu là toán số, trả về "".
+QUY TẮC BẮT BUỘC TUÂN THỦ VỀ KIẾN THỨC TOÁN 8:
+1. TUYỆT ĐỐI KHÔNG SỬ DỤNG KIẾN THỨC VỀ ĐƯỜNG TRÒN (như đường tròn ngoại tiếp, tâm O cách đều các đỉnh, bán kính...) vì đây là kiến thức hình học lớp 9.
+2. ĐỐI VỚI HÌNH HỌC (Chương III - Tứ giác & Định lý Thalès): 
+   - Chỉ sử dụng định nghĩa, tính chất, dấu hiệu nhận biết tứ giác, hình thang, hình bình hành, hình chữ nhật, hình thoi, hình vuông, quan hệ song song/vuông góc, định lý Pythagore hoặc tam giác đồng dạng. Không dùng đường trung bình hay đường tròn ngoại tiếp nếu chưa đến chương trình.
+3. KÝ HIỆU TOÁN: Dùng ký hiệu Unicode thuần (Δ, ∠, ⊥, //, ², ³, ⇔, ⇒).
+4. ĐỐI VỚI is_finished = true:
+   - full_solution: Bài giải chi tiết chuẩn mực đúng tiến độ SGK 8 (không nhắc đến đường tròn).
+   - svg_code: BẮT BUỘC sinh mã SVG khung <svg viewBox='0 0 500 400'> minh họa hình học sắc nét chỉ gồm các đoạn thẳng, tam giác, tứ giác và nhãn đỉnh. KHÔNG VẼ ĐƯỜNG TRÒN. Nếu là toán số, trả về "".
 
 TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
 {
@@ -205,7 +205,7 @@ TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
     "Phương án 4"
   ],
   "correct_index": 0,
-  "explanation": "Giải thích ngắn theo định lý hình học/hằng đẳng thức",
+  "explanation": "Giải thích ngắn theo định lý hình học/hằng đẳng thức lớp 8",
   "is_finished": false,
   "full_solution": "",
   "svg_code": ""
@@ -283,7 +283,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# SẮP XẾP LẠI THỨ TỰ CÁC TAB THEO YÊU CẦU CỦA CÔ
+# THỨ TỰ CÁC TAB: Tab 1 (Game Socratic), Tab 2 (Nộp bài), Tab 3 (Minigame Bowser), Tab 4 (Bảng điểm)
 tab1, tab2, tab3, tab4 = st.tabs([
     "🎮 Thử Thách Tương Tác", 
     "📝 Nộp Bài Tập", 
@@ -320,9 +320,9 @@ with tab1:
 
         if st.session_state.img_data and st.session_state.card is None:
             if st.button("🚀 Bắt đầu nhận Thử thách Bước 1!", type="primary", use_container_width=True):
-                with st.spinner("Đợi cô phân tích đề bài theo chuẩn chương trình SGK 8..."):
+                with st.spinner("Đợi cô phân tích đề bài theo chuẩn chương trình SGK Toán 8..."):
                     try:
-                        p_start = f"Tạo câu hỏi thử thách Bước 1 ngắn gọn. Phân loại yêu cầu: {math_mode}."
+                        p_start = f"Tạo câu hỏi thử thách Bước 1 ngắn gọn. Phân loại yêu cầu: {math_mode}. TUYỆT ĐỐI KHÔNG dùng đường tròn."
                         c_data = execute_gemini_request([st.session_state.img_data, p_start], GAME_PROMPT, is_json=True)
                         st.session_state.card = c_data
                         st.session_state.total_steps = c_data.get("total_steps", 3)
@@ -390,9 +390,10 @@ with tab1:
                     sol = card.get("full_solution", "")
                     svg = card.get("svg_code", "")
                     if not sol and st.session_state.img_data:
-                        with st.spinner("Đang mở khóa bài giải hoàn chỉnh và hình vẽ minh họa..."):
+                        with st.spinner("Đang mở khóa bài giải hoàn chỉnh và hình vẽ minh họa chuẩn lớp 8..."):
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh đúng chuẩn kiến thức SGK Toán 8 (Kết nối tri thức). 
-                            Nếu là Toán Hình: BẮT BUỘC sinh kèm mã SVG chuẩn vào trường svg_code.
+                            TUYỆT ĐỐI KHÔNG dùng kiến thức đường tròn.
+                            Nếu là Toán Hình: BẮT BUỘC sinh mã SVG chuẩn (KHÔNG vẽ đường tròn) vào trường svg_code.
                             Trả về JSON: {"full_solution": "...", "svg_code": "..."}"""
                             try:
                                 res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
@@ -411,7 +412,7 @@ with tab1:
                 """, unsafe_allow_html=True)
 
                 if st.session_state.reward_svg and "<svg" in st.session_state.reward_svg:
-                    st.markdown("#### 📐 Hình vẽ minh họa chuẩn xác:")
+                    st.markdown("#### 📐 Hình vẽ minh họa chuẩn xác (Không dùng đường tròn):")
                     clean_svg_match = re.search(r"<svg[\s\S]*?</svg>", st.session_state.reward_svg)
                     if clean_svg_match:
                         st.markdown(f'<div class="svg-container">{clean_svg_match.group(0)}</div>', unsafe_allow_html=True)
@@ -427,8 +428,8 @@ with tab1:
                 if st.button("➡️ Sang thử thách tiếp theo", type="primary", use_container_width=True):
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. 
-                        Lưu ý bám sát chương trình SGK Toán 8 (không dùng đường trung bình nếu chưa học).
-                        Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải chi tiết vào full_solution và sinh svg_code nếu là hình học."""
+                        TUYỆT ĐỐI KHÔNG dùng đường tròn hoặc kiến thức ngoài chương trình lớp 8.
+                        Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải chi tiết vào full_solution và sinh svg_code chuẩn."""
                         try:
                             st.session_state.card = execute_gemini_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
                             st.session_state.step += 1
@@ -494,7 +495,7 @@ with tab2:
                     RUBRIC = f"""
 Bạn là Giám khảo chấm thi môn Toán THCS tại Việt Nam.
 Chuyên đề nộp: "{topic}".
-Đọc ảnh bài làm viết tay của học sinh và đánh giá theo Rubric thang điểm 10 đúng chuẩn chương trình KNTT SGK 8.
+Đọc ảnh bài làm viết tay của học sinh và đánh giá theo Rubric thang điểm 10 đúng chuẩn chương trình KNTT SGK 8 (TUYỆT ĐỐI KHÔNG dùng đường tròn).
 
 ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ:
 - Tổng điểm: [Điểm số]/10
@@ -770,7 +771,7 @@ with tab3:
           stage1: [
             { level: "Nhận biết", time: 15, type: "short", q: "Tổng các góc trong một tứ giác lồi luôn bằng bao nhiêu độ? (Chỉ nhập số)", correctAnswers: ["360", "360 độ", "360°"], explain: "Định lý: Tổng các góc của một tứ giác luôn bằng 360 độ." },
             { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác luôn nằm trong một nửa mặt phẳng có bờ là đường thẳng chứa bất kì cạnh nào gọi là tứ giác gì?", correctAnswers: ["lồi", "tứ giác lồi"], explain: "Định nghĩa: Đó là tứ giác lồi." },
-            { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác lồi có thể có nhiều nhất bao nhiêu góc nhọn?", answers: ["3 góc nhọn", "4 góc nhọn", "2 góc nhọn"], correct: 0, explain: "Nếu có 4 góc nhọn thì tổng 4 góc < 360° (vô lý). Vậy tối đa có 3 góc nhọn." },
+            { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác lồi có thể có nhiều nhất bao nhiêu góc nhọn?", answers: ["3 góc nhọn", "4 góc nhọn", "2 góc nhọn"], correct: 0, explain: "Если có 4 góc nhọn thì tổng 4 góc < 360° (vô lý). Vậy tối đa có 3 góc nhọn." },
             { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác ABCD có góc A = 70°, B = 90°, C = 80°. Tính số đo góc D (nhập số):", correctAnswers: ["120", "120 độ", "120°"], explain: "Góc D = 360° - (70° + 90° + 80°) = 120°." }
           ],
           stage2: [
@@ -1181,7 +1182,7 @@ with tab3:
           const syncStatusText = document.getElementById("sync-status-text");
           const retryBtn = document.getElementById("btn-retry-sync");
 
-          syncStatusText.innerHTML = "⏳ Đang kết nối gửi kết quả về Google Sheets của cô...";
+          syncStatusText.innerHTML = "⏳ Đang gửi kết quả về Google Sheets của cô...";
           syncStatusText.className = "text-xs text-yellow-400 font-medium";
           retryBtn.classList.add("hidden");
 
