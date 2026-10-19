@@ -129,7 +129,7 @@ def format_math(text: str) -> str:
     text = re.sub(r"\\notin", " ∉ ", text)
     text = re.sub(r"\^?\\circ", "°", text)
     text = re.sub(r"\\degree", "°", text)
-    text = text.replace("°°", "°")
+    text = re.replace("°°", "°")
 
     text = re.sub(r"\\(?:Leftrightarrow|iff)|<=>", " ⇔ ", text)
     text = re.sub(r"\\(?:Rightarrow|implies)|=>", " ⇒ ", text)
@@ -185,12 +185,10 @@ GAME_PROMPT = """
 Bạn là Trợ lý Sư phạm Toán 8 của Cô Mai Phương theo chuẩn chương trình GDPT 2018 (Kết nối tri thức).
 QUY TẮC BẮT BUỘC TUÂN THỦ VỀ KIẾN THỨC TOÁN 8:
 1. TUYỆT ĐỐI KHÔNG SỬ DỤNG KIẾN THỨC VỀ ĐƯỜNG TRÒN (như đường tròn ngoại tiếp, tâm O cách đều các đỉnh, bán kính...) vì đây là kiến thức hình học lớp 9.
-2. ĐỐI VỚI HÌNH HỌC (Chương III - Tứ giác & Định lý Thalès): 
-   - Chỉ sử dụng định nghĩa, tính chất, dấu hiệu nhận biết tứ giác, hình thang, hình bình hành, hình chữ nhật, hình thoi, hình vuông, quan hệ song song/vuông góc, định lý Pythagore hoặc tam giác đồng dạng. Không dùng đường trung bình hay đường tròn ngoại tiếp nếu chưa đến chương trình.
-3. KÝ HIỆU TOÁN: Dùng ký hiệu Unicode thuần (Δ, ∠, ⊥, //, ², ³, ⇔, ⇒).
-4. ĐỐI VỚI is_finished = true:
-   - full_solution: Bài giải chi tiết chuẩn mực đúng tiến độ SGK 8 (không nhắc đến đường tròn).
-   - ggb_commands: Mảng các chuỗi lệnh GeoGebra (tiếng Anh) để dựng hình chính xác đúng với đề bài trong ảnh (Ví dụ: ["A = (0, 4)", "B = (-3, 0)", "C = (3, 0)", "Polygon(A, B, C)", "H = Orthocenter(A, B, C)"]).
+2. ĐỐI VỚI HÌNH HỌC: Chỉ sử dụng định nghĩa, tính chất tứ giác, hình bình hành, hình chữ nhật, hình thoi, hình vuông, định lý Pythagore hoặc tam giác đồng dạng.
+3. ĐỐI VỚI is_finished = true:
+   - full_solution: Bài giải chi tiết chuẩn mực đúng tiến độ SGK 8.
+   - ggb_commands: Mảng các chuỗi lệnh GeoGebra (tiếng Anh) để tự động dựng hình chính xác đúng với đề bài trong ảnh (Ví dụ: ["A = (0, 4)", "B = (-3, 0)", "C = (3, 0)", "Polygon(A, B, C)", "H = (0, 1)"]).
 
 TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
 {
@@ -205,7 +203,7 @@ TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
     "Phương án 4"
   ],
   "correct_index": 0,
-  "explanation": "Giải thích ngắn theo định lý hình học/hằng đẳng thức lớp 8",
+  "explanation": "Giải thích ngắn theo định lý hình học lớp 8",
   "is_finished": false,
   "full_solution": "",
   "ggb_commands": []
@@ -388,11 +386,11 @@ with tab1:
                 if not st.session_state.reward:
                     sol = card.get("full_solution", "")
                     ggb_cmds = card.get("ggb_commands", [])
-                    if not sol and st.session_state.img_data:
-                        with st.spinner("Đang mở khóa bài giải hoàn chỉnh và lệnh dựng hình GeoGebra..."):
+                    if (not sol or not ggb_cmds) and st.session_state.img_data:
+                        with st.spinner("Đang mở khóa bài giải hoàn chỉnh và lệnh dựng hình GeoGebra chính xác theo đề bài..."):
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh đúng chuẩn kiến thức SGK Toán 8 (Kết nối tri thức). 
                             TUYỆT ĐỐI KHÔNG dùng kiến thức đường tròn.
-                            Nếu là Toán Hình: BẮT BUỘC sinh mảng ggb_commands chứa các lệnh GeoGebra tiếng Anh để dựng đúng hình của đề bài.
+                            Nếu là Toán Hình: BẮT BUỘC sinh mảng ggb_commands chứa các lệnh GeoGebra tiếng Anh để dựng đúng hình của đề bài (ví dụ tọa độ điểm, tam giác, đường cao).
                             Trả về JSON: {"full_solution": "...", "ggb_commands": ["..."]}"""
                             try:
                                 res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
@@ -792,7 +790,7 @@ with tab3:
           stage1: [
             { level: "Nhận biết", time: 15, type: "short", q: "Tổng các góc trong một tứ giác lồi luôn bằng bao nhiêu độ? (Chỉ nhập số)", correctAnswers: ["360", "360 độ", "360°"], explain: "Định lý: Tổng các góc của một tứ giác luôn bằng 360 độ." },
             { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác luôn nằm trong một nửa mặt phẳng có bờ là đường thẳng chứa bất kì cạnh nào gọi là tứ giác gì?", correctAnswers: ["lồi", "tứ giác lồi"], explain: "Định nghĩa: Đó là tứ giác lồi." },
-            { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác lồi có thể có nhiều nhất bao nhiêu góc nhọn?", answers: ["3 góc nhọn", "4 góc nhọn", "2 góc nhọn"], correct: 0, explain: "Если có 4 góc nhọn thì tổng 4 góc < 360° (vô lý). Vậy tối đa có 3 góc nhọn." },
+            { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác lồi có thể có nhiều nhất bao nhiêu góc nhọn?", answers: ["3 góc nhọn", "4 góc nhọn", "2 góc nhọn"], correct: 0, explain: "Nếu có 4 góc nhọn thì tổng 4 góc < 360° (vô lý). Vậy tối đa có 3 góc nhọn." },
             { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác ABCD có góc A = 70°, B = 90°, C = 80°. Tính số đo góc D (nhập số):", correctAnswers: ["120", "120 độ", "120°"], explain: "Góc D = 360° - (70° + 90° + 80°) = 120°." }
           ],
           stage2: [
