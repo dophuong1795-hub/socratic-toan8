@@ -165,18 +165,24 @@ def format_solution_step_by_step(raw_text: str) -> str:
     text = raw_text.replace("Lời giải chi tiết:", "").replace("Bài giải chi tiết:", "").strip()
     text = re.sub(r"(?m)^\s*([a-d]\))\s*", r"\n\n### **\1** ", text)
     text = re.sub(r"(?m)^\s*(Câu\s+\d+[\:\.]?)\s*", r"\n\n### **\1** ", text)
-    text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"$\\dfrac{\1}{\2}$", text)
-    text = re.sub(r"Δ\s*([A-Za-z]{3})", r"$\\Delta \1$", text)
+    
+    # CHUYỂN ĐỔI SỐ MŨ SANG UNICODE SẮC NÉT TRONG LỜI GIẢI CHI TIẾT
+    super_digits = {"0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "n": "ⁿ"}
+    text = re.sub(r"\^([0-9n]+)|\^\(([^)]+)\)|\^\{([^}]+)\}", lambda m: "".join(super_digits.get(c, c) for c in (m.group(1) or m.group(2) or m.group(3))), text)
+
+    text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1 / \2)", text)
+    text = re.sub(r"Δ\s*([A-Za-z]{3})", r"Δ \1", text)
     text = re.sub(r"(?<=\.)\s*-\s*", r"\n- ", text)
-    text = re.sub(r"\s*(?:=>|⇒|\\Rightarrow)\s*", r"\n  - $\\Rightarrow$ ", text)
-    text = re.sub(r"\s*(?:<=>|⇔|\\Leftrightarrow)\s*", r"\n  - $\\Leftrightarrow$ ", text)
+    text = re.sub(r"\s*(?:=>|⇒|\\Rightarrow)\s*", r"\n  - ⇒ ", text)
+    text = re.sub(r"\s*(?:<=>|⇔|\\Leftrightarrow)\s*", r"\n  - ⇔ ", text)
     
     lines = text.split("\n")
     cleaned_lines = []
     for line in lines:
         l = line.strip()
         if l:
-            l = re.sub(r"\${2,}", "$", l)
+            l = re.sub(r"\${2,}", "", l)
+            l = re.sub(r"\$\s*\$", "", l)
             cleaned_lines.append(l)
     return "\n\n".join(cleaned_lines)
 
