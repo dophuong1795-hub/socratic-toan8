@@ -107,7 +107,7 @@ if not API_KEY:
 
 # Khởi tạo Gemini Client
 client = genai.Client(api_key=API_KEY)
-MODEL_NAME = "gemini-3.8-flash"
+MODEL_NAME = "gemini-2.5-flash"
 
 # ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC TOÁN 8 =================
 def format_math(text: str) -> str:
@@ -129,7 +129,7 @@ def format_math(text: str) -> str:
     text = re.sub(r"\\notin", " ∉ ", text)
     text = re.sub(r"\^?\\circ", "°", text)
     text = re.sub(r"\\degree", "°", text)
-    text = text.replace("°°", "°")
+    text = re.replace("°°", "°")
 
     text = re.sub(r"\\(?:Leftrightarrow|iff)|<=>", " ⇔ ", text)
     text = re.sub(r"\\(?:Rightarrow|implies)|=>", " ⇒ ", text)
@@ -565,7 +565,7 @@ Chuyên đề nộp: "{topic}".
                 except Exception as err:
                     st.error(f"Lỗi trong quá trình chấm bài: {err}")
 
-# ================= TAB 3: MINIGAME ĐẠI CHIẾN BOWSER (TỨ GIÁC) =================
+# ================= TAB 3: MINIGAME ĐẠI CHIẾN BOWSER (CẢI TIẾN GIAO DIỆN S SINH ĐỘNG) =================
 with tab3:
     st.subheader("🍄 Vượt Ải Tứ Giác - Đại Chiến Bowser")
     st.caption("Auto-runner vượt 5 ải Hình học 8 (KNTT) & Hạ gục Bowser nhận +5 điểm cộng thực tế từ Cô Mai Phương!")
@@ -594,45 +594,48 @@ with tab3:
         }
       </style>
     </head>
-    <body class="bg-slate-950 text-slate-100 font-body min-h-screen flex flex-col items-center justify-start p-2 select-none">
+    <body class="bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 text-slate-100 font-body min-h-screen flex flex-col items-center justify-start p-2 select-none">
 
       <div id="login-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
-        <div class="bg-slate-900 border-2 border-amber-400/80 rounded-2xl max-w-md w-full p-6 shadow-2xl text-center">
-          <div class="inline-block p-3 bg-red-600 rounded-2xl shadow-lg mb-3">
+        <div class="bg-slate-900 border-2 border-pink-400/80 rounded-2xl max-w-md w-full p-6 shadow-2xl text-center relative overflow-hidden">
+          <div class="absolute -top-10 -left-10 w-32 h-32 bg-pink-500/10 rounded-full blur-2xl"></div>
+          <div class="absolute -bottom-10 -right-10 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl"></div>
+
+          <div class="inline-block p-3.5 bg-gradient-to-tr from-pink-600 to-amber-500 rounded-2xl shadow-lg mb-3">
             <span class="font-pixel text-2xl text-white">M</span>
           </div>
-          <h1 class="text-xl font-extrabold text-amber-400 mb-1">LỚP TOÁN CÔ MAI PHƯƠNG</h1>
-          <p class="text-xs text-slate-400 mb-5">Đại chiến Bowser - Vượt ải Tứ Giác Toán 8</p>
+          <h1 class="text-xl font-extrabold text-pink-400 mb-1">LỚP TOÁN CÔ MAI PHƯƠNG</h1>
+          <p class="text-xs text-slate-300 mb-5">Đại chiến Bowser - Vượt ải Tứ Giác Toán 8</p>
           
           <div class="space-y-3.5 text-left mb-6">
             <div>
-              <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Họ và tên học sinh:</label>
-              <input type="text" id="input-name" placeholder="Ví dụ: Nguyễn Văn An" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
+              <label class="block text-xs font-bold text-pink-300 uppercase mb-1">Họ và tên học sinh:</label>
+              <input type="text" id="input-name" placeholder="Ví dụ: Nguyễn Văn An" class="w-full bg-slate-800/90 border border-pink-500/40 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-400">
             </div>
             <div>
-              <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Lớp:</label>
-              <input type="text" id="input-class" placeholder="Ví dụ: 8A13" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
+              <label class="block text-xs font-bold text-pink-300 uppercase mb-1">Lớp:</label>
+              <input type="text" id="input-class" placeholder="Ví dụ: 8A13" class="w-full bg-slate-800/90 border border-pink-500/40 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-400">
             </div>
           </div>
 
-          <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 text-xs text-slate-300 text-left mb-5 space-y-1">
-            <p>• <b>5 Mạng sống (❤️❤️❤️❤️❤️)</b>. Mario tự động chạy!</p>
-            <p>• Thời gian: <b>15s</b> (Nhận biết), <b>20s</b> (Thông hiểu), <b>30s</b> (Vận dụng).</p>
-            <p>• Hạ gục Bowser nhận ngay <b>+5 Điểm cộng thực tế</b> từ Cô Mai Phương!</p>
+          <div class="bg-slate-800/80 border border-pink-500/30 rounded-xl p-3 text-xs text-slate-200 text-left mb-5 space-y-1.5 shadow-inner">
+            <p>• 🌸 <b>5 Mạng sống (❤️❤️❤️❤️❤️)</b>. Mario tự động chạy!</p>
+            <p>• ⏱️ Thời gian: <b>15s</b> - <b>30s</b> tùy cấp độ tư duy.</p>
+            <p>• 🎁 Hạ gục Bowser nhận ngay <b>+5 Điểm cộng thực tế</b> từ Cô Mai Phương!</p>
           </div>
 
-          <button id="btn-start-game" class="w-full py-3.5 bg-gradient-to-r from-red-600 to-amber-500 hover:from-red-500 hover:to-amber-400 text-white font-extrabold text-sm rounded-xl shadow-lg transition transform active:scale-95">
-            BẮT ĐẦU VƯỢT ẢI NGAY
+          <button id="btn-start-game" class="w-full py-3.5 bg-gradient-to-r from-pink-600 via-purple-600 to-amber-500 hover:opacity-90 text-white font-extrabold text-sm rounded-xl shadow-lg transition transform active:scale-95">
+            BẮT ĐẦU VƯỢT ẢI NGAY 🚀
           </button>
         </div>
       </div>
 
       <header class="w-full max-w-2xl flex items-center justify-between bg-slate-900/90 border border-slate-800 px-3 py-2 rounded-2xl mb-2 shadow-lg">
         <div class="flex items-center space-x-2">
-          <div class="w-7 h-7 rounded-lg bg-red-600 flex items-center justify-center font-pixel text-white text-[10px]">M</div>
+          <div class="w-7 h-7 rounded-lg bg-pink-600 flex items-center justify-center font-pixel text-white text-[10px]">M</div>
           <div>
-            <h2 class="text-xs font-extrabold text-amber-400 leading-tight">LỚP TOÁN CÔ MAI PHƯƠNG</h2>
-            <p id="hud-student" class="text-[10px] text-slate-400">Học sinh: Đang kết nối...</p>
+            <h2 class="text-xs font-extrabold text-pink-400 leading-tight">LỚP TOÁN CÔ MAI PHƯƠNG</h2>
+            <p id="hud-student" class="text-[10px] text-slate-300">Học sinh: Đang kết nối...</p>
           </div>
         </div>
         
@@ -649,15 +652,15 @@ with tab3:
         </div>
       </header>
 
-      <main id="game-arena" class="relative w-full max-w-2xl aspect-[16/9] bg-sky-400 rounded-2xl border-2 border-amber-400/80 shadow-2xl overflow-hidden">
+      <main id="game-arena" class="relative w-full max-w-2xl aspect-[16/9] bg-sky-400 rounded-2xl border-2 border-pink-400/80 shadow-2xl overflow-hidden">
         <canvas id="gameCanvas" width="860" height="484" class="w-full h-full block"></canvas>
       </main>
 
       <div id="quiz-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-3 hidden">
-        <div class="bg-slate-900 border-2 border-sky-400/90 rounded-2xl max-w-xl w-full p-4 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
+        <div class="bg-slate-900 border-2 border-pink-500/80 rounded-2xl max-w-xl w-full p-4 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
           
           <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
-            <span id="quiz-level-badge" class="px-2.5 py-1 bg-sky-500/20 text-sky-400 border border-sky-500/40 rounded-lg text-xs font-bold uppercase">
+            <span id="quiz-level-badge" class="px-2.5 py-1 bg-pink-500/20 text-pink-300 border border-pink-500/40 rounded-lg text-xs font-bold uppercase">
               NHẬN BIẾT (15s)
             </span>
             <div class="flex items-center space-x-1.5 font-pixel text-xs text-amber-400">
@@ -667,17 +670,17 @@ with tab3:
           </div>
 
           <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mb-3">
-            <div id="quiz-timer-bar" class="h-full bg-amber-400 transition-all duration-100 ease-linear" style="width: 100%;"></div>
+            <div id="quiz-timer-bar" class="h-full bg-pink-500 transition-all duration-100 ease-linear" style="width: 100%;"></div>
           </div>
 
-          <div id="quiz-question-text" class="text-sm font-bold text-amber-200 mb-3 leading-relaxed">
+          <div id="quiz-question-text" class="text-sm font-bold text-pink-200 mb-3 leading-relaxed">
             Đề bài...
           </div>
 
           <div id="quiz-options-container" class="space-y-2 mb-2"></div>
 
           <div id="quiz-short-container" class="space-y-2 mb-2 hidden">
-            <input type="text" id="quiz-short-input" placeholder="Nhập đáp số hoặc tên hình..." autocomplete="off" class="w-full bg-slate-800 border-2 border-sky-500/60 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
+            <input type="text" id="quiz-short-input" placeholder="Nhập đáp số hoặc tên hình..." autocomplete="off" class="w-full bg-slate-800 border-2 border-pink-500/60 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-400">
             <button id="quiz-short-submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-md transition">
               XÁC NHẬN ĐÁP ÁN (ENTER)
             </button>
@@ -691,7 +694,7 @@ with tab3:
         <div class="bg-slate-900 border-2 border-emerald-400 rounded-2xl max-w-md w-full p-6 text-center shadow-2xl">
           <div class="text-3xl mb-2">🌟</div>
           <h3 id="stage-clear-title" class="text-base font-extrabold text-emerald-400 mb-1">HOÀN THÀNH ẢI!</h3>
-          <p class="text-xs text-amber-400 font-bold mb-3">LỜI DẶN DÒ TỪ CÔ MAI PHƯƠNG</p>
+          <p class="text-xs text-pink-400 font-bold mb-3">LỜI DẶN DÒ TỪ CÔ MAI PHƯƠNG</p>
           
           <div id="stage-clear-msg" class="bg-slate-800/80 border border-slate-700 rounded-xl p-3.5 text-xs text-slate-200 text-left mb-5 leading-relaxed"></div>
 
@@ -702,31 +705,31 @@ with tab3:
       </div>
 
       <div id="summary-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-3 hidden">
-        <div class="bg-slate-900 border-2 border-amber-400 rounded-2xl max-w-md w-full p-5 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
+        <div class="bg-slate-900 border-2 border-pink-500 rounded-2xl max-w-md w-full p-5 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
           
           <div class="text-center mb-3">
             <span id="summary-badge-icon" class="text-3xl">🏆</span>
-            <h2 id="summary-title" class="text-lg font-extrabold text-amber-400 mt-1">VINH DANH CHIẾN THẮNG!</h2>
+            <h2 id="summary-title" class="text-lg font-extrabold text-pink-400 mt-1">VINH DANH CHIẾN THẮNG!</h2>
             <p id="summary-subtitle" class="text-[11px] text-emerald-400 font-semibold">Đã xuất sắc vượt qua 5 Ải & Hạ gục Bowser</p>
           </div>
 
           <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 mb-3 grid grid-cols-2 gap-2 text-xs">
             <div><span class="text-slate-400">Học sinh:</span> <b id="sum-name" class="text-white">...</b></div>
             <div><span class="text-slate-400">Lớp:</span> <b id="sum-class" class="text-white">...</b></div>
-            <div><span class="text-slate-400">Mã đề:</span> <b id="sum-examcode" class="text-amber-300">...</b></div>
-            <div><span class="text-slate-400">Tổng điểm:</span> <b id="sum-score" class="text-amber-400 font-pixel">0</b></div>
+            <div><span class="text-slate-400">Mã đề:</span> <b id="sum-examcode" class="text-pink-300">...</b></div>
+            <div><span class="text-slate-400">Tổng điểm:</span> <b id="sum-score" class="text-pink-400 font-pixel">0</b></div>
             <div class="col-span-2 bg-emerald-950/60 border border-emerald-500/40 p-2 rounded-lg text-emerald-300 text-center font-bold">
-              🎁 Phần thưởng: <span id="sum-bonus" class="text-amber-300 font-extrabold">+5 ĐIỂM CỘNG</span> từ Cô Mai Phương!
+              🎁 Phần thưởng: <span id="sum-bonus" class="text-pink-300 font-extrabold">+5 ĐIỂM CỘNG</span> từ Cô Mai Phương!
             </div>
           </div>
 
-          <div id="summary-teacher-note" class="bg-amber-950/30 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-200 mb-3 leading-relaxed"></div>
+          <div id="summary-teacher-note" class="bg-pink-950/30 border border-pink-500/30 rounded-xl p-3 text-xs text-pink-200 mb-3 leading-relaxed"></div>
 
           <div id="sync-status-box" class="border border-slate-700 bg-slate-950/60 rounded-xl p-2.5 text-center mb-3">
             <div id="sync-status-text" class="text-xs text-yellow-400 font-medium">
               ⏳ Đang kết nối gửi kết quả về Google Sheets...
             </div>
-            <button id="btn-retry-sync" class="mt-2 hidden px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg transition">
+            <button id="btn-retry-sync" class="mt-2 hidden px-3 py-1 bg-pink-500 hover:bg-pink-400 text-slate-950 font-bold text-xs rounded-lg transition">
               🔄 Thử gửi lại dữ liệu
             </button>
           </div>
@@ -862,10 +865,12 @@ with tab3:
         const ctx = canvas.getContext("2d");
         const arenaEl = document.getElementById("game-arena");
 
-        const mario = { x: 100, y: 350, w: 34, h: 44, vy: 0, isJumping: false, legSwing: 0 };
-        let worldOffset = 0;
-        let mysteryBox = { x: 750, y: 240, active: true, bounce: 0 };
-        let fireball = { active: false, x: 0, y: 0, vx: 0 };
+        const mario = { x: 100, y: 340, w: 32, h: 42, vy: 0, isJumping: false, legAnim: 0 };
+        const clouds = [
+          { x: 120, y: 60, w: 70, h: 30, speed: 0.6 },
+          { x: 450, y: 90, w: 90, h: 35, speed: 0.4 },
+          { x: 720, y: 50, w: 60, h: 25, speed: 0.7 }
+        ];
 
         function triggerShake() {
           arenaEl.classList.add("shake");
@@ -874,12 +879,17 @@ with tab3:
 
         function updateWorld() {
           if (gameState.isPaused || gameState.isGameOver) return;
-          mario.legSwing += 0.25;
+          mario.legAnim += 0.2;
+
+          clouds.forEach(c => {
+            c.x -= c.speed;
+            if (c.x < -100) c.x = 900;
+          });
 
           if (mario.isJumping) {
             mario.y += mario.vy;
             mario.vy += 0.8;
-            if (mario.y >= 350) { mario.y = 350; mario.isJumping = false; }
+            if (mario.y >= 340) { mario.y = 340; mario.isJumping = false; }
           }
 
           if (fireball.active) {
@@ -892,8 +902,7 @@ with tab3:
           }
 
           if (!gameState.inBossFight) {
-            worldOffset += 3.5;
-            mysteryBox.x -= 3.5;
+            mysteryBox.x -= 3.2;
             if (mysteryBox.x <= 220 && mysteryBox.active) {
               mysteryBox.active = false;
               openNextQuestion();
@@ -903,65 +912,107 @@ with tab3:
 
         function drawWorld() {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = gameState.inBossFight ? "#2d0a1e" : "#38bdf8";
+          
+          // Bầu trời Gradient ngọt ngào
+          const skyGrad = ctx.createLinearGradient(0, 0, 0, 400);
+          skyGrad.addColorStop(0, '#38bdf8');
+          skyGrad.addColorStop(1, '#bae6fd');
+          ctx.fillStyle = skyGrad;
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          ctx.fillStyle = gameState.inBossFight ? "#1f2937" : "#22c55e";
-          ctx.fillRect(0, 394, canvas.width, 16);
-          ctx.fillStyle = gameState.inBossFight ? "#991b1b" : "#854d0e";
-          ctx.fillRect(0, 410, canvas.width, 74);
+          // Vẽ Mây bồng bềnh
+          ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+          clouds.forEach(c => {
+            ctx.beginPath();
+            ctx.arc(c.x, c.y + 10, 16, 0, Math.PI * 2);
+            ctx.arc(c.x + 18, c.y, 22, 0, Math.PI * 2);
+            ctx.arc(c.x + 38, c.y + 10, 16, 0, Math.PI * 2);
+            ctx.fill();
+          });
 
-          if (!gameState.inBossFight && mysteryBox.x > -50) {
+          // Hoa hồng cam chìm phong cách màu nước trang trí ở nền
+          ctx.fillStyle = "rgba(251, 146, 60, 0.2)";
+          ctx.beginPath();
+          ctx.arc(750, 150, 45, 0, Math.PI * 2);
+          ctx.arc(800, 130, 35, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Mặt đất xanh mướt & Lớp đất nâu ấm áp
+          ctx.fillStyle = "#16a34a";
+          ctx.fillRect(0, 382, canvas.width, 18);
+          ctx.fillStyle = "#78350f";
+          ctx.fillRect(0, 400, canvas.width, 84);
+
+          // Hộp bí mật ? ngọt ngào sắc nét
+          if (!gameState.inBossFight && mysteryBox.x > -60) {
             ctx.fillStyle = "#f59e0b";
-            ctx.fillRect(mysteryBox.x, mysteryBox.y, 44, 44);
-            ctx.strokeStyle = "#78350f";
-            ctx.lineWidth = 3;
-            ctx.strokeRect(mysteryBox.x, mysteryBox.y, 44, 44);
+            ctx.fillRect(mysteryBox.x, mysteryBox.y, 48, 48);
+            ctx.strokeStyle = "#b45309";
+            ctx.lineWidth = 4;
+            ctx.strokeRect(mysteryBox.x, mysteryBox.y, 48, 48);
+            
             ctx.fillStyle = "#ffffff";
-            ctx.font = "bold 24px monospace";
-            ctx.fillText("?", mysteryBox.x + 14, mysteryBox.y + 31);
+            ctx.font = "bold 26px 'Press Start 2P', monospace";
+            ctx.fillText("?", mysteryBox.x + 13, mysteryBox.y + 34);
           }
 
+          // Nhân vật Mario phong cách cartoon
+          const mx = mario.x;
+          const my = mario.y;
+          // Mũ đỏ
+          ctx.fillStyle = "#dc2626";
+          ctx.fillRect(mx + 4, my, 24, 12);
+          ctx.fillRect(mx + 2, my + 6, 28, 6);
+          // Khuôn mặt
+          ctx.fillStyle = "#fed7aa";
+          ctx.fillRect(mx + 6, my + 12, 20, 12);
+          // Áo đỏ
           ctx.fillStyle = "#ef4444";
-          ctx.fillRect(mario.x, mario.y + 12, mario.w, 18);
-          ctx.fillRect(mario.x + 4, mario.y, 28, 14);
-          ctx.fillStyle = "#fbcfe8";
-          ctx.fillRect(mario.x + 8, mario.y + 8, 20, 10);
+          ctx.fillRect(mx + 2, my + 24, 28, 12);
+          // Quần xanh
           ctx.fillStyle = "#1d4ed8";
-          ctx.fillRect(mario.x + 6, mario.y + 28, mario.w - 12, 14);
-
-          const legOffset = Math.sin(mario.legSwing) * 6;
+          ctx.fillRect(mx + 6, my + 34, 20, 10);
+          
+          // Chân di chuyển
+          const legOffset = Math.sin(mario.legAnim) * 5;
           ctx.fillStyle = "#78350f";
-          ctx.fillRect(mario.x + 4, mario.y + 40, 10, 6 + legOffset);
-          ctx.fillRect(mario.x + 18, mario.y + 40, 10, 6 - legOffset);
+          ctx.fillRect(mx + 4, my + 42, 8, 6 + legOffset);
+          ctx.fillRect(mx + 20, my + 42, 8, 6 - legOffset);
 
+          // Cầu lửa khi đánh Boss
           if (fireball.active) {
             ctx.fillStyle = "#f97316";
             ctx.beginPath();
             ctx.arc(fireball.x, fireball.y, 14, 0, Math.PI * 2);
             ctx.fill();
+            ctx.fillStyle = "#fef08a";
+            ctx.beginPath();
+            ctx.arc(fireball.x - 3, fireball.y - 3, 5, 0, Math.PI * 2);
+            ctx.fill();
           }
 
+          // Trùm Bowser
           if (gameState.inBossFight && !gameState.defeatedBoss) {
-            const bx = 680, by = 295;
+            const bx = 670, by = 285;
             ctx.fillStyle = "#064e3b";
             ctx.beginPath();
-            ctx.arc(bx + 40, by + 45, 42, 0, Math.PI * 2);
+            ctx.arc(bx + 40, by + 45, 46, 0, Math.PI * 2);
             ctx.fill();
 
             ctx.fillStyle = "#d97706";
-            ctx.fillRect(bx - 10, by + 25, 40, 48);
+            ctx.fillRect(bx - 10, by + 25, 42, 54);
             ctx.fillStyle = "#dc2626";
-            ctx.fillRect(bx - 4, by + 6, 26, 20);
+            ctx.fillRect(bx - 4, by + 4, 30, 22);
 
-            ctx.fillStyle = "#000";
-            ctx.fillRect(bx - 20, by - 36, 120, 16);
+            // Thanh máu Bowser
+            ctx.fillStyle = "#000000";
+            ctx.fillRect(bx - 25, by - 38, 130, 18);
             ctx.fillStyle = "#ef4444";
-            const hpW = (gameState.bossHp / gameState.bossMaxHp) * 116;
-            ctx.fillRect(bx - 18, by - 34, Math.max(0, hpW), 12);
-            ctx.fillStyle = "#fff";
-            ctx.font = "bold 10px monospace";
-            ctx.fillText("BOWSER: " + gameState.bossHp + "/" + gameState.bossMaxHp, bx - 14, by - 42);
+            const hpW = (gameState.bossHp / gameState.bossMaxHp) * 122;
+            ctx.fillRect(bx - 21, by - 35, Math.max(0, hpW), 12);
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 9px monospace";
+            ctx.fillText("BOWSER HP: " + gameState.bossHp + "/" + gameState.bossMaxHp, bx - 16, by - 24);
           }
         }
 
@@ -1042,7 +1093,7 @@ with tab3:
             currentQ.answers.forEach((ans, idx) => {
               const btn = document.createElement("button");
               btn.className = "w-full text-left bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl p-3 text-xs font-semibold";
-              btn.innerHTML = '<span class="text-amber-400 font-bold">' + (idx + 1) + '.</span> ' + ans;
+              btn.innerHTML = '<span class="text-pink-400 font-bold">' + (idx + 1) + '.</span> ' + ans;
               btn.onclick = () => {
                 clearInterval(gameState.timerInterval);
                 handleAnswer(idx === currentQ.correct);
@@ -1201,7 +1252,7 @@ with tab3:
           const syncStatusText = document.getElementById("sync-status-text");
           const retryBtn = document.getElementById("btn-retry-sync");
 
-          syncStatusText.innerHTML = "⏳ Đang kết nối gửi kết quả về Google Sheets của cô...";
+          syncStatusText.innerHTML = "⏳ Đang gửi kết quả về Google Sheets của cô...";
           syncStatusText.className = "text-xs text-yellow-400 font-medium";
           retryBtn.classList.add("hidden");
 
