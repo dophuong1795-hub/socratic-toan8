@@ -109,7 +109,7 @@ if not API_KEY:
 client = genai.Client(api_key=API_KEY)
 MODEL_NAME = "gemini-3.8-flash"
 
-# ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC TOÁN 8 (ĐẠI SỐ & HÌNH HỌC) =================
+# ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC TOÁN 8 =================
 def format_math(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
@@ -118,13 +118,11 @@ def format_math(text: str) -> str:
     text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
     text = text.replace("$", "")
 
-    # 1. KÝ HIỆU HÌNH HỌC LỚP 8 (Góc, Tam giác, Quan hệ)
     text = re.sub(r"\\(?:widehat|hat)\s*[\{\[]\s*([A-Za-z0-9]{1,3})\s*[\}\]]", r"∠\1", text)
     text = re.sub(r"\\(?:angle)\s+([A-Za-z0-9]{1,3})\b", r"∠\1", text)
     text = re.sub(r"\\(?:Delta|triangle)\s*([A-Za-z]{3})", r"Δ \1", text)
     text = re.sub(r"Δ([A-Za-z]{3})", r"Δ \1", text)
     
-    # Quan hệ hình học & ký hiệu vị trí
     text = re.sub(r"\\perp|£", " ⊥ ", text)
     text = re.sub(r"\\parallel", " // ", text)
     text = re.sub(r"\\in", " ∈ ", text)
@@ -133,7 +131,6 @@ def format_math(text: str) -> str:
     text = re.sub(r"\\degree", "°", text)
     text = text.replace("°°", "°")
 
-    # 2. KÝ HIỆU LOGIC & QUAN HỆ ĐẠI SỐ
     text = re.sub(r"\\(?:Leftrightarrow|iff)|<=>", " ⇔ ", text)
     text = re.sub(r"\\(?:Rightarrow|implies)|=>", " ⇒ ", text)
     text = re.sub(r"\\le(?:q)?|<=|≤", " ≤ ", text)
@@ -142,21 +139,16 @@ def format_math(text: str) -> str:
     text = re.sub(r"\\pm|±", " ± ", text)
     text = re.sub(r"\\times|\\cdot|\*", " · ", text)
 
-    # 3. CĂN THỨC TOÁN 8
     text = re.sub(r"\\sqrt\[3\]\{([^{}]+)\}", r"∛(\1)", text)
     text = re.sub(r"\\sqrt\{([^{}]+)\}", r"√(\1)", text)
     text = re.sub(r"\\sqrt\s*([0-9a-zA-Z]+)", r"√\1", text)
 
-    # 4. CHUYỂN ĐỔI SỐ MŨ (Đại số & Hằng đẳng thức: x^2 -> x², y^3 -> y³)
     super_digits = {"0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "n": "ⁿ"}
-    
     def replace_power(match):
         power_str = match.group(1) or match.group(2) or match.group(3)
         return "".join(super_digits.get(c, c) for c in power_str)
 
     text = re.sub(r"\^([0-9n]+)|\^\(([^)]+)\)|\^\{([^}]+)\}", replace_power, text)
-
-    # 5. PHÂN SỐ ĐẠI SỐ
     text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1 / \2)", text)
     
     text = re.sub(r"[ \t]+", " ", text)
@@ -169,7 +161,6 @@ def format_solution_step_by_step(raw_text: str) -> str:
     text = re.sub(r"(?m)^\s*([a-d]\))\s*", r"\n\n### **\1** ", text)
     text = re.sub(r"(?m)^\s*(Câu\s+\d+[\:\.]?)\s*", r"\n\n### **\1** ", text)
     
-    # CHUYỂN ĐỔI SỐ MŨ SANG UNICODE SẮC NÉT TRONG LỜI GIẢI CHI TIẾT
     super_digits = {"0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "n": "ⁿ"}
     text = re.sub(r"\^([0-9n]+)|\^\(([^)]+)\)|\^\{([^}]+)\}", lambda m: "".join(super_digits.get(c, c) for c in (m.group(1) or m.group(2) or m.group(3))), text)
 
@@ -189,18 +180,17 @@ def format_solution_step_by_step(raw_text: str) -> str:
             l = re.sub(r"\$\s*\$", "", l)
             cleaned_lines.append(l)
     return "\n\n".join(cleaned_lines)
-GAME_PROMPT = """
-Bạn là Trợ lý Sư phạm Toán 8 (Cả Đại số và Hình học) của Cô Mai Phương (Chương trình GDPT 2018 - Kết nối tri thức).
-Đối tượng học sinh: Lớp 8 (13-14 tuổi).
 
-QUY TẮC SƯ PHẠM:
-1. Nhận diện dạng bài từ hình ảnh/đề bài:
-   - NẾU LÀ TOÁN SỐ (Đại số / Số học / Thống kê): Đơn thức, Đa thức, Hằng đẳng thức đáng nhớ, Phân thức đại số, Phương trình bậc nhất.
-   - NẾU LÀ TOÁN HÌNH: Tứ giác, Định lý Thalès, Tam giác đồng dạng.
-2. Lời văn gần gũi, chuẩn ngôn ngữ SGK Toán 8 Việt Nam.
-3. KÝ HIỆU TOÁN BẮT BUỘC DÙNG KÝ HIỆU CHUẨN (Dùng ^3, ^2 hoặc số mũ trực quan để app xử lý hiển thị đẹp trên nút bấm).
-4. Câu hỏi tối đa 2 câu, hỏi trực diện. 4 lựa chọn ngắn gọn, KHÔNG ghi tiền tố 'A.', 'B.'.
-5. CÁC PHƯƠNG ÁN LỰA CHỌN PHẢI ĐƯỢC XÁO TRỘN NGẪU NHIÊN, KHÔNG ĐỂ ĐÁP ÁN ĐÚNG LUÔN Ở VỊ TRÍ ĐẦU TIÊN (correct_index cần phản ánh đúng vị trí của đáp án đúng sau khi xáo trộn).
+GAME_PROMPT = """
+Bạn là Trợ lý Sư phạm Toán 8 của Cô Mai Phương theo chuẩn chương trình GDPT 2018 (Kết nối tri thức).
+QUY TẮC PHÂN PHỐI CHƯƠNG TRÌNH TOÁN 8 (BẮT BUỘC TUÂN THỦ):
+1. ĐỐI VỚI HÌNH HỌC: 
+   - Chương III: Tứ giác (Hình thang, Hình bình hành, Hình chữ nhật, Hình thoi, Hình vuông). TUYỆT ĐỐI KHÔNG dùng kiến thức "Đường trung bình của tam giác/hình thang" vì kiến thức này thuộc Chương IV (học sau).
+   - Chỉ sử dụng định nghĩa, tính chất, dấu hiệu nhận biết tứ giác, quan hệ song song/vuông góc hoặc định lý Pythagore.
+2. KÝ HIỆU TOÁN: Dùng ký hiệu Unicode chuẩn (Δ, ∠, ⊥, //, ², ³, ⇔, ⇒).
+3. ĐỐI VỚI is_finished = true:
+   - full_solution: Bài giải chi tiết chuẩn mực đúng tiến độ SGK 8.
+   - svg_code: BẮT BUỘC sinh mã SVG khung <svg viewBox='0 0 500 400'> minh họa hình học rõ nét, có nhãn điểm, nét đứt cạnh khuất (nếu là hình học). Nếu là toán số, trả về "".
 
 TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
 {
@@ -215,7 +205,7 @@ TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
     "Phương án 4"
   ],
   "correct_index": 0,
-  "explanation": "Giải thích ngắn theo định lý/hằng đẳng thức",
+  "explanation": "Giải thích ngắn theo định lý hình học/hằng đẳng thức",
   "is_finished": false,
   "full_solution": "",
   "svg_code": ""
@@ -263,7 +253,6 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
             fixed_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', target_str)
             data = json.loads(fixed_str, strict=False)
         
-        # Xáo trộn đáp án ngẫu nhiên
         if "options" in data and isinstance(data["options"], list) and len(data["options"]) > 1:
             opts = data["options"]
             corr_idx = data.get("correct_index", 0)
@@ -294,11 +283,12 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# SẮP XẾP LẠI THỨ TỰ CÁC TAB THEO YÊU CẦU CỦA CÔ
 tab1, tab2, tab3, tab4 = st.tabs([
     "🎮 Thử Thách Tương Tác", 
     "📝 Nộp Bài Tập", 
-    "📊 Bảng Điểm Lớp",
-    "🍄 Đại Chiến Bowser"
+    "🍄 Đại Chiến Bowser",
+    "📊 Bảng Điểm Lớp"
 ])
 
 # ================= TAB 1: GAME TƯƠNG TÁC =================
@@ -330,7 +320,7 @@ with tab1:
 
         if st.session_state.img_data and st.session_state.card is None:
             if st.button("🚀 Bắt đầu nhận Thử thách Bước 1!", type="primary", use_container_width=True):
-                with st.spinner("Đợi cô phân tích đề bài một chút nhé..."):
+                with st.spinner("Đợi cô phân tích đề bài theo chuẩn chương trình SGK 8..."):
                     try:
                         p_start = f"Tạo câu hỏi thử thách Bước 1 ngắn gọn. Phân loại yêu cầu: {math_mode}."
                         c_data = execute_gemini_request([st.session_state.img_data, p_start], GAME_PROMPT, is_json=True)
@@ -400,10 +390,9 @@ with tab1:
                     sol = card.get("full_solution", "")
                     svg = card.get("svg_code", "")
                     if not sol and st.session_state.img_data:
-                        with st.spinner("Đang mở khóa bài giải hoàn chỉnh..."):
-                            p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh. 
-                            Nếu là Toán Hình: Sinh kèm mã SVG chuẩn.
-                            Nếu là Toán Số: Trình bày các bước biến đổi đại số rõ ràng.
+                        with st.spinner("Đang mở khóa bài giải hoàn chỉnh và hình vẽ minh họa..."):
+                            p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh đúng chuẩn kiến thức SGK Toán 8 (Kết nối tri thức). 
+                            Nếu là Toán Hình: BẮT BUỘC sinh kèm mã SVG chuẩn vào trường svg_code.
                             Trả về JSON: {"full_solution": "...", "svg_code": "..."}"""
                             try:
                                 res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
@@ -438,8 +427,8 @@ with tab1:
                 if st.button("➡️ Sang thử thách tiếp theo", type="primary", use_container_width=True):
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. 
-                        Giữ câu hỏi và 4 phương án ngắn gọn, dễ hiểu cho học sinh lớp 8.
-                        Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải chi tiết vào full_solution."""
+                        Lưu ý bám sát chương trình SGK Toán 8 (không dùng đường trung bình nếu chưa học).
+                        Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải chi tiết vào full_solution và sinh svg_code nếu là hình học."""
                         try:
                             st.session_state.card = execute_gemini_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
                             st.session_state.step += 1
@@ -505,7 +494,7 @@ with tab2:
                     RUBRIC = f"""
 Bạn là Giám khảo chấm thi môn Toán THCS tại Việt Nam.
 Chuyên đề nộp: "{topic}".
-Đọc ảnh bài làm viết tay của học sinh và đánh giá theo Rubric thang điểm 10.
+Đọc ảnh bài làm viết tay của học sinh và đánh giá theo Rubric thang điểm 10 đúng chuẩn chương trình KNTT SGK 8.
 
 ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ:
 - Tổng điểm: [Điểm số]/10
@@ -556,42 +545,8 @@ Chuyên đề nộp: "{topic}".
                 except Exception as err:
                     st.error(f"Lỗi trong quá trình chấm bài: {err}")
 
-# ================= TAB 3: BẢNG ĐIỂM =================
+# ================= TAB 3: MINIGAME ĐẠI CHIẾN BOWSER (TỨ GIÁC) =================
 with tab3:
-    st.markdown("### 🔒 Khu Vực Quản Lý Điểm Của Giáo Viên")
-    st.caption("Dữ liệu điểm số được bảo mật để đảm bảo tính riêng tư của học sinh.")
-
-    teacher_password = st.text_input("🔑 Nhập mật khẩu giáo viên để xem sổ điểm:", type="password")
-    ADMIN_PASS = "Maiphuong2026"
-
-    if teacher_password:
-        if teacher_password == ADMIN_PASS:
-            st.success("🔓 Xác thực thành công! Chào cô Mai Phương.")
-            
-            if len(st.session_state.submission_history) == 0:
-                st.info("Chưa có học sinh nào nộp bài trong phiên làm việc này.")
-            else:
-                df = pd.DataFrame(st.session_state.submission_history)
-                st.dataframe(df, use_container_width=True)
-
-                csv_data = df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
-
-                st.write("---")
-                st.download_button(
-                    label="📗 Tải file bảng điểm (.CSV cho Google Sheets)",
-                    data=csv_data,
-                    file_name=f"Bang_Diem_Toan8_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                    mime="text/csv",
-                    type="primary",
-                    use_container_width=True
-                )
-        else:
-            st.error("⛔ Mật khẩu không chính xác! Học sinh vui lòng không truy cập khu vực này.")
-    else:
-        st.info("👉 Vui lòng nhập mật khẩu để mở khóa sổ theo dõi điểm.")
-
-# ================= TAB 4: MINIGAME ĐẠI CHIẾN BOWSER (TỨ GIÁC) =================
-with tab4:
     st.subheader("🍄 Vượt Ải Tứ Giác - Đại Chiến Bowser")
     st.caption("Auto-runner vượt 5 ải Hình học 8 (KNTT) & Hạ gục Bowser nhận +5 điểm cộng thực tế từ Cô Mai Phương!")
 
@@ -815,7 +770,7 @@ with tab4:
           stage1: [
             { level: "Nhận biết", time: 15, type: "short", q: "Tổng các góc trong một tứ giác lồi luôn bằng bao nhiêu độ? (Chỉ nhập số)", correctAnswers: ["360", "360 độ", "360°"], explain: "Định lý: Tổng các góc của một tứ giác luôn bằng 360 độ." },
             { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác luôn nằm trong một nửa mặt phẳng có bờ là đường thẳng chứa bất kì cạnh nào gọi là tứ giác gì?", correctAnswers: ["lồi", "tứ giác lồi"], explain: "Định nghĩa: Đó là tứ giác lồi." },
-            { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác lồi có thể có nhiều nhất bao nhiêu góc nhọn?", answers: ["3 góc nhọn", "4 góc nhọn", "2 góc nhọn"], correct: 0, explain: "Если có 4 góc nhọn thì tổng 4 góc < 360° (vô lý). Vậy tối đa có 3 góc nhọn." },
+            { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác lồi có thể có nhiều nhất bao nhiêu góc nhọn?", answers: ["3 góc nhọn", "4 góc nhọn", "2 góc nhọn"], correct: 0, explain: "Nếu có 4 góc nhọn thì tổng 4 góc < 360° (vô lý). Vậy tối đa có 3 góc nhọn." },
             { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác ABCD có góc A = 70°, B = 90°, C = 80°. Tính số đo góc D (nhập số):", correctAnswers: ["120", "120 độ", "120°"], explain: "Góc D = 360° - (70° + 90° + 80°) = 120°." }
           ],
           stage2: [
@@ -1226,7 +1181,7 @@ with tab4:
           const syncStatusText = document.getElementById("sync-status-text");
           const retryBtn = document.getElementById("btn-retry-sync");
 
-          syncStatusText.innerHTML = "⏳ Đang gửi kết quả về Google Sheets của cô...";
+          syncStatusText.innerHTML = "⏳ Đang kết nối gửi kết quả về Google Sheets của cô...";
           syncStatusText.className = "text-xs text-yellow-400 font-medium";
           retryBtn.classList.add("hidden");
 
@@ -1256,3 +1211,37 @@ with tab4:
 
     mario_game_code = mario_game_code.replace("WEBHOOK_URL_PLACEHOLDER", sheet_webhook)
     components.html(mario_game_code, height=720, scrolling=True)
+
+# ================= TAB 4: BẢNG ĐIỂM LỚP =================
+with tab4:
+    st.markdown("### 🔒 Khu Vực Quản Lý Điểm Của Giáo Viên")
+    st.caption("Dữ liệu điểm số được bảo mật để đảm bảo tính riêng tư của học sinh.")
+
+    teacher_password = st.text_input("🔑 Nhập mật khẩu giáo viên để xem sổ điểm:", type="password", key="teacher_pass_tab4")
+    ADMIN_PASS = "Maiphuong2026"
+
+    if teacher_password:
+        if teacher_password == ADMIN_PASS:
+            st.success("🔓 Xác thực thành công! Chào cô Mai Phương.")
+            
+            if len(st.session_state.submission_history) == 0:
+                st.info("Chưa có học sinh nào nộp bài trong phiên làm việc này.")
+            else:
+                df = pd.DataFrame(st.session_state.submission_history)
+                st.dataframe(df, use_container_width=True)
+
+                csv_data = df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
+
+                st.write("---")
+                st.download_button(
+                    label="📗 Tải file bảng điểm (.CSV cho Google Sheets)",
+                    data=csv_data,
+                    file_name=f"Bang_Diem_Toan8_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    mime="text/csv",
+                    type="primary",
+                    use_container_width=True
+                )
+        else:
+            st.error("⛔ Mật khẩu không chính xác! Học sinh vui lòng không truy cập khu vực này.")
+    else:
+        st.info("👉 Vui lòng nhập mật khẩu để mở khóa sổ theo dõi điểm.")
