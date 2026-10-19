@@ -129,7 +129,7 @@ def format_math(text: str) -> str:
     text = re.sub(r"\\notin", " ∉ ", text)
     text = re.sub(r"\^?\\circ", "°", text)
     text = re.sub(r"\\degree", "°", text)
-    text = re.replace("°°", "°")
+    text = text.replace("°°", "°")
 
     text = re.sub(r"\\(?:Leftrightarrow|iff)|<=>", " ⇔ ", text)
     text = re.sub(r"\\(?:Rightarrow|implies)|=>", " ⇒ ", text)
@@ -565,7 +565,7 @@ Chuyên đề nộp: "{topic}".
                 except Exception as err:
                     st.error(f"Lỗi trong quá trình chấm bài: {err}")
 
-# ================= TAB 3: MINIGAME ĐẠI CHIẾN BOWSER (CẢI TIẾN GIAO DIỆN S SINH ĐỘNG) =================
+# ================= TAB 3: MINIGAME ĐẠI CHIẾN BOWSER (TỨ GIÁC) =================
 with tab3:
     st.subheader("🍄 Vượt Ải Tứ Giác - Đại Chiến Bowser")
     st.caption("Auto-runner vượt 5 ải Hình học 8 (KNTT) & Hạ gục Bowser nhận +5 điểm cộng thực tế từ Cô Mai Phương!")
@@ -913,14 +913,12 @@ with tab3:
         function drawWorld() {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           
-          // Bầu trời Gradient ngọt ngào
           const skyGrad = ctx.createLinearGradient(0, 0, 0, 400);
           skyGrad.addColorStop(0, '#38bdf8');
           skyGrad.addColorStop(1, '#bae6fd');
           ctx.fillStyle = skyGrad;
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          // Vẽ Mây bồng bềnh
           ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
           clouds.forEach(c => {
             ctx.beginPath();
@@ -930,20 +928,17 @@ with tab3:
             ctx.fill();
           });
 
-          // Hoa hồng cam chìm phong cách màu nước trang trí ở nền
           ctx.fillStyle = "rgba(251, 146, 60, 0.2)";
           ctx.beginPath();
           ctx.arc(750, 150, 45, 0, Math.PI * 2);
           ctx.arc(800, 130, 35, 0, Math.PI * 2);
           ctx.fill();
 
-          // Mặt đất xanh mướt & Lớp đất nâu ấm áp
           ctx.fillStyle = "#16a34a";
           ctx.fillRect(0, 382, canvas.width, 18);
           ctx.fillStyle = "#78350f";
           ctx.fillRect(0, 400, canvas.width, 84);
 
-          // Hộp bí mật ? ngọt ngào sắc nét
           if (!gameState.inBossFight && mysteryBox.x > -60) {
             ctx.fillStyle = "#f59e0b";
             ctx.fillRect(mysteryBox.x, mysteryBox.y, 48, 48);
@@ -956,30 +951,23 @@ with tab3:
             ctx.fillText("?", mysteryBox.x + 13, mysteryBox.y + 34);
           }
 
-          // Nhân vật Mario phong cách cartoon
           const mx = mario.x;
           const my = mario.y;
-          // Mũ đỏ
           ctx.fillStyle = "#dc2626";
           ctx.fillRect(mx + 4, my, 24, 12);
           ctx.fillRect(mx + 2, my + 6, 28, 6);
-          // Khuôn mặt
           ctx.fillStyle = "#fed7aa";
           ctx.fillRect(mx + 6, my + 12, 20, 12);
-          // Áo đỏ
           ctx.fillStyle = "#ef4444";
           ctx.fillRect(mx + 2, my + 24, 28, 12);
-          // Quần xanh
           ctx.fillStyle = "#1d4ed8";
           ctx.fillRect(mx + 6, my + 34, 20, 10);
           
-          // Chân di chuyển
           const legOffset = Math.sin(mario.legAnim) * 5;
           ctx.fillStyle = "#78350f";
           ctx.fillRect(mx + 4, my + 42, 8, 6 + legOffset);
           ctx.fillRect(mx + 20, my + 42, 8, 6 - legOffset);
 
-          // Cầu lửa khi đánh Boss
           if (fireball.active) {
             ctx.fillStyle = "#f97316";
             ctx.beginPath();
@@ -991,7 +979,6 @@ with tab3:
             ctx.fill();
           }
 
-          // Trùm Bowser
           if (gameState.inBossFight && !gameState.defeatedBoss) {
             const bx = 670, by = 285;
             ctx.fillStyle = "#064e3b";
@@ -1004,7 +991,6 @@ with tab3:
             ctx.fillStyle = "#dc2626";
             ctx.fillRect(bx - 4, by + 4, 30, 22);
 
-            // Thanh máu Bowser
             ctx.fillStyle = "#000000";
             ctx.fillRect(bx - 25, by - 38, 130, 18);
             ctx.fillStyle = "#ef4444";
@@ -1252,7 +1238,7 @@ with tab3:
           const syncStatusText = document.getElementById("sync-status-text");
           const retryBtn = document.getElementById("btn-retry-sync");
 
-          syncStatusText.innerHTML = "⏳ Đang gửi kết quả về Google Sheets của cô...";
+          syncStatusText.innerHTML = "⏳ Đang kết nối gửi kết quả về Google Sheets của cô...";
           syncStatusText.className = "text-xs text-yellow-400 font-medium";
           retryBtn.classList.add("hidden");
 
