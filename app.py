@@ -107,7 +107,7 @@ if not API_KEY:
 
 # Khởi tạo Gemini Client
 client = genai.Client(api_key=API_KEY)
-MODEL_NAME = "gemini-3.8-flash"
+MODEL_NAME = "gemini-2.5-flash"
 
 # ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC TOÁN 8 =================
 def format_math(text: str) -> str:
@@ -129,7 +129,7 @@ def format_math(text: str) -> str:
     text = re.sub(r"\\notin", " ∉ ", text)
     text = re.sub(r"\^?\\circ", "°", text)
     text = re.sub(r"\\degree", "°", text)
-    text = re.replace("°°", "°")
+    text = text.replace("°°", "°")
 
     text = re.sub(r"\\(?:Leftrightarrow|iff)|<=>", " ⇔ ", text)
     text = re.sub(r"\\(?:Rightarrow|implies)|=>", " ⇒ ", text)
@@ -283,7 +283,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# THỨ TỰ CÁC TAB: Tab 1 (Game Socratic), Tab 2 (Nộp bài), Tab 3 (Minigame Bowser), Tab 4 (Bảng điểm)
 tab1, tab2, tab3, tab4 = st.tabs([
     "🎮 Thử Thách Tương Tác", 
     "📝 Nộp Bài Tập", 
@@ -393,7 +392,7 @@ with tab1:
                         with st.spinner("Đang mở khóa bài giải hoàn chỉnh và hình vẽ minh họa chuẩn lớp 8..."):
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh đúng chuẩn kiến thức SGK Toán 8 (Kết nối tri thức). 
                             TUYỆT ĐỐI KHÔNG dùng kiến thức đường tròn.
-                            Nếu là Toán Hình: BẮT BUỘC sinh mã SVG chuẩn (KHÔNG vẽ đường tròn) vào trường svg_code.
+                            Если là Toán Hình: BẮT BUỘC sinh mã SVG chuẩn (KHÔNG vẽ đường tròn) vào trường svg_code.
                             Trả về JSON: {"full_solution": "...", "svg_code": "..."}"""
                             try:
                                 res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
@@ -429,7 +428,7 @@ with tab1:
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. 
                         TUYỆT ĐỐI KHÔNG dùng đường tròn hoặc kiến thức ngoài chương trình lớp 8.
-                        Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải chi tiết vào full_solution và sinh svg_code chuẩn."""
+                        Если đây là bước cuối, hãy đặt is_finished = true, viết bài giải chi tiết vào full_solution và sinh svg_code chuẩn."""
                         try:
                             st.session_state.card = execute_gemini_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
                             st.session_state.step += 1
@@ -771,7 +770,7 @@ with tab3:
           stage1: [
             { level: "Nhận biết", time: 15, type: "short", q: "Tổng các góc trong một tứ giác lồi luôn bằng bao nhiêu độ? (Chỉ nhập số)", correctAnswers: ["360", "360 độ", "360°"], explain: "Định lý: Tổng các góc của một tứ giác luôn bằng 360 độ." },
             { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác luôn nằm trong một nửa mặt phẳng có bờ là đường thẳng chứa bất kì cạnh nào gọi là tứ giác gì?", correctAnswers: ["lồi", "tứ giác lồi"], explain: "Định nghĩa: Đó là tứ giác lồi." },
-            { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác lồi có thể có nhiều nhất bao nhiêu góc nhọn?", answers: ["3 góc nhọn", "4 góc nhọn", "2 góc nhọn"], correct: 0, explain: "Если có 4 góc nhọn thì tổng 4 góc < 360° (vô lý). Vậy tối đa có 3 góc nhọn." },
+            { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác lồi có thể có nhiều nhất bao nhiêu góc nhọn?", answers: ["3 góc nhọn", "4 góc nhọn", "2 góc nhọn"], correct: 0, explain: "Nếu có 4 góc nhọn thì tổng 4 góc < 360° (vô lý). Vậy tối đa có 3 góc nhọn." },
             { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác ABCD có góc A = 70°, B = 90°, C = 80°. Tính số đo góc D (nhập số):", correctAnswers: ["120", "120 độ", "120°"], explain: "Góc D = 360° - (70° + 90° + 80°) = 120°." }
           ],
           stage2: [
@@ -1182,7 +1181,7 @@ with tab3:
           const syncStatusText = document.getElementById("sync-status-text");
           const retryBtn = document.getElementById("btn-retry-sync");
 
-          syncStatusText.innerHTML = "⏳ Đang gửi kết quả về Google Sheets của cô...";
+          syncStatusText.innerHTML = "⏳ Đang kết nối gửi kết quả về Google Sheets của cô...";
           syncStatusText.className = "text-xs text-yellow-400 font-medium";
           retryBtn.classList.add("hidden");
 
