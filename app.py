@@ -411,7 +411,7 @@ with tab1:
                 if card.get("subject_type") == "geometry":
                     st.markdown("#### 📐 Bảng vẽ Hình học động GeoGebra (Dựng hình chuẩn theo đề bài):")
                     cmds = st.session_state.reward_ggb or ["A = (0, 4)", "B = (-3, 0)", "C = (3, 0)", "Polygon(A, B, C)"]
-                    commands_js = "".join([f'api.evalCommand("{cmd}");\n' for cmd in cmds])
+                    commands_js = "".join([f'try {{ api.evalCommand("{cmd}"); }} catch(e) {{}} \n' for cmd in cmds])
 
                     geogebra_html = f"""
                     <div class="geogebra-container">
