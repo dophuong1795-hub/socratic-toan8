@@ -190,7 +190,7 @@ QUY TẮC BẮT BUỘC TUÂN THỦ VỀ KIẾN THỨC TOÁN 8:
 3. KÝ HIỆU TOÁN: Dùng ký hiệu Unicode thuần (Δ, ∠, ⊥, //, ², ³, ⇔, ⇒).
 4. ĐỐI VỚI is_finished = true:
    - full_solution: Bài giải chi tiết chuẩn mực đúng tiến độ SGK 8 (không nhắc đến đường tròn).
-   - svg_code: Trả về chuỗi rỗng "" (vì ứng dụng đã tích hợp GeoGebra Applet hiển thị hình học động chính xác tuyệt đối).
+   - ggb_commands: Mảng các chuỗi lệnh GeoGebra (tiếng Anh) để dựng hình chính xác đúng với đề bài trong ảnh (Ví dụ: ["A = (0, 4)", "B = (-3, 0)", "C = (3, 0)", "Polygon(A, B, C)", "H = Orthocenter(A, B, C)"]).
 
 TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
 {
@@ -208,7 +208,7 @@ TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
   "explanation": "Giải thích ngắn theo định lý hình học/hằng đẳng thức lớp 8",
   "is_finished": false,
   "full_solution": "",
-  "svg_code": ""
+  "ggb_commands": []
 }
 """
 
@@ -306,6 +306,8 @@ with tab1:
         st.session_state.img_data = None
     if "reward" not in st.session_state:
         st.session_state.reward = None
+    if "reward_ggb" not in st.session_state:
+        st.session_state.reward_ggb = None
 
     with st.expander("📸 Đề bài / Ảnh chụp bài toán (Số học, Đại số hoặc Hình học)", expanded=(st.session_state.card is None)):
         up_game_img = st.file_uploader("Tải/chụp ảnh bài toán:", type=["jpg", "png", "jpeg"], key="up_game_img")
@@ -326,6 +328,7 @@ with tab1:
                         st.session_state.step = 1
                         st.session_state.answered = False
                         st.session_state.reward = None
+                        st.session_state.reward_ggb = None
                         st.rerun()
                     except Exception as err:
                         st.error(f"Lỗi nạp thử thách: {err}")
@@ -384,17 +387,21 @@ with tab1:
 
                 if not st.session_state.reward:
                     sol = card.get("full_solution", "")
+                    ggb_cmds = card.get("ggb_commands", [])
                     if not sol and st.session_state.img_data:
-                        with st.spinner("Đang mở khóa bài giải hoàn chỉnh chuẩn lớp 8..."):
+                        with st.spinner("Đang mở khóa bài giải hoàn chỉnh và lệnh dựng hình GeoGebra..."):
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh đúng chuẩn kiến thức SGK Toán 8 (Kết nối tri thức). 
                             TUYỆT ĐỐI KHÔNG dùng kiến thức đường tròn.
-                            Trả về JSON: {"full_solution": "..."}"""
+                            Nếu là Toán Hình: BẮT BUỘC sinh mảng ggb_commands chứa các lệnh GeoGebra tiếng Anh để dựng đúng hình của đề bài.
+                            Trả về JSON: {"full_solution": "...", "ggb_commands": ["..."]}"""
                             try:
                                 res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
                                 sol = res_final.get("full_solution", "")
+                                ggb_cmds = res_final.get("ggb_commands", [])
                             except Exception as e:
                                 sol = "Đã xảy ra lỗi khi tạo lời giải chi tiết."
                     st.session_state.reward = sol
+                    st.session_state.reward_ggb = ggb_cmds
 
                 st.markdown("""
                 <div class="reward-box">
@@ -403,31 +410,30 @@ with tab1:
                 </div>
                 """, unsafe_allow_html=True)
 
-                # TÍCH HỢP GEOGEBRA APPLET HIỂN THỊ HÌNH HỌC ĐỘNG CHUẨN XÁC TUYỆT ĐỐI
                 if card.get("subject_type") == "geometry":
-                    st.markdown("#### 📐 Bảng vẽ Hình học động GeoGebra (Chuẩn xác tuyệt đối):")
-                    geogebra_html = """
+                    st.markdown("#### 📐 Bảng vẽ Hình học động GeoGebra (Dựng hình chuẩn theo đề bài):")
+                    cmds = st.session_state.reward_ggb or ["A = (0, 4)", "B = (-3, 0)", "C = (3, 0)", "Polygon(A, B, C)"]
+                    commands_js = "".join([f'api.evalCommand("{cmd}");\n' for cmd in cmds])
+
+                    geogebra_html = f"""
                     <div class="geogebra-container">
                         <script src="https://www.geogebra.org/apps/deployggb.js"></script>
                         <div id="ggb-element"></div>
                         <script>
-                        var ggbApp = new GGBApplet({
+                        var ggbApp = new GGBApplet({{
                             "ui:design": "simple",
                             "showToolBar": false,
                             "showAlgebraInput": false,
                             "showMenuBar": false,
                             "width": 640,
                             "height": 400,
-                            "appletOnLoad": function(api) {
-                                api.evalCommand("A = (0, 4)");
-                                api.evalCommand("B = (-3, 0)");
-                                api.evalCommand("C = (3, 0)");
-                                api.evalCommand("Polygon(A, B, C)");
-                            }
-                        }, true);
-                        window.addEventListener("load", function() {
+                            "appletOnLoad": function(api) {{
+                                {commands_js}
+                            }}
+                        }}, true);
+                        window.addEventListener("load", function() {{
                             ggbApp.inject('ggb-element');
-                        });
+                        }});
                         </script>
                     </div>
                     """
@@ -462,6 +468,7 @@ with tab1:
             st.session_state.selected_idx = None
             st.session_state.img_data = None
             st.session_state.reward = None
+            st.session_state.reward_ggb = None
             st.rerun()
 
 # ================= TAB 2: NỘP BÀI & CHẤM ĐIỂM =================
