@@ -129,7 +129,7 @@ def format_math(text: str) -> str:
     text = re.sub(r"\\notin", " ∉ ", text)
     text = re.sub(r"\^?\\circ", "°", text)
     text = re.sub(r"\\degree", "°", text)
-    text = re.replace("°°", "°")
+    text = text.replace("°°", "°")
 
     text = re.sub(r"\\(?:Leftrightarrow|iff)|<=>", " ⇔ ", text)
     text = re.sub(r"\\(?:Rightarrow|implies)|=>", " ⇒ ", text)
