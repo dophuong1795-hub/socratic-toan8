@@ -1238,7 +1238,7 @@ with tab3:
           const syncStatusText = document.getElementById("sync-status-text");
           const retryBtn = document.getElementById("btn-retry-sync");
 
-          syncStatusText.innerHTML = "⏳ Đang kết nối gửi kết quả về Google Sheets của cô...";
+          syncStatusText.innerHTML = "⏳ Đang gửi kết quả về Google Sheets của cô...";
           syncStatusText.className = "text-xs text-yellow-400 font-medium";
           retryBtn.classList.add("hidden");
 
