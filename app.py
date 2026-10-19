@@ -603,10 +603,10 @@ with tab4:
     st.caption("Auto-runner vượt 5 ải Hình học 8 (KNTT) & Hạ gục Bowser nhận +5 điểm cộng thực tế từ Cô Mai Phương!")
 
     # Lấy Webhook Google Sheet từ secrets (nếu có) để truyền trực tiếp vào HTML Game
-    sheet_webhook = st.secrets.get("GOOGLE_SHEET_WEBHOOK_URL", "https://script.google.com/macros/s/AKfycbwYEXAMPLE_REPLACE_HERE/exec")
+    sheet_webhook = st.secrets.get("GOOGLE_SHEET_WEBAPP_URL", "https://script.google.com/macros/s/AKfycbwYEXAMPLE_REPLACE_HERE/exec")
 
-    # Toàn bộ mã nguồn Game hoàn chỉnh
-    mario_game_code = f"""
+    # Mã nguồn Game hoàn chỉnh đã escape an toàn ký tự f-string
+    mario_game_code = """
     <!DOCTYPE html>
     <html lang="vi">
     <head>
@@ -615,17 +615,17 @@ with tab4:
       <script src="https://cdn.tailwindcss.com"></script>
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
-        .font-pixel {{ font-family: 'Press Start 2P', monospace; }}
-        .font-body {{ font-family: 'Plus Jakarta Sans', sans-serif; }}
-        .shake {{
+        .font-pixel { font-family: 'Press Start 2P', monospace; }
+        .font-body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .shake {
           animation: shake-anim 0.35s cubic-bezier(.36,.07,.19,.97) both;
-        }}
-        @keyframes shake-anim {{
-          10%, 90% {{ transform: translate3d(-2px, 0, 0); }}
-          20%, 80% {{ transform: translate3d(4px, 0, 0); }}
-          30%, 50%, 70% {{ transform: translate3d(-6px, 0, 0); }}
-          40%, 60% {{ transform: translate3d(6px, 0, 0); }}
-        }}
+        }
+        @keyframes shake-anim {
+          10%, 90% { transform: translate3d(-2px, 0, 0); }
+          20%, 80% { transform: translate3d(4px, 0, 0); }
+          30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+          40%, 60% { transform: translate3d(6px, 0, 0); }
+        }
       </style>
     </head>
     <body class="bg-slate-950 text-slate-100 font-body min-h-screen flex flex-col items-center justify-start p-2 select-none">
@@ -778,16 +778,15 @@ with tab4:
       </div>
 
       <script>
-        const GOOGLE_SCRIPT_WEBAPP_URL = "{sheet_webhook}";
+        const GOOGLE_SCRIPT_WEBAPP_URL = "WEBHOOK_URL_PLACEHOLDER";
 
-        // Web Audio API
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         let isSoundMuted = false;
 
-        function playTone(freq, type, duration, vol = 0.15) {{
+        function playTone(freq, type, duration, vol = 0.15) {
           if (isSoundMuted) return;
           if (audioCtx.state === 'suspended') audioCtx.resume();
-          try {{
+          try {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = type;
@@ -798,164 +797,161 @@ with tab4:
             gain.connect(audioCtx.destination);
             osc.start();
             osc.stop(audioCtx.currentTime + duration);
-          }} catch(e) {{}}
-        }}
+          } catch(e) {}
+        }
 
-        function sndJump() {{ playTone(180, 'square', 0.15, 0.12); setTimeout(() => playTone(450, 'square', 0.15, 0.12), 60); }}
-        function sndCoin() {{ playTone(988, 'square', 0.08, 0.15); setTimeout(() => playTone(1318, 'square', 0.22, 0.15), 70); }}
-        function sndFireball() {{ playTone(320, 'triangle', 0.12, 0.25); setTimeout(() => playTone(140, 'sawtooth', 0.3, 0.25), 80); }}
-        function sndWrong() {{ playTone(200, 'sawtooth', 0.2, 0.2); setTimeout(() => playTone(120, 'sawtooth', 0.3, 0.2), 150); }}
-        function sndRoar() {{ playTone(85, 'sawtooth', 0.45, 0.3); setTimeout(() => playTone(60, 'sawtooth', 0.5, 0.3), 180); }}
+        function sndJump() { playTone(180, 'square', 0.15, 0.12); setTimeout(() => playTone(450, 'square', 0.15, 0.12), 60); }
+        function sndCoin() { playTone(988, 'square', 0.08, 0.15); setTimeout(() => playTone(1318, 'square', 0.22, 0.15), 70); }
+        function sndFireball() { playTone(320, 'triangle', 0.12, 0.25); setTimeout(() => playTone(140, 'sawtooth', 0.3, 0.25), 80); }
+        function sndWrong() { playTone(200, 'sawtooth', 0.2, 0.2); setTimeout(() => playTone(120, 'sawtooth', 0.3, 0.2), 150); }
+        function sndRoar() { playTone(85, 'sawtooth', 0.45, 0.3); setTimeout(() => playTone(60, 'sawtooth', 0.5, 0.3), 180); }
 
         let bgmInterval = null;
         const bgmNotes = [261.6, 261.6, 0, 261.6, 0, 207.6, 233.1, 261.6];
         let noteIdx = 0;
-        function startBgm() {{
+        function startBgm() {
           if (bgmInterval || isSoundMuted) return;
-          bgmInterval = setInterval(() => {{
-            if (!gameState.isPaused && !gameState.isGameOver && bgmNotes[noteIdx] > 0) {{
+          bgmInterval = setInterval(() => {
+            if (!gameState.isPaused && !gameState.isGameOver && bgmNotes[noteIdx] > 0) {
               playTone(bgmNotes[noteIdx], 'square', 0.1, 0.03);
-            }}
+            }
             noteIdx = (noteIdx + 1) % bgmNotes.length;
-          }}, 220);
-        }}
-        function stopBgm() {{ if (bgmInterval) {{ clearInterval(bgmInterval); bgmInterval = null; }} }}
+          }, 220);
+        }
+        function stopBgm() { if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; } }
 
-        document.getElementById("btn-toggle-sound").onclick = () => {{
+        document.getElementById("btn-toggle-sound").onclick = () => {
           isSoundMuted = !isSoundMuted;
           document.getElementById("btn-toggle-sound").textContent = isSoundMuted ? "🔇" : "🔊";
           if (isSoundMuted) stopBgm(); else startBgm();
-        }};
+        };
 
-        // Ngân hàng câu hỏi
-        const rawQuestionPool = {{
+        const rawQuestionPool = {
           stage1: [
-            {{ level: "Nhận biết", time: 15, type: "short", q: "Tổng các góc trong một tứ giác lồi luôn bằng bao nhiêu độ? (Chỉ nhập số)", correctAnswers: ["360", "360 độ", "360°"], explain: "Định lý: Tổng các góc của một tứ giác luôn bằng 360 độ." }},
-            {{ level: "Nhận biết", time: 15, type: "short", q: "Tứ giác luôn nằm trong một nửa mặt phẳng có bờ là đường thẳng chứa bất kì cạnh nào gọi là tứ giác gì?", correctAnswers: ["lồi", "tứ giác lồi"], explain: "Định nghĩa: Đó là tứ giác lồi." }},
-            {{ level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác lồi có thể có nhiều nhất bao nhiêu góc nhọn?", answers: ["3 góc nhọn", "4 góc nhọn", "2 góc nhọn"], correct: 0, explain: "Nếu có 4 góc nhọn thì tổng 4 góc < 360° (vô lý). Vậy tối đa có 3 góc nhọn." }},
-            {{ level: "Vận dụng", time: 30, type: "short", q: "Tứ giác ABCD có góc A = 70°, B = 90°, C = 80°. Tính số đo góc D (nhập số):", correctAnswers: ["120", "120 độ", "120°"], explain: "Góc D = 360° - (70° + 90° + 80°) = 120°." }}
+            { level: "Nhận biết", time: 15, type: "short", q: "Tổng các góc trong một tứ giác lồi luôn bằng bao nhiêu độ? (Chỉ nhập số)", correctAnswers: ["360", "360 độ", "360°"], explain: "Định lý: Tổng các góc của một tứ giác luôn bằng 360 độ." },
+            { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác luôn nằm trong một nửa mặt phẳng có bờ là đường thẳng chứa bất kì cạnh nào gọi là tứ giác gì?", correctAnswers: ["lồi", "tứ giác lồi"], explain: "Định nghĩa: Đó là tứ giác lồi." },
+            { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác lồi có thể có nhiều nhất bao nhiêu góc nhọn?", answers: ["3 góc nhọn", "4 góc nhọn", "2 góc nhọn"], correct: 0, explain: "Nếu có 4 góc nhọn thì tổng 4 góc < 360° (vô lý). Vậy tối đa có 3 góc nhọn." },
+            { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác ABCD có góc A = 70°, B = 90°, C = 80°. Tính số đo góc D (nhập số):", correctAnswers: ["120", "120 độ", "120°"], explain: "Góc D = 360° - (70° + 90° + 80°) = 120°." }
           ],
           stage2: [
-            {{ level: "Nhận biết", time: 15, type: "short", q: "Hình thang có hai góc kề một đáy bằng nhau là hình thang gì?", correctAnswers: ["cân", "hình thang cân"], explain: "Định nghĩa SGK: Hình thang có 2 góc kề một đáy bằng nhau là hình thang cân." }},
-            {{ level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình thang cân, hai đường chéo có mối quan hệ gì với nhau?", answers: ["Bằng nhau", "Vuông góc với nhau", "Cắt nhau tại trung điểm"], correct: 0, explain: "Tính chất SGK: Trong hình thang cân, hai đường chéo bằng nhau." }},
-            {{ level: "Thông hiểu", time: 20, type: "short", q: "Hình thang có hai đường chéo bằng nhau là hình thang gì?", correctAnswers: ["cân", "hình thang cân"], explain: "Dấu hiệu nhận biết: Hình thang có 2 đường chéo bằng nhau là hình thang cân." }},
-            {{ level: "Vận dụng", time: 30, type: "short", q: "Hình thang cân ABCD (AB // CD) có góc D = 70°. Tính số đo góc A kề cạnh bên AD (nhập số):", correctAnswers: ["110", "110 độ", "110°"], explain: "Vì AB // CD nên hai góc trong cùng phía bù nhau: Góc A = 180° - 70° = 110°." }}
+            { level: "Nhận biết", time: 15, type: "short", q: "Hình thang có hai góc kề một đáy bằng nhau là hình thang gì?", correctAnswers: ["cân", "hình thang cân"], explain: "Định nghĩa SGK: Hình thang có 2 góc kề một đáy bằng nhau là hình thang cân." },
+            { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình thang cân, hai đường chéo có mối quan hệ gì với nhau?", answers: ["Bằng nhau", "Vuông góc với nhau", "Cắt nhau tại trung điểm"], correct: 0, explain: "Tính chất SGK: Trong hình thang cân, hai đường chéo bằng nhau." },
+            { level: "Thông hiểu", time: 20, type: "short", q: "Hình thang có hai đường chéo bằng nhau là hình thang gì?", correctAnswers: ["cân", "hình thang cân"], explain: "Dấu hiệu nhận biết: Hình thang có 2 đường chéo bằng nhau là hình thang cân." },
+            { level: "Vận dụng", time: 30, type: "short", q: "Hình thang cân ABCD (AB // CD) có góc D = 70°. Tính số đo góc A kề cạnh bên AD (nhập số):", correctAnswers: ["110", "110 độ", "110°"], explain: "Vì AB // CD nên hai góc trong cùng phía bù nhau: Góc A = 180° - 70° = 110°." }
           ],
           stage3: [
-            {{ level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có các cạnh đối song song được gọi là hình gì?", correctAnswers: ["hình bình hành", "bình hành"], explain: "Định nghĩa: Hình bình hành là tứ giác có các cạnh đối song song." }},
-            {{ level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình bình hành, hai đường chéo có tính chất gì?", answers: ["Cắt nhau tại trung điểm của mỗi đường", "Vuông góc với nhau", "Bằng nhau"], correct: 0, explain: "Tính chất: Hai đường chéo cắt nhau tại trung điểm của mỗi đường." }},
-            {{ level: "Thông hiểu", time: 20, type: "short", q: "Tứ giác có hai đường chéo cắt nhau tại trung điểm của mỗi đường là hình gì?", correctAnswers: ["hình bình hành", "bình hành"], explain: "Dấu hiệu nhận biết: Tứ giác có 2 đường chéo cắt nhau tại trung điểm là hình bình hành." }},
-            {{ level: "Thông hiểu", time: 20, type: "mcq", q: "Hình thang có hai cạnh bên song song là hình gì?", answers: ["Hình bình hành", "Hình thang cân", "Hình chữ nhật"], correct: 0, explain: "Nhận xét SGK: Hình thang có 2 cạnh bên song song là hình bình hành." }},
-            {{ level: "Vận dụng", time: 30, type: "short", q: "Hình bình hành ABCD có góc A = 115°. Tính số đo góc đối C (nhập số):", correctAnswers: ["115", "115 độ", "115°"], explain: "Tính chất: Hai góc đối bằng nhau nên góc C = góc A = 115°." }}
+            { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có các cạnh đối song song được gọi là hình gì?", correctAnswers: ["hình bình hành", "bình hành"], explain: "Định nghĩa: Hình bình hành là tứ giác có các cạnh đối song song." },
+            { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình bình hành, hai đường chéo có tính chất gì?", answers: ["Cắt nhau tại trung điểm của mỗi đường", "Vuông góc với nhau", "Bằng nhau"], correct: 0, explain: "Tính chất: Hai đường chéo cắt nhau tại trung điểm của mỗi đường." },
+            { level: "Thông hiểu", time: 20, type: "short", q: "Tứ giác có hai đường chéo cắt nhau tại trung điểm của mỗi đường là hình gì?", correctAnswers: ["hình bình hành", "bình hành"], explain: "Dấu hiệu nhận biết: Tứ giác có 2 đường chéo cắt nhau tại trung điểm là hình bình hành." },
+            { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình thang có hai cạnh bên song song là hình gì?", answers: ["Hình bình hành", "Hình thang cân", "Hình chữ nhật"], correct: 0, explain: "Nhận xét SGK: Hình thang có 2 cạnh bên song song là hình bình hành." },
+            { level: "Vận dụng", time: 30, type: "short", q: "Hình bình hành ABCD có góc A = 115°. Tính số đo góc đối C (nhập số):", correctAnswers: ["115", "115 độ", "115°"], explain: "Tính chất: Hai góc đối bằng nhau nên góc C = góc A = 115°." }
           ],
           stage4: [
-            {{ level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có bốn góc vuông được gọi là hình gì?", correctAnswers: ["hình chữ nhật", "chữ nhật"], explain: "Định nghĩa: Hình chữ nhật là tứ giác có bốn góc vuông." }},
-            {{ level: "Thông hiểu", time: 20, type: "short", q: "Hình bình hành có hai đường chéo bằng nhau là hình gì?", correctAnswers: ["hình chữ nhật", "chữ nhật"], explain: "Dấu hiệu nhận biết: Hình bình hành có 2 đường chéo bằng nhau là hình chữ nhật." }},
-            {{ level: "Thông hiểu", time: 20, type: "short", q: "Hình thang cân có một góc vuông là hình gì?", correctAnswers: ["hình chữ nhật", "chữ nhật"], explain: "Dấu hiệu: Hình thang cân có 1 góc vuông là hình chữ nhật." }},
-            {{ level: "Thông hiểu", time: 20, type: "mcq", q: "Trong tam giác vuông, đường trung tuyến ứng với cạnh huyền có độ dài bằng mấy phần cạnh huyền?", answers: ["Một nửa cạnh huyền", "Bằng cạnh huyền", "Gấp đôi cạnh huyền"], correct: 0, explain: "Định lý: Đường trung tuyến ứng với cạnh huyền bằng nửa cạnh huyền." }},
-            {{ level: "Vận dụng", time: 30, type: "short", q: "Cho tam giác ABC vuông tại A có cạnh huyền BC = 16 cm. Độ dài đường trung tuyến AM bằng mấy cm? (Nhập số):", correctAnswers: ["8", "8 cm", "8cm"], explain: "AM = BC / 2 = 16 / 2 = 8 cm." }}
+            { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có bốn góc vuông được gọi là hình gì?", correctAnswers: ["hình chữ nhật", "chữ nhật"], explain: "Định nghĩa: Hình chữ nhật là tứ giác có bốn góc vuông." },
+            { level: "Thông hiểu", time: 20, type: "short", q: "Hình bình hành có hai đường chéo bằng nhau là hình gì?", correctAnswers: ["hình chữ nhật", "chữ nhật"], explain: "Dấu hiệu nhận biết: Hình bình hành có 2 đường chéo bằng nhau là hình chữ nhật." },
+            { level: "Thông hiểu", time: 20, type: "short", q: "Hình thang cân có một góc vuông là hình gì?", correctAnswers: ["hình chữ nhật", "chữ nhật"], explain: "Dấu hiệu: Hình thang cân có 1 góc vuông là hình chữ nhật." },
+            { level: "Thông hiểu", time: 20, type: "mcq", q: "Trong tam giác vuông, đường trung tuyến ứng với cạnh huyền có độ dài bằng mấy phần cạnh huyền?", answers: ["Một nửa cạnh huyền", "Bằng cạnh huyền", "Gấp đôi cạnh huyền"], correct: 0, explain: "Định lý: Đường trung tuyến ứng với cạnh huyền bằng nửa cạnh huyền." },
+            { level: "Vận dụng", time: 30, type: "short", q: "Cho tam giác ABC vuông tại A có cạnh huyền BC = 16 cm. Độ dài đường trung tuyến AM bằng mấy cm? (Nhập số):", correctAnswers: ["8", "8 cm", "8cm"], explain: "AM = BC / 2 = 16 / 2 = 8 cm." }
           ],
           stage5: [
-            {{ level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có bốn cạnh bằng nhau là hình gì?", correctAnswers: ["hình thoi", "thoi"], explain: "Định nghĩa: Hình thoi là tứ giác có bốn cạnh bằng nhau." }},
-            {{ level: "Thông hiểu", time: 20, type: "mcq", q: "Trong hình thoi, hai đường chéo có tính chất đặc trưng nào sau đây?", answers: ["Vuông góc với nhau và là tia phân giác các góc", "Bằng nhau và song song", "Cắt nhau tại 1/3 mỗi đường"], correct: 0, explain: "Tính chất: Hai đường chéo vuông góc và là phân giác các góc của hình thoi." }},
-            {{ level: "Thông hiểu", time: 20, type: "short", q: "Hình bình hành có hai đường chéo vuông góc với nhau là hình gì?", correctAnswers: ["hình thoi", "thoi"], explain: "Dấu hiệu: Hình bình hành có 2 đường chéo vuông góc là hình thoi." }},
-            {{ level: "Thông hiểu", time: 20, type: "short", q: "Hình chữ nhật có hai đường chéo vuông góc với nhau là hình gì?", correctAnswers: ["hình vuông", "vuông"], explain: "Dấu hiệu: Hình chữ nhật có 2 đường chéo vuông góc là hình vuông." }},
-            {{ level: "Vận dụng", time: 30, type: "short", q: "Một hình thoi có chu vi bằng 48 cm. Độ dài một cạnh của hình thoi đó bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["12", "12 cm", "12cm"], explain: "Độ dài 1 cạnh = 48 / 4 = 12 cm." }}
+            { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có bốn cạnh bằng nhau là hình gì?", correctAnswers: ["hình thoi", "thoi"], explain: "Định nghĩa: Hình thoi là tứ giác có bốn cạnh bằng nhau." },
+            { level: "Thông hiểu", time: 20, type: "mcq", q: "Trong hình thoi, hai đường chéo có tính chất đặc trưng nào sau đây?", answers: ["Vuông góc với nhau và là tia phân giác các góc", "Bằng nhau và song song", "Cắt nhau tại 1/3 mỗi đường"], correct: 0, explain: "Tính chất: Hai đường chéo vuông góc và là phân giác các góc của hình thoi." },
+            { level: "Thông hiểu", time: 20, type: "short", q: "Hình bình hành có hai đường chéo vuông góc với nhau là hình gì?", correctAnswers: ["hình thoi", "thoi"], explain: "Dấu hiệu: Hình bình hành có 2 đường chéo vuông góc là hình thoi." },
+            { level: "Thông hiểu", time: 20, type: "short", q: "Hình chữ nhật có hai đường chéo vuông góc với nhau là hình gì?", correctAnswers: ["hình vuông", "vuông"], explain: "Dấu hiệu: Hình chữ nhật có 2 đường chéo vuông góc là hình vuông." },
+            { level: "Vận dụng", time: 30, type: "short", q: "Một hình thoi có chu vi bằng 48 cm. Độ dài một cạnh của hình thoi đó bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["12", "12 cm", "12cm"], explain: "Độ dài 1 cạnh = 48 / 4 = 12 cm." }
           ],
           boss: [
-            {{ level: "Vận dụng cao", time: 30, type: "mcq", q: "Nối trung điểm 4 cạnh của một hình chữ nhật ta luôn nhận được hình gì?", answers: ["Hình thoi", "Hình bình hành thông thường", "Hình vuông"], correct: 0, explain: "Bốn cạnh đều bằng nửa đường chéo HCN => Bằng nhau => Là Hình thoi." }},
-            {{ level: "Vận dụng cao", time: 30, type: "mcq", q: "Nối trung điểm 4 cạnh của một hình thoi ta luôn nhận được hình gì?", answers: ["Hình chữ nhật", "Hình vuông", "Hình bình hành góc 60°"], correct: 0, explain: "Vì hai đường chéo hình thoi vuông góc nên các cạnh kề vuông góc => Hình chữ nhật." }},
-            {{ level: "Vận dụng cao", time: 30, type: "short", q: "Hình thoi ABCD có cạnh bằng 8 cm và góc A = 60°. Độ dài đường chéo BD bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["8", "8 cm", "8cm"], explain: "Tam giác ABD cân có góc 60° nên là tam giác đều => BD = 8 cm." }}
+            { level: "Vận dụng cao", time: 30, type: "mcq", q: "Nối trung điểm 4 cạnh của một hình chữ nhật ta luôn nhận được hình gì?", answers: ["Hình thoi", "Hình bình hành thông thường", "Hình vuông"], correct: 0, explain: "Bốn cạnh đều bằng nửa đường chéo HCN => Bằng nhau => Là Hình thoi." },
+            { level: "Vận dụng cao", time: 30, type: "mcq", q: "Nối trung điểm 4 cạnh của một hình thoi ta luôn nhận được hình gì?", answers: ["Hình chữ nhật", "Hình vuông", "Hình bình hành góc 60°"], correct: 0, explain: "Vì hai đường chéo hình thoi vuông góc nên các cạnh kề vuông góc => Hình chữ nhật." },
+            { level: "Vận dụng cao", time: 30, type: "short", q: "Hình thoi ABCD có cạnh bằng 8 cm và góc A = 60°. Độ dài đường chéo BD bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["8", "8 cm", "8cm"], explain: "Tam giác ABD cân có góc 60° nên là tam giác đều => BD = 8 cm." }
           ]
-        }};
+        };
 
-        function shuffle(arr) {{
+        function shuffle(arr) {
           const a = [...arr];
-          for (let i = a.length - 1; i > 0; i--) {{
+          for (let i = a.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [a[i], a[j]] = [a[j], a[i]];
-          }}
+          }
           return a;
-        }}
+        }
 
-        function buildExam() {{
-          return {{
+        function buildExam() {
+          return {
             code: "CMP-8A-" + Math.floor(1000 + Math.random() * 9000),
             stages: [
-              {{ name: "Màn 1: Tứ giác lồi", questions: shuffle(rawQuestionPool.stage1).slice(0, 3) }},
-              {{ name: "Màn 2: Hình thang cân", questions: shuffle(rawQuestionPool.stage2).slice(0, 4) }},
-              {{ name: "Màn 3: Hình bình hành", questions: shuffle(rawQuestionPool.stage3).slice(0, 5) }},
-              {{ name: "Màn 4: Hình chữ nhật", questions: shuffle(rawQuestionPool.stage4).slice(0, 5) }},
-              {{ name: "Màn 5: Hình thoi & Hình vuông", questions: shuffle(rawQuestionPool.stage5).slice(0, 5) }},
+              { name: "Màn 1: Tứ giác lồi", questions: shuffle(rawQuestionPool.stage1).slice(0, 3) },
+              { name: "Màn 2: Hình thang cân", questions: shuffle(rawQuestionPool.stage2).slice(0, 4) },
+              { name: "Màn 3: Hình bình hành", questions: shuffle(rawQuestionPool.stage3).slice(0, 5) },
+              { name: "Màn 4: Hình chữ nhật", questions: shuffle(rawQuestionPool.stage4).slice(0, 5) },
+              { name: "Màn 5: Hình thoi & Hình vuông", questions: shuffle(rawQuestionPool.stage5).slice(0, 5) },
             ],
             bossQuestions: shuffle(rawQuestionPool.boss).slice(0, 3)
-          }};
-        }}
+          };
+        }
 
-        const gameState = {{
+        const gameState = {
           studentName: "", studentClass: "", examData: null,
           currentStageIdx: 0, currentQuestionIdx: 0, inBossFight: false,
           bossHp: 3, bossMaxHp: 3, score: 0, lives: 5, correctCount: 0,
           totalAnswered: 0, isPaused: true, isGameOver: false, defeatedBoss: false,
           timerSec: 15, timerMax: 15, timerInterval: null, lastPayload: null
-        }};
+        };
 
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
         const arenaEl = document.getElementById("game-arena");
 
-        const mario = {{ x: 100, y: 350, w: 34, h: 44, vy: 0, isJumping: false, legSwing: 0 }};
+        const mario = { x: 100, y: 350, w: 34, h: 44, vy: 0, isJumping: false, legSwing: 0 };
         let worldOffset = 0;
-        let mysteryBox = {{ x: 750, y: 240, active: true, bounce: 0 }};
-        let fireball = {{ active: false, x: 0, y: 0, vx: 0 }};
+        let mysteryBox = { x: 750, y: 240, active: true, bounce: 0 };
+        let fireball = { active: false, x: 0, y: 0, vx: 0 };
 
-        function triggerShake() {{
+        function triggerShake() {
           arenaEl.classList.add("shake");
           setTimeout(() => arenaEl.classList.remove("shake"), 380);
-        }}
+        }
 
-        function updateWorld() {{
+        function updateWorld() {
           if (gameState.isPaused || gameState.isGameOver) return;
           mario.legSwing += 0.25;
 
-          if (mario.isJumping) {{
+          if (mario.isJumping) {
             mario.y += mario.vy;
             mario.vy += 0.8;
-            if (mario.y >= 350) {{ mario.y = 350; mario.isJumping = false; }}
-          }}
+            if (mario.y >= 350) { mario.y = 350; mario.isJumping = false; }
+          }
 
-          if (fireball.active) {{
+          if (fireball.active) {
             fireball.x += fireball.vx;
-            if (fireball.x >= 680) {{
+            if (fireball.x >= 680) {
               fireball.active = false;
               triggerShake();
               sndFireball();
-            }}
-          }}
+            }
+          }
 
-          if (!gameState.inBossFight) {{
+          if (!gameState.inBossFight) {
             worldOffset += 3.5;
             mysteryBox.x -= 3.5;
-            if (mysteryBox.x <= 220 && mysteryBox.active) {{
+            if (mysteryBox.x <= 220 && mysteryBox.active) {
               mysteryBox.active = false;
               openNextQuestion();
-            }}
-          }}
-        }}
+            }
+          }
+        }
 
-        function drawWorld() {{
+        function drawWorld() {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.fillStyle = gameState.inBossFight ? "#2d0a1e" : "#38bdf8";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          // Đất
           ctx.fillStyle = gameState.inBossFight ? "#1f2937" : "#22c55e";
           ctx.fillRect(0, 394, canvas.width, 16);
           ctx.fillStyle = gameState.inBossFight ? "#991b1b" : "#854d0e";
           ctx.fillRect(0, 410, canvas.width, 74);
 
-          // Khối ?
-          if (!gameState.inBossFight && mysteryBox.x > -50) {{
+          if (!gameState.inBossFight && mysteryBox.x > -50) {
             ctx.fillStyle = "#f59e0b";
             ctx.fillRect(mysteryBox.x, mysteryBox.y, 44, 44);
             ctx.strokeStyle = "#78350f";
@@ -964,9 +960,8 @@ with tab4:
             ctx.fillStyle = "#ffffff";
             ctx.font = "bold 24px monospace";
             ctx.fillText("?", mysteryBox.x + 14, mysteryBox.y + 31);
-          }}
+          }
 
-          // Mario
           ctx.fillStyle = "#ef4444";
           ctx.fillRect(mario.x, mario.y + 12, mario.w, 18);
           ctx.fillRect(mario.x + 4, mario.y, 28, 14);
@@ -980,16 +975,14 @@ with tab4:
           ctx.fillRect(mario.x + 4, mario.y + 40, 10, 6 + legOffset);
           ctx.fillRect(mario.x + 18, mario.y + 40, 10, 6 - legOffset);
 
-          // Cầu lửa
-          if (fireball.active) {{
+          if (fireball.active) {
             ctx.fillStyle = "#f97316";
             ctx.beginPath();
             ctx.arc(fireball.x, fireball.y, 14, 0, Math.PI * 2);
             ctx.fill();
-          }}
+          }
 
-          // Bowser
-          if (gameState.inBossFight && !gameState.defeatedBoss) {{
+          if (gameState.inBossFight && !gameState.defeatedBoss) {
             const bx = 680, by = 295;
             ctx.fillStyle = "#064e3b";
             ctx.beginPath();
@@ -1001,7 +994,6 @@ with tab4:
             ctx.fillStyle = "#dc2626";
             ctx.fillRect(bx - 4, by + 6, 26, 20);
 
-            // HP bar
             ctx.fillStyle = "#000";
             ctx.fillRect(bx - 20, by - 36, 120, 16);
             ctx.fillStyle = "#ef4444";
@@ -1009,30 +1001,30 @@ with tab4:
             ctx.fillRect(bx - 18, by - 34, Math.max(0, hpW), 12);
             ctx.fillStyle = "#fff";
             ctx.font = "bold 10px monospace";
-            ctx.fillText(`BOWSER: ${{gameState.bossHp}}/${{gameState.bossMaxHp}}`, bx - 14, by - 42);
-          }}
-        }}
+            ctx.fillText("BOWSER: " + gameState.bossHp + "/" + gameState.bossMaxHp, bx - 14, by - 42);
+          }
+        }
 
-        function gameLoop() {{
+        function gameLoop() {
           updateWorld();
           drawWorld();
           requestAnimationFrame(gameLoop);
-        }}
+        }
         gameLoop();
 
-        document.getElementById("btn-start-game").onclick = () => {{
+        document.getElementById("btn-start-game").onclick = () => {
           const name = document.getElementById("input-name").value.trim();
           const sClass = document.getElementById("input-class").value.trim();
-          if (!name || !sClass) {{ alert("Em vui lòng nhập đầy đủ Họ tên và Lớp nhé!"); return; }}
+          if (!name || !sClass) { alert("Em vui lòng nhập đầy đủ Họ tên và Lớp nhé!"); return; }
           gameState.studentName = name;
           gameState.studentClass = sClass;
           gameState.examData = buildExam();
 
           document.getElementById("login-modal").classList.add("hidden");
-          document.getElementById("hud-student").textContent = `${{name}} (${{sClass}}) • ${{gameState.examData.code}}`;
+          document.getElementById("hud-student").textContent = name + " (" + sClass + ") • " + gameState.examData.code;
           gameState.isPaused = false;
           startBgm();
-        }};
+        };
 
         const quizModal = document.getElementById("quiz-modal");
         const badgeEl = document.getElementById("quiz-level-badge");
@@ -1047,115 +1039,115 @@ with tab4:
 
         let currentQ = null;
 
-        function openNextQuestion() {{
+        function openNextQuestion() {
           gameState.isPaused = true;
           feedbackEl.innerHTML = "";
 
-          if (!gameState.inBossFight) {{
+          if (!gameState.inBossFight) {
             const curStage = gameState.examData.stages[gameState.currentStageIdx];
             currentQ = curStage.questions[gameState.currentQuestionIdx];
-            badgeEl.textContent = `${{gameState.examData.code}} • ${{curStage.name}} (${{gameState.currentQuestionIdx + 1}}/${{curStage.questions.length}})`;
-          }} else {{
+            badgeEl.textContent = gameState.examData.code + " • " + curStage.name + " (" + (gameState.currentQuestionIdx + 1) + "/" + curStage.questions.length + ")";
+          } else {
             currentQ = gameState.examData.bossQuestions[gameState.bossMaxHp - gameState.bossHp];
             sndRoar();
-            badgeEl.textContent = `⚔️ BOWSER HP: ${{gameState.bossHp}}/${{gameState.bossMaxHp}} - VẬN DỤNG CAO`;
-          }}
+            badgeEl.textContent = "⚔️ BOWSER HP: " + gameState.bossHp + "/" + gameState.bossMaxHp + " - VẬN DỤNG CAO";
+          }
 
           questionTextEl.textContent = currentQ.q;
           quizModal.classList.remove("hidden");
 
           gameState.timerSec = currentQ.time;
           gameState.timerMax = currentQ.time;
-          timerTextEl.textContent = `${{gameState.timerSec}}s`;
+          timerTextEl.textContent = gameState.timerSec + "s";
           timerBarEl.style.width = "100%";
 
           if (gameState.timerInterval) clearInterval(gameState.timerInterval);
-          gameState.timerInterval = setInterval(() => {{
+          gameState.timerInterval = setInterval(() => {
             gameState.timerSec--;
-            timerTextEl.textContent = `${{gameState.timerSec}}s`;
+            timerTextEl.textContent = gameState.timerSec + "s";
             const percent = Math.max(0, (gameState.timerSec / gameState.timerMax) * 100);
-            timerBarEl.style.width = `${{percent}}%`;
+            timerBarEl.style.width = percent + "%";
 
-            if (gameState.timerSec <= 0) {{
+            if (gameState.timerSec <= 0) {
               clearInterval(gameState.timerInterval);
               handleAnswer(false, "Đã hết thời gian!");
-            }}
-          }}, 1000);
+            }
+          }, 1000);
 
-          if (currentQ.type === "mcq") {{
+          if (currentQ.type === "mcq") {
             optionsBox.classList.remove("hidden");
             shortBox.classList.add("hidden");
             optionsBox.innerHTML = "";
 
-            currentQ.answers.forEach((ans, idx) => {{
+            currentQ.answers.forEach((ans, idx) => {
               const btn = document.createElement("button");
               btn.className = "w-full text-left bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl p-3 text-xs font-semibold";
-              btn.innerHTML = `<span class="text-amber-400 font-bold">${{idx + 1}}.</span> ${{ans}}`;
-              btn.onclick = () => {{
+              btn.innerHTML = '<span class="text-amber-400 font-bold">' + (idx + 1) + '.</span> ' + ans;
+              btn.onclick = () => {
                 clearInterval(gameState.timerInterval);
                 handleAnswer(idx === currentQ.correct);
-              }};
+              };
               optionsBox.appendChild(btn);
-            }});
-          }} else {{
+            });
+          } else {
             optionsBox.classList.add("hidden");
             shortBox.classList.remove("hidden");
             shortInput.value = "";
             setTimeout(() => shortInput.focus(), 150);
-          }}
-        }}
+          }
+        }
 
-        function submitShortAnswer() {{
+        function submitShortAnswer() {
           const val = shortInput.value.trim().toLowerCase();
           if (!val) return;
           clearInterval(gameState.timerInterval);
           const isOk = currentQ.correctAnswers.some(ans => ans.toLowerCase() === val);
           handleAnswer(isOk);
-        }}
+        }
         shortSubmit.onclick = submitShortAnswer;
-        shortInput.onkeydown = (e) => {{ if (e.key === "Enter") submitShortAnswer(); }};
+        shortInput.onkeydown = (e) => { if (e.key === "Enter") submitShortAnswer(); };
 
-        function handleAnswer(isCorrect, customReason = null) {{
+        function handleAnswer(isCorrect, customReason = null) {
           gameState.totalAnswered++;
 
-          if (isCorrect) {{
+          if (isCorrect) {
             sndCoin();
             gameState.correctCount++;
             gameState.score += gameState.inBossFight ? 300 : 100;
             document.getElementById("hud-score").textContent = gameState.score;
-            feedbackEl.innerHTML = `<span class="text-emerald-400 font-bold">🎉 CHÍNH XÁC! +${{gameState.inBossFight ? 300 : 100}} Điểm</span>`;
+            feedbackEl.innerHTML = '<span class="text-emerald-400 font-bold">🎉 CHÍNH XÁC! +' + (gameState.inBossFight ? 300 : 100) + ' Điểm</span>';
 
             mario.isJumping = true;
             mario.vy = -12;
 
-            if (gameState.inBossFight) {{
+            if (gameState.inBossFight) {
               fireball.active = true;
               fireball.x = mario.x + 30;
               fireball.y = mario.y + 16;
               fireball.vx = 14;
               gameState.bossHp--;
-            }}
+            }
 
-            setTimeout(() => {{
+            setTimeout(() => {
               quizModal.classList.add("hidden");
               advanceProgress();
-            }}, 1100);
-          }} else {{
+            }, 1100);
+          } else {
             sndWrong();
             gameState.lives--;
             document.getElementById("hud-lives").textContent = "❤️".repeat(Math.max(0, gameState.lives)) || "💀 Hết";
-            feedbackEl.innerHTML = `<span class="text-rose-400 font-bold">❌ ${{customReason || "Chưa chính xác!"}}</span><br><span class="text-[11px] text-slate-300">Ghi nhớ: ${{currentQ.explain}}</span>`;
+            feedbackEl.innerHTML = '<span class="text-rose-400 font-bold">❌ ' + (customReason || "Chưa chính xác!") + '</span><br><span class="text-[11px] text-slate-300">Ghi nhớ: ' + currentQ.explain + '</span>';
 
-            setTimeout(() => {{
+            setTimeout(() => {
               quizModal.classList.add("hidden");
-              if (gameState.lives <= 0) {{
+              if (gameState.lives <= 0) {
                 finishGameSession(false);
-              }} else {{
+              } else {
                 advanceProgress();
-              }}
-            }}, 3000);
-          }}
-        }}
+              }
+            }, 3000);
+          }
+        }
 
         const stageClearModal = document.getElementById("stage-clear-modal");
         const teacherNotes = [
@@ -1166,48 +1158,48 @@ with tab4:
           "Hoàn thành 5 Ải! Hãy tập trung cao độ đánh bại Bowser để nhận +5 Điểm cộng nhé!"
         ];
 
-        function advanceProgress() {{
-          if (gameState.inBossFight) {{
-            if (gameState.bossHp <= 0) {{
+        function advanceProgress() {
+          if (gameState.inBossFight) {
+            if (gameState.bossHp <= 0) {
               gameState.defeatedBoss = true;
               finishGameSession(true);
-            }} else {{
+            } else {
               setTimeout(() => openNextQuestion(), 600);
-            }}
+            }
             return;
-          }}
+          }
 
           const curStage = gameState.examData.stages[gameState.currentStageIdx];
           gameState.currentQuestionIdx++;
 
-          if (gameState.currentQuestionIdx >= curStage.questions.length) {{
-            document.getElementById("stage-clear-title").textContent = `HOÀN THÀNH ${{curStage.name.toUpperCase()}}!`;
+          if (gameState.currentQuestionIdx >= curStage.questions.length) {
+            document.getElementById("stage-clear-title").textContent = "HOÀN THÀNH " + curStage.name.toUpperCase() + "!";
             document.getElementById("stage-clear-msg").textContent = teacherNotes[gameState.currentStageIdx];
             stageClearModal.classList.remove("hidden");
-          }} else {{
+          } else {
             mysteryBox.x = 760;
             mysteryBox.active = true;
             gameState.isPaused = false;
-          }}
-        }}
+          }
+        }
 
-        document.getElementById("btn-continue-next-stage").onclick = () => {{
+        document.getElementById("btn-continue-next-stage").onclick = () => {
           stageClearModal.classList.add("hidden");
           gameState.currentStageIdx++;
           gameState.currentQuestionIdx = 0;
 
-          if (gameState.currentStageIdx >= gameState.examData.stages.length) {{
+          if (gameState.currentStageIdx >= gameState.examData.stages.length) {
             gameState.inBossFight = true;
             sndRoar();
             setTimeout(() => openNextQuestion(), 600);
-          }} else {{
+          } else {
             mysteryBox.x = 760;
             mysteryBox.active = true;
             gameState.isPaused = false;
-          }}
-        }};
+          }
+        };
 
-        function finishGameSession(isVictory) {{
+        function finishGameSession(isVictory) {
           gameState.isGameOver = true;
           gameState.isPaused = true;
           stopBgm();
@@ -1217,21 +1209,21 @@ with tab4:
           document.getElementById("sum-examcode").textContent = gameState.examData.code;
           document.getElementById("sum-score").textContent = gameState.score;
 
-          if (isVictory) {{
+          if (isVictory) {
             document.getElementById("summary-badge-icon").textContent = "👑";
             document.getElementById("summary-title").textContent = "CHIẾN THẮNG TUYỆT ĐỐI!";
             document.getElementById("sum-bonus").textContent = "+5 ĐIỂM CỘNG";
-            document.getElementById("summary-teacher-note").innerHTML = `🎉 <b>Lời khen từ Cô Mai Phương:</b> Em đã xuất sắc hạ gục Bowser! Cô cộng <b>+5 điểm thực tế</b> vào sổ điểm cho em!`;
-          }} else {{
+            document.getElementById("summary-teacher-note").innerHTML = '🎉 <b>Lời khen từ Cô Mai Phương:</b> Em đã xuất sắc hạ gục Bowser! Cô cộng <b>+5 điểm thực tế</b> vào sổ điểm cho em!';
+          } else {
             document.getElementById("summary-badge-icon").textContent = "🛡️";
             document.getElementById("summary-title").textContent = "DỪNG BƯỚC THỬ THÁCH";
             document.getElementById("sum-bonus").textContent = "0 ĐIỂM";
-            document.getElementById("summary-teacher-note").innerHTML = `💡 <b>Lời dặn từ Cô Mai Phương:</b> Em đã nỗ lực đạt <b>${{gameState.score}} điểm</b>. Hãy xem lại bài và bấm Chơi lại để phục thù nhé!`;
-          }}
+            document.getElementById("summary-teacher-note").innerHTML = '💡 <b>Lời dặn từ Cô Mai Phương:</b> Em đã nỗ lực đạt <b>' + gameState.score + ' điểm</b>. Hãy xem lại bài và bấm Chơi lại để phục thù nhé!';
+          }
 
           document.getElementById("summary-modal").classList.remove("hidden");
 
-          const payload = {{
+          const payload = {
             time: new Date().toLocaleString("vi-VN"),
             examCode: gameState.examData.code,
             name: gameState.studentName,
@@ -1239,13 +1231,13 @@ with tab4:
             score: gameState.score,
             topic: "Minigame Tứ Giác (Bowser)",
             feedback: isVictory ? "Hạ gục Bowser (+5đ)" : "Chưa diệt Bowser"
-          }};
+          };
 
           gameState.lastPayload = payload;
           syncToGoogleSheets(payload);
-        }}
+        }
 
-        async function syncToGoogleSheets(payload) {{
+        async function syncToGoogleSheets(payload) {
           const syncStatusText = document.getElementById("sync-status-text");
           const retryBtn = document.getElementById("btn-retry-sync");
 
@@ -1253,32 +1245,32 @@ with tab4:
           syncStatusText.className = "text-xs text-yellow-400 font-medium";
           retryBtn.classList.add("hidden");
 
-          try {{
-            await fetch(GOOGLE_SCRIPT_WEBAPP_URL, {{
+          try {
+            await fetch(GOOGLE_SCRIPT_WEBAPP_URL, {
               method: "POST",
               mode: "no-cors",
-              headers: {{ "Content-Type": "application/json" }},
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify(payload)
-            }});
+            });
 
             syncStatusText.innerHTML = "✅ Đã lưu kết quả thành công vào Google Sheets của Cô Mai Phương!";
             syncStatusText.className = "text-xs text-emerald-400 font-bold";
-          }} catch (err) {{
-            syncStatusText.innerHTML = `
-              <div class="text-rose-400 font-bold">⚠️ Chưa có mạng! Kết quả chưa gửi được.</div>
-              <div class="text-[10px] text-slate-300 mt-1">Em hãy chụp màn hình gửi cô hoặc bấm nút thử lại:</div>
-            `;
+          } catch (err) {
+            syncStatusText.innerHTML = '<div class="text-rose-400 font-bold">⚠️ Chưa có mạng! Kết quả chưa gửi được.</div><div class="text-[10px] text-slate-300 mt-1">Em hãy chụp màn hình gửi cô hoặc bấm nút thử lại:</div>';
             retryBtn.classList.remove("hidden");
-          }}
-        }}
+          }
+        }
 
-        document.getElementById("btn-retry-sync").onclick = () => {{
+        document.getElementById("btn-retry-sync").onclick = () => {
           if (gameState.lastPayload) syncToGoogleSheets(gameState.lastPayload);
-        }};
+        };
       </script>
     </body>
     </html>
     """
 
-    # Nhúng game vào tab 4 với scrolling=True để chơi tốt trên cả điện thoại
+    # Thay thế webhook URL vào chuỗi HTML
+    mario_game_code = mario_game_code.replace("WEBHOOK_URL_PLACEHOLDER", sheet_webhook)
+
+    # Nhúng game vào tab 4 với scrolling=True
     components.html(mario_game_code, height=720, scrolling=True)
