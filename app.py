@@ -109,7 +109,7 @@ if not API_KEY:
 client = genai.Client(api_key=API_KEY)
 MODEL_NAME = "gemini-3.8-flash"
 
-# ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC (OMML & UNICODE CHUẨN ĐẸP) =================
+# ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC TOÁN 8 (ĐẠI SỐ & HÌNH HỌC) =================
 def format_math(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
@@ -118,19 +118,22 @@ def format_math(text: str) -> str:
     text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
     text = text.replace("$", "")
 
-    # Chuẩn hóa góc và tam giác
+    # 1. KÝ HIỆU HÌNH HỌC LỚP 8 (Góc, Tam giác, Quan hệ)
     text = re.sub(r"\\(?:widehat|hat)\s*[\{\[]\s*([A-Za-z0-9]{1,3})\s*[\}\]]", r"∠\1", text)
     text = re.sub(r"\\(?:angle)\s+([A-Za-z0-9]{1,3})\b", r"∠\1", text)
     text = re.sub(r"\\(?:Delta|triangle)\s*([A-Za-z]{3})", r"Δ \1", text)
     text = re.sub(r"Δ([A-Za-z]{3})", r"Δ \1", text)
-
-    # Quan hệ hình học và logic
+    
+    # Quan hệ hình học & ký hiệu vị trí
     text = re.sub(r"\\perp|£", " ⊥ ", text)
     text = re.sub(r"\\parallel", " // ", text)
     text = re.sub(r"\\in", " ∈ ", text)
+    text = re.sub(r"\\notin", " ∉ ", text)
     text = re.sub(r"\^?\\circ", "°", text)
+    text = re.sub(r"\\degree", "°", text)
     text = text.replace("°°", "°")
 
+    # 2. KÝ HIỆU LOGIC & QUAN HỆ ĐẠI SỐ
     text = re.sub(r"\\(?:Leftrightarrow|iff)|<=>", " ⇔ ", text)
     text = re.sub(r"\\(?:Rightarrow|implies)|=>", " ⇒ ", text)
     text = re.sub(r"\\le(?:q)?|<=|≤", " ≤ ", text)
@@ -139,21 +142,21 @@ def format_math(text: str) -> str:
     text = re.sub(r"\\pm|±", " ± ", text)
     text = re.sub(r"\\times|\\cdot|\*", " · ", text)
 
-    # Căn thức chuẩn
+    # 3. CĂN THỨC TOÁN 8
     text = re.sub(r"\\sqrt\[3\]\{([^{}]+)\}", r"∛(\1)", text)
     text = re.sub(r"\\sqrt\{([^{}]+)\}", r"√(\1)", text)
     text = re.sub(r"\\sqrt\s*([0-9a-zA-Z]+)", r"√\1", text)
 
-    # CHUYỂN ĐỔI SỐ MŨ TỪ LẠEX/TEXT SANG SỐ MŨ UNICODE SẮC NÉT (VD: x^3 -> x³, y^2 -> y²)
+    # 4. CHUYỂN ĐỔI SỐ MŨ (Đại số & Hằng đẳng thức: x^2 -> x², y^3 -> y³)
     super_digits = {"0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "n": "ⁿ"}
     
     def replace_power(match):
-        power_str = match.group(1) or match.group(2)
+        power_str = match.group(1) or match.group(2) or match.group(3)
         return "".join(super_digits.get(c, c) for c in power_str)
 
-    text = re.sub(r"\^([0-9n]+)|\^\(([^)]+)\)|\^\{([^}]+)\}", lambda m: "".join(super_digits.get(c, c) for c in (m.group(1) or m.group(2) or m.group(3))), text)
+    text = re.sub(r"\^([0-9n]+)|\^\(([^)]+)\)|\^\{([^}]+)\}", replace_power, text)
 
-    # Phân số
+    # 5. PHÂN SỐ ĐẠI SỐ
     text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1 / \2)", text)
     
     text = re.sub(r"[ \t]+", " ", text)
@@ -172,6 +175,7 @@ def format_solution_step_by_step(raw_text: str) -> str:
 
     text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1 / \2)", text)
     text = re.sub(r"Δ\s*([A-Za-z]{3})", r"Δ \1", text)
+    text = re.sub(r"\\(?:widehat|hat)\s*[\{\[]\s*([A-Za-z0-9]{1,3})\s*[\}\]]", r"∠\1", text)
     text = re.sub(r"(?<=\.)\s*-\s*", r"\n- ", text)
     text = re.sub(r"\s*(?:=>|⇒|\\Rightarrow)\s*", r"\n  - ⇒ ", text)
     text = re.sub(r"\s*(?:<=>|⇔|\\Leftrightarrow)\s*", r"\n  - ⇔ ", text)
@@ -185,7 +189,6 @@ def format_solution_step_by_step(raw_text: str) -> str:
             l = re.sub(r"\$\s*\$", "", l)
             cleaned_lines.append(l)
     return "\n\n".join(cleaned_lines)
-
 GAME_PROMPT = """
 Bạn là Trợ lý Sư phạm Toán 8 (Cả Đại số và Hình học) của Cô Mai Phương (Chương trình GDPT 2018 - Kết nối tri thức).
 Đối tượng học sinh: Lớp 8 (13-14 tuổi).
