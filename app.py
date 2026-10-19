@@ -109,44 +109,53 @@ if not API_KEY:
 client = genai.Client(api_key=API_KEY)
 MODEL_NAME = "gemini-3.8-flash"
 
-# ================= HÀM CHUẨN HÓA CÔNG THỨC TOÁN SANG LATEX =================
+# ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC (OMML & UNICODE CHUẨN ĐẸP) =================
 def format_math(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
 
     text = re.sub(r"^(?:User Safety|Thinking Process|Thought):[^\n]*\n?", "", text, flags=re.IGNORECASE)
     text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
-    
-    # Loại bỏ dấu $ thừa nếu AI sinh ra trước đó để chuẩn hóa lại
     text = text.replace("$", "")
 
-    # Chuẩn hóa góc và tam giác sang LaTeX
-    text = re.sub(r"\\(?:widehat|hat)\s*[\{\[]\s*([A-Za-z0-9]{1,3})\s*[\}\]]", r"$\\widehat{\1}$", text)
-    text = re.sub(r"\\(?:angle)\s+([A-Za-z0-9]{1,3})\b", r"$\\widehat{\1}$", text)
-    text = re.sub(r"\\(?:Delta|triangle)\s*([A-Za-z]{3})", r"$\\Delta \1$", text)
-    text = re.sub(r"Δ([A-Za-z]{3})", r"$\\Delta \1$", text)
+    # Chuẩn hóa góc và tam giác
+    text = re.sub(r"\\(?:widehat|hat)\s*[\{\[]\s*([A-Za-z0-9]{1,3})\s*[\}\]]", r"∠\1", text)
+    text = re.sub(r"\\(?:angle)\s+([A-Za-z0-9]{1,3})\b", r"∠\1", text)
+    text = re.sub(r"\\(?:Delta|triangle)\s*([A-Za-z]{3})", r"Δ \1", text)
+    text = re.sub(r"Δ([A-Za-z]{3})", r"Δ \1", text)
 
     # Quan hệ hình học và logic
-    text = re.sub(r"\\perp|£", r" $\\perp$ ", text)
-    text = re.sub(r"\\parallel", r" $\\parallel$ ", text)
-    text = re.sub(r"\\in", r" $\\in$ ", text)
-    text = re.sub(r"\^?\\circ", r"$^{\\circ}$", text)
+    text = re.sub(r"\\perp|£", " ⊥ ", text)
+    text = re.sub(r"\\parallel", " // ", text)
+    text = re.sub(r"\\in", " ∈ ", text)
+    text = re.sub(r"\^?\\circ", "°", text)
+    text = text.replace("°°", "°")
 
-    text = re.sub(r"\\(?:Leftrightarrow|iff)|<=>", r" $\\Leftrightarrow$ ", text)
-    text = re.sub(r"\\(?:Rightarrow|implies)|=>", r" $\\Rightarrow$ ", text)
-    text = re.sub(r"\\le(?:q)?|<=|≤", r" $\\le$ ", text)
-    text = re.sub(r"\\ge(?:q)?|>=|≥", r" $\\ge$ ", text)
-    text = re.sub(r"\\ne(?:q)?|!=|≠", r" $\\neq$ ", text)
-    text = re.sub(r"\\pm|±", r" $\\pm$ ", text)
+    text = re.sub(r"\\(?:Leftrightarrow|iff)|<=>", " ⇔ ", text)
+    text = re.sub(r"\\(?:Rightarrow|implies)|=>", " ⇒ ", text)
+    text = re.sub(r"\\le(?:q)?|<=|≤", " ≤ ", text)
+    text = re.sub(r"\\ge(?:q)?|>=|≥", " ≥ ", text)
+    text = re.sub(r"\\ne(?:q)?|!=|≠", " ≠ ", text)
+    text = re.sub(r"\\pm|±", " ± ", text)
+    text = re.sub(r"\\times|\\cdot|\*", " · ", text)
 
-    # Căn thức chuẩn LaTeX
-    text = re.sub(r"\\sqrt\[3\]\{([^{}]+)\}", r"$\\sqrt[3]{\1}$", text)
-    text = re.sub(r"\\sqrt\{([^{}]+)\}", r"$\\sqrt{\1}$", text)
-    text = re.sub(r"\\sqrt\s*([0-9a-zA-Z]+)", r"$\\sqrt{\1}$", text)
+    # Căn thức chuẩn
+    text = re.sub(r"\\sqrt\[3\]\{([^{}]+)\}", r"∛(\1)", text)
+    text = re.sub(r"\\sqrt\{([^{}]+)\}", r"√(\1)", text)
+    text = re.sub(r"\\sqrt\s*([0-9a-zA-Z]+)", r"√\1", text)
 
-    # Phân số chuẩn LaTeX
-    text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"$\\dfrac{\1}{\2}$", text)
+    # CHUYỂN ĐỔI SỐ MŨ TỪ LẠEX/TEXT SANG SỐ MŨ UNICODE SẮC NÉT (VD: x^3 -> x³, y^2 -> y²)
+    super_digits = {"0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "n": "ⁿ"}
+    
+    def replace_power(match):
+        power_str = match.group(1) or match.group(2)
+        return "".join(super_digits.get(c, c) for c in power_str)
 
+    text = re.sub(r"\^([0-9n]+)|\^\(([^)]+)\)|\^\{([^}]+)\}", lambda m: "".join(super_digits.get(c, c) for c in (m.group(1) or m.group(2) or m.group(3))), text)
+
+    # Phân số
+    text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1 / \2)", text)
+    
     text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
 
@@ -175,18 +184,14 @@ GAME_PROMPT = """
 Bạn là Trợ lý Sư phạm Toán 8 (Cả Đại số và Hình học) của Cô Mai Phương (Chương trình GDPT 2018 - Kết nối tri thức).
 Đối tượng học sinh: Lớp 8 (13-14 tuổi).
 
-QUY TẮC SƯ PHẠM & CÔNG THỨC TOÁN:
+QUY TẮC SƯ PHẠM:
 1. Nhận diện dạng bài từ hình ảnh/đề bài:
-   - NẾU LÀ TOÁN SỐ (Đại số / Số học): Đơn thức, Đa thức, Hằng đẳng thức đáng nhớ, Phân thức đại số, Phương trình bậc nhất.
+   - NẾU LÀ TOÁN SỐ (Đại số / Số học / Thống kê): Đơn thức, Đa thức, Hằng đẳng thức đáng nhớ, Phân thức đại số, Phương trình bậc nhất.
    - NẾU LÀ TOÁN HÌNH: Tứ giác, Định lý Thalès, Tam giác đồng dạng.
 2. Lời văn gần gũi, chuẩn ngôn ngữ SGK Toán 8 Việt Nam.
-3. KÝ HIỆU TOÁN HỌC BẮT BUỘC DÙNG MÃ LATEX:
-   - Phân số: \\frac{a}{b} hoặc \\dfrac{a}{b}
-   - Căn bậc hai: \\sqrt{x}
-   - Góc và tam giác: \\widehat{ABC}, \\Delta ABC
-   - Quan hệ: \\parallel, \\perp, \\Leftrightarrow, \\Rightarrow, \\le, \\ge
+3. KÝ HIỆU TOÁN BẮT BUỘC DÙNG KÝ HIỆU CHUẨN (Dùng ^3, ^2 hoặc số mũ trực quan để app xử lý hiển thị đẹp trên nút bấm).
 4. Câu hỏi tối đa 2 câu, hỏi trực diện. 4 lựa chọn ngắn gọn, KHÔNG ghi tiền tố 'A.', 'B.'.
-5. CÁC PHƯƠNG ÁN LỰA CHỌN PHẢI ĐƯỢC XÁO TRỘN NGẪU NHIÊN (correct_index phản ánh đúng vị trí đáp án đúng).
+5. CÁC PHƯƠNG ÁN LỰA CHỌN PHẢI ĐƯỢC XÁO TRỘN NGẪU NHIÊN, KHÔNG ĐỂ ĐÁP ÁN ĐÚNG LUÔN Ở VỊ TRÍ ĐẦU TIÊN (correct_index cần phản ánh đúng vị trí của đáp án đúng sau khi xáo trộn).
 
 TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
 {
@@ -387,7 +392,7 @@ with tab1:
                     svg = card.get("svg_code", "")
                     if not sol and st.session_state.img_data:
                         with st.spinner("Đang mở khóa bài giải hoàn chỉnh..."):
-                            p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh bằng mã LaTeX cho các công thức toán. 
+                            p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh. 
                             Nếu là Toán Hình: Sinh kèm mã SVG chuẩn.
                             Nếu là Toán Số: Trình bày các bước biến đổi đại số rõ ràng.
                             Trả về JSON: {"full_solution": "...", "svg_code": "..."}"""
@@ -424,7 +429,7 @@ with tab1:
                 if st.button("➡️ Sang thử thách tiếp theo", type="primary", use_container_width=True):
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. 
-                        Giữ câu hỏi và 4 phương án ngắn gọn bằng LaTeX chuẩn.
+                        Giữ câu hỏi và 4 phương án ngắn gọn, dễ hiểu cho học sinh lớp 8.
                         Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải chi tiết vào full_solution."""
                         try:
                             st.session_state.card = execute_gemini_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
@@ -492,7 +497,6 @@ with tab2:
 Bạn là Giám khảo chấm thi môn Toán THCS tại Việt Nam.
 Chuyên đề nộp: "{topic}".
 Đọc ảnh bài làm viết tay của học sinh và đánh giá theo Rubric thang điểm 10.
-BẮT BUỘC SỬ DỤNG MÃ LATEX CHO CÔNG THỨC TOÁN (\\frac, \\sqrt, \\widehat, \\Delta, v.v.).
 
 ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ:
 - Tổng điểm: [Điểm số]/10
