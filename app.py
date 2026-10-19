@@ -4,6 +4,7 @@ from google import genai
 from google.genai import types
 from PIL import Image
 import json
+import random
 import re
 import pandas as pd
 import requests
@@ -106,54 +107,45 @@ if not API_KEY:
 
 # Khởi tạo Gemini Client
 client = genai.Client(api_key=API_KEY)
-MODEL_NAME = "gemini-3.8-flash"
+MODEL_NAME = "gemini-2.5-flash"
 
-# ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC =================
+# ================= HÀM CHUẨN HÓA CÔNG THỨC TOÁN SANG LATEX =================
 def format_math(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
 
     text = re.sub(r"^(?:User Safety|Thinking Process|Thought):[^\n]*\n?", "", text, flags=re.IGNORECASE)
     text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
+    
+    # Loại bỏ dấu $ thừa nếu AI sinh ra trước đó để chuẩn hóa lại
     text = text.replace("$", "")
 
-    text = re.sub(r"\\(?:widehat|hat)\s*[\{\[]\s*([A-Za-z0-9]{1,3})\s*[\}\]]", r"∠\1", text)
-    text = re.sub(r"\\(?:angle)\s+([A-Za-z0-9]{1,3})\b", r"∠\1", text)
-    text = re.sub(r"\\(?:Delta|triangle)\s*([A-Za-z]{3})", r"Δ \1", text)
-    text = re.sub(r"Δ([A-Za-z]{3})", r"Δ \1", text)
+    # Chuẩn hóa góc và tam giác sang LaTeX
+    text = re.sub(r"\\(?:widehat|hat)\s*[\{\[]\s*([A-Za-z0-9]{1,3})\s*[\}\]]", r"$\\widehat{\1}$", text)
+    text = re.sub(r"\\(?:angle)\s+([A-Za-z0-9]{1,3})\b", r"$\\widehat{\1}$", text)
+    text = re.sub(r"\\(?:Delta|triangle)\s*([A-Za-z]{3})", r"$\\Delta \1$", text)
+    text = re.sub(r"Δ([A-Za-z]{3})", r"$\\Delta \1$", text)
 
-    text = re.sub(r"\\perp|£", " ⊥ ", text)
-    text = re.sub(r"\\parallel", " // ", text)
-    text = re.sub(r"\\in", " ∈ ", text)
-    text = re.sub(r"\^?\\circ", "°", text)
-    text = text.replace("°°", "°")
+    # Quan hệ hình học và logic
+    text = re.sub(r"\\perp|£", r" $\\perp$ ", text)
+    text = re.sub(r"\\parallel", r" $\\parallel$ ", text)
+    text = re.sub(r"\\in", r" $\\in$ ", text)
+    text = re.sub(r"\^?\\circ", r"$^{\\circ}$", text)
 
-    text = re.sub(r"\\(?:Leftrightarrow|iff)|<=>", " ⇔ ", text)
-    text = re.sub(r"\\(?:Rightarrow|implies)|=>", " ⇒ ", text)
-    text = re.sub(r"\\le(?:q)?|<=|≤", " ≤ ", text)
-    text = re.sub(r"\\ge(?:q)?|>=|≥", " ≥ ", text)
-    text = re.sub(r"\\ne(?:q)?|!=|≠", " ≠ ", text)
-    text = re.sub(r"\\pm|±", " ± ", text)
-    text = re.sub(r"\\times|\\cdot|\*", " · ", text)
+    text = re.sub(r"\\(?:Leftrightarrow|iff)|<=>", r" $\\Leftrightarrow$ ", text)
+    text = re.sub(r"\\(?:Rightarrow|implies)|=>", r" $\\Rightarrow$ ", text)
+    text = re.sub(r"\\le(?:q)?|<=|≤", r" $\\le$ ", text)
+    text = re.sub(r"\\ge(?:q)?|>=|≥", r" $\\ge$ ", text)
+    text = re.sub(r"\\ne(?:q)?|!=|≠", r" $\\neq$ ", text)
+    text = re.sub(r"\\pm|±", r" $\\pm$ ", text)
 
-    text = re.sub(r"\\sqrt\[3\]\{([^{}]+)\}", r"∛(\1)", text)
-    text = re.sub(r"\\sqrt\{([^{}]+)\}", r"√(\1)", text)
-    text = re.sub(r"\\sqrt\s*([0-9a-zA-Z]+)", r"√\1", text)
+    # Căn thức chuẩn LaTeX
+    text = re.sub(r"\\sqrt\[3\]\{([^{}]+)\}", r"$\\sqrt[3]{\1}$", text)
+    text = re.sub(r"\\sqrt\{([^{}]+)\}", r"$\\sqrt{\1}$", text)
+    text = re.sub(r"\\sqrt\s*([0-9a-zA-Z]+)", r"$\\sqrt{\1}$", text)
 
-    superscripts = {
-        "^0": "⁰", "^1": "¹", "^2": "²", "^3": "³", "^4": "⁴",
-        "^5": "⁵", "^6": "⁶", "^7": "⁷", "^8": "⁸", "^9": "⁹",
-        "^{2}": "²", "^{3}": "³", "^{n}": "ⁿ"
-    }
-    for k, v in superscripts.items():
-        text = text.replace(k, v)
-
-    text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1 / \2)", text)
-    text = re.sub(r"\bhypotenuse\b", "cạnh huyền", text, flags=re.IGNORECASE)
-    text = re.sub(r"\bpolynomial\b", "đa thức", text, flags=re.IGNORECASE)
-    text = re.sub(r"\bfactorization\b", "phân tích đa thức thành nhân tử", text, flags=re.IGNORECASE)
-    text = re.sub(r"\\because|\bbecause\b", "vì", text, flags=re.IGNORECASE)
-    text = re.sub(r"\\therefore|\btherefore\b", "do đó", text, flags=re.IGNORECASE)
+    # Phân số chuẩn LaTeX
+    text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"$\\dfrac{\1}{\2}$", text)
 
     text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
@@ -165,7 +157,6 @@ def format_solution_step_by_step(raw_text: str) -> str:
     text = re.sub(r"(?m)^\s*([a-d]\))\s*", r"\n\n### **\1** ", text)
     text = re.sub(r"(?m)^\s*(Câu\s+\d+[\:\.]?)\s*", r"\n\n### **\1** ", text)
     text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"$\\dfrac{\1}{\2}$", text)
-    text = re.sub(r"\(([a-zA-Z0-9\+\-\*\s]+)\)\s*/\s*([a-zA-Z0-9\+\-\*\s]+)", r"$\\dfrac{\1}{\2}$", text)
     text = re.sub(r"Δ\s*([A-Za-z]{3})", r"$\\Delta \1$", text)
     text = re.sub(r"(?<=\.)\s*-\s*", r"\n- ", text)
     text = re.sub(r"\s*(?:=>|⇒|\\Rightarrow)\s*", r"\n  - $\\Rightarrow$ ", text)
@@ -177,7 +168,6 @@ def format_solution_step_by_step(raw_text: str) -> str:
         l = line.strip()
         if l:
             l = re.sub(r"\${2,}", "$", l)
-            l = re.sub(r"\$\s*\$", "", l)
             cleaned_lines.append(l)
     return "\n\n".join(cleaned_lines)
 
@@ -185,26 +175,18 @@ GAME_PROMPT = """
 Bạn là Trợ lý Sư phạm Toán 8 (Cả Đại số và Hình học) của Cô Mai Phương (Chương trình GDPT 2018 - Kết nối tri thức).
 Đối tượng học sinh: Lớp 8 (13-14 tuổi).
 
-QUY TẮC SƯ PHẠM:
+QUY TẮC SƯ PHẠM & CÔNG THỨC TOÁN:
 1. Nhận diện dạng bài từ hình ảnh/đề bài:
-   - NẾU LÀ TOÁN SỐ (Đại số / Số học / Thống kê): Đơn thức, Đa thức, Hằng đẳng thức đáng nhớ, Phân thức đại số, Phương trình bậc nhất, Hàm số bậc nhất.
-   - NẾU LÀ TOÁN HÌNH: Tứ giác, Định lý Thalès, Tam giác đồng dạng, Hình khối không gian.
-2. Lời văn gần gũi, chuẩn ngôn ngữ SGK Toán 8 Việt Nam. KHÔNG dùng tiếng Anh thuật ngữ.
-3. Câu hỏi tối đa 2 câu, hỏi trực diện. 4 lựa chọn ngắn gọn (1-2 dòng), KHÔNG ghi tiền tố 'A.', 'B.'.
-4. KÝ HIỆU TOÁN BẮT BUỘC DÙNG UNICODE THUẦN (KHÔNG dùng LaTeX gạch chéo ngược):
-   - Đại số: ⇔, ⇒, ≤, ≥, ≠, √, ², ³, ±, x = 2.
-   - Hình học: ∠ABC = 90°, ΔABC, AB // CD, ME ⊥ AB, M ∈ BC.
-
-CẤU TRÚC 3 BƯỚC THỬ THÁCH (Socratic Gamification):
-- Bước 1: Khai thác giả thiết cốt lõi (điều kiện xác định, hằng đẳng thức liên quan, yếu tố hình học ban đầu).
-- Bước 2: Bước biến đổi trung gian (phân tích nhân tử, quy đồng, chứng minh hình bình hành / tam giác đồng dạng).
-- Bước 3: Đưa ra đáp số cuối cùng hoặc kết luận điều phải chứng minh.
-
-KHI is_finished = true:
-- full_solution: Bài giải chi tiết hoàn chỉnh mẫu mực, từng bước rõ ràng để chép vở.
-- svg_code: 
-   + NẾU LÀ BÀI TOÁN HÌNH: BẮT BUỘC sinh mã SVG khung <svg viewBox='0 0 500 400'> với các đoạn thẳng rõ nét, các đỉnh có nhãn riêng biệt bằng thẻ <text>, cạnh khuất nét đứt (stroke-dasharray='4,4').
-   + NẾU LÀ BÀI TOÁN SỐ: Trả về chuỗi rỗng "" (không cần hình vẽ).
+   - NẾU LÀ TOÁN SỐ (Đại số / Số học): Đơn thức, Đa thức, Hằng đẳng thức đáng nhớ, Phân thức đại số, Phương trình bậc nhất.
+   - NẾU LÀ TOÁN HÌNH: Tứ giác, Định lý Thalès, Tam giác đồng dạng.
+2. Lời văn gần gũi, chuẩn ngôn ngữ SGK Toán 8 Việt Nam.
+3. KÝ HIỆU TOÁN HỌC BẮT BUỘC DÙNG MÃ LATEX:
+   - Phân số: \\frac{a}{b} hoặc \\dfrac{a}{b}
+   - Căn bậc hai: \\sqrt{x}
+   - Góc và tam giác: \\widehat{ABC}, \\Delta ABC
+   - Quan hệ: \\parallel, \\perp, \\Leftrightarrow, \\Rightarrow, \\le, \\ge
+4. Câu hỏi tối đa 2 câu, hỏi trực diện. 4 lựa chọn ngắn gọn, KHÔNG ghi tiền tố 'A.', 'B.'.
+5. CÁC PHƯƠNG ÁN LỰA CHỌN PHẢI ĐƯỢC XÁO TRỘN NGẪU NHIÊN (correct_index phản ánh đúng vị trí đáp án đúng).
 
 TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
 {
@@ -219,7 +201,7 @@ TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
     "Phương án 4"
   ],
   "correct_index": 0,
-  "explanation": "Giải thích ngắn vì sao đúng theo định lý/hằng đẳng thức nào",
+  "explanation": "Giải thích ngắn theo định lý/hằng đẳng thức",
   "is_finished": false,
   "full_solution": "",
   "svg_code": ""
@@ -262,10 +244,28 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
         match = re.search(r"\{[\s\S]*\}", clean_text)
         target_str = match.group(0) if match else clean_text
         try:
-            return json.loads(target_str, strict=False)
+            data = json.loads(target_str, strict=False)
         except Exception:
             fixed_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', target_str)
-            return json.loads(fixed_str, strict=False)
+            data = json.loads(fixed_str, strict=False)
+        
+        # Xáo trộn đáp án ngẫu nhiên
+        if "options" in data and isinstance(data["options"], list) and len(data["options"]) > 1:
+            opts = data["options"]
+            corr_idx = data.get("correct_index", 0)
+            if 0 <= corr_idx < len(opts):
+                indexed_opts = list(enumerate(opts))
+                random.shuffle(indexed_opts)
+                new_opts = []
+                new_corr_idx = 0
+                for new_i, (old_i, val) in enumerate(indexed_opts):
+                    new_opts.append(val)
+                    if old_i == corr_idx:
+                        new_corr_idx = new_i
+                data["options"] = new_opts
+                data["correct_index"] = new_corr_idx
+
+        return data
 
     return text_out
 
@@ -387,10 +387,9 @@ with tab1:
                     svg = card.get("svg_code", "")
                     if not sol and st.session_state.img_data:
                         with st.spinner("Đang mở khóa bài giải hoàn chỉnh..."):
-                            p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh. 
+                            p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh bằng mã LaTeX cho các công thức toán. 
                             Nếu là Toán Hình: Sinh kèm mã SVG chuẩn.
                             Nếu là Toán Số: Trình bày các bước biến đổi đại số rõ ràng.
-                            YÊU CẦU KÝ HIỆU: Dùng ký hiệu Unicode thuần (⇔, ⇒, ≤, ≥, √, ², ∠, ⊥, //, Δ, °).
                             Trả về JSON: {"full_solution": "...", "svg_code": "..."}"""
                             try:
                                 res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
@@ -425,8 +424,8 @@ with tab1:
                 if st.button("➡️ Sang thử thách tiếp theo", type="primary", use_container_width=True):
                     with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
                         p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. 
-                        Giữ câu hỏi và 4 phương án ngắn gọn, dễ hiểu cho học sinh lớp 8. Dùng ký hiệu Unicode thuần: ⇔, ⇒, ≤, ≥, √, ², ∠, ⊥, //, Δ, °.
-                        Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải chi tiết vào full_solution (và svg_code nếu là hình học)."""
+                        Giữ câu hỏi và 4 phương án ngắn gọn bằng LaTeX chuẩn.
+                        Nếu đây là bước cuối, hãy đặt is_finished = true, viết bài giải chi tiết vào full_solution."""
                         try:
                             st.session_state.card = execute_gemini_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
                             st.session_state.step += 1
@@ -493,18 +492,7 @@ with tab2:
 Bạn là Giám khảo chấm thi môn Toán THCS tại Việt Nam.
 Chuyên đề nộp: "{topic}".
 Đọc ảnh bài làm viết tay của học sinh và đánh giá theo Rubric thang điểm 10.
-
-HƯỚNG DẪN ĐẶC THÙ THEO DẠNG TOÁN:
-1. NẾU LÀ TOÁN ĐẠI SỐ (Số học):
-   - Đánh giá: Tìm ĐKXĐ, biến đổi đại số đúng công thức/hằng đẳng thức, thứ tự thực hiện phép tính, kết luận tập nghiệm/giá trị.
-2. NẾU LÀ TOÁN HÌNH HỌC:
-   - Đánh giá: Vẽ hình đúng quy ước (ký hiệu góc, cạnh bằng nhau), lập luận logic chặt chẽ, dẫn chứng định lý rõ ràng.
-
-QUY TẮC BẮT BUỘC KÝ HIỆU (UNICODE THUẦN):
-- TUYỆT ĐỐI KHÔNG dùng mã LaTeX có dấu gạch chéo ngược (\\frac, \\perp, \\Rightarrow, \\sqrt, $).
-- DÙNG KÝ HIỆU UNICODE:
-  + Đại số: ⇔, ⇒, ≤, ≥, ≠, √, ², ³, ±.
-  + Hình học: ∠ABC = 90°, dấu ⊥, dấu //, dấu ∈, dấu Δ, số đo °.
+BẮT BUỘC SỬ DỤNG MÃ LATEX CHO CÔNG THỨC TOÁN (\\frac, \\sqrt, \\widehat, \\Delta, v.v.).
 
 ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ:
 - Tổng điểm: [Điểm số]/10
@@ -517,9 +505,6 @@ QUY TẮC BẮT BUỘC KÝ HIỆU (UNICODE THUẦN):
 3. Trình bày & Kết luận ([Điểm]/2.0 điểm):
    - Ưu điểm: ...
    - Hạn chế: ...
-
-Gợi ý cách trình bày chuẩn để đạt điểm tối đa:
-(Trình bày từng dòng ngắn gọn, rõ ràng theo đúng ký hiệu trên).
 """
                     score_res = execute_gemini_request([hw_img, RUBRIC])
                     score_res_clean = format_math(score_res)
@@ -817,7 +802,7 @@ with tab4:
           stage1: [
             { level: "Nhận biết", time: 15, type: "short", q: "Tổng các góc trong một tứ giác lồi luôn bằng bao nhiêu độ? (Chỉ nhập số)", correctAnswers: ["360", "360 độ", "360°"], explain: "Định lý: Tổng các góc của một tứ giác luôn bằng 360 độ." },
             { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác luôn nằm trong một nửa mặt phẳng có bờ là đường thẳng chứa bất kì cạnh nào gọi là tứ giác gì?", correctAnswers: ["lồi", "tứ giác lồi"], explain: "Định nghĩa: Đó là tứ giác lồi." },
-            { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác lồi có thể có nhiều nhất bao nhiêu góc nhọn?", answers: ["3 góc nhọn", "4 góc nhọn", "2 góc nhọn"], correct: 0, explain: "Nếu có 4 góc nhọn thì tổng 4 góc < 360° (vô lý). Vậy tối đa có 3 góc nhọn." },
+            { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác lồi có thể có nhiều nhất bao nhiêu góc nhọn?", answers: ["3 góc nhọn", "4 góc nhọn", "2 góc nhọn"], correct: 0, explain: "Если có 4 góc nhọn thì tổng 4 góc < 360° (vô lý). Vậy tối đa có 3 góc nhọn." },
             { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác ABCD có góc A = 70°, B = 90°, C = 80°. Tính số đo góc D (nhập số):", correctAnswers: ["120", "120 độ", "120°"], explain: "Góc D = 360° - (70° + 90° + 80°) = 120°." }
           ],
           stage2: [
@@ -1244,7 +1229,7 @@ with tab4:
             syncStatusText.className = "text-xs text-emerald-400 font-bold";
           } catch (err) {
             syncStatusText.innerHTML = '<div class="text-rose-400 font-bold">⚠️ Chưa có mạng! Kết quả chưa gửi được.</div><div class="text-[10px] text-slate-300 mt-1">Em hãy chụp màn hình gửi cô hoặc bấm nút thử lại:</div>';
-            retryBtn.classList.remove("hidden");
+            retryBtn.classList.add("hidden");
           }
         }
 
