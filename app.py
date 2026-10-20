@@ -24,39 +24,40 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
 
-    /* Làm tối nền ảnh phía sau sâu hơn một chút để chữ cực kỳ nổi bật */
+    /* GIỮ NỀN ẢNH RÕ NÉT: Chỉ phủ một lớp trong suốt nhẹ nhàng để giữ nguyên độ sáng và chi tiết bức ảnh */
     .stApp {
-        background: linear-gradient(rgba(11, 15, 25, 0.88), rgba(11, 15, 25, 0.95)), 
+        background: linear-gradient(rgba(11, 15, 25, 0.25), rgba(11, 15, 25, 0.45)), 
                     url('https://raw.githubusercontent.com/dophuong1795-hub/socratic-toan8/main/teacher_bg.jpg.jpg');
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
         font-family: 'Plus Jakarta Sans', sans-serif;
-        color: #f8fafc;
+        color: #ffffff;
     }
     
-    /* Khung nội dung chính với lớp kính mờ tối màu lịch lãm */
+    /* KHUNG NỘI DUNG CHÍNH: Dùng nền xanh đen mờ đục cao cấp để tách biệt hoàn toàn với ảnh nền, chữ đọc cực kỳ rõ */
     .block-container {
         padding-top: 1.5rem !important;
         padding-bottom: 3rem !important;
         max-width: 780px !important;
-        background: rgba(15, 23, 42, 0.88);
-        backdrop-filter: blur(16px);
+        background: rgba(11, 15, 25, 0.92);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
         border-radius: 24px;
-        border: 1px solid rgba(56, 189, 248, 0.3);
-        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
+        border: 2px solid rgba(56, 189, 248, 0.5);
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.9);
         margin-top: 2rem;
         margin-bottom: 2rem;
     }
 
     .hero-banner {
         background: linear-gradient(135deg, #312e81 0%, #4338ca 50%, #db2777 100%);
-        border: 2px solid rgba(245, 158, 11, 0.6);
+        border: 2px solid rgba(245, 158, 11, 0.8);
         border-radius: 20px;
         padding: 24px 22px;
         color: white;
         text-align: center;
-        box-shadow: 0 12px 35px rgba(67, 56, 202, 0.6);
+        box-shadow: 0 12px 35px rgba(67, 56, 202, 0.7);
         margin-bottom: 24px;
     }
     .hero-banner h1 {
@@ -64,38 +65,40 @@ st.markdown("""
         font-weight: 800 !important;
         margin: 0 !important;
         color: #fef08a !important;
-        text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        text-shadow: 0 2px 10px rgba(0,0,0,0.6);
     }
     .hero-banner p {
         font-size: 14px;
         margin: 8px 0 0 0;
-        color: #e2e8f0;
-        opacity: 0.95;
+        color: #f1f5f9;
+        font-weight: 600;
     }
     .step-badge {
         display: inline-block;
-        background: rgba(56, 189, 248, 0.2);
+        background: rgba(56, 189, 248, 0.25);
         color: #38bdf8;
         font-weight: 700;
         font-size: 13px;
         padding: 6px 16px;
         border-radius: 999px;
         margin-bottom: 14px;
-        border: 1px solid rgba(56, 189, 248, 0.6);
+        border: 1px solid rgba(56, 189, 248, 0.8);
     }
+    
+    /* NÚT BẤM: Nền tối rõ ràng, viền sáng sắc nét */
     div[data-testid="stButton"] button {
         border-radius: 14px !important;
-        border: 1px solid rgba(99, 102, 241, 0.5) !important;
+        border: 1px solid rgba(99, 102, 241, 0.6) !important;
         font-size: 15px !important;
         font-weight: 600 !important;
         padding: 12px 20px !important;
-        background-color: rgba(30, 41, 59, 0.95) !important;
-        color: #f8fafc !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+        background-color: rgba(15, 23, 42, 0.95) !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
         transition: all 0.25s ease !important;
     }
     div[data-testid="stButton"] button:hover {
-        background-color: rgba(67, 56, 202, 0.8) !important;
+        background-color: rgba(67, 56, 202, 0.9) !important;
         border-color: #38bdf8 !important;
         color: #38bdf8 !important;
         transform: translateY(-2px) !important;
@@ -103,11 +106,12 @@ st.markdown("""
     div[data-testid="stButton"] button[kind="primary"] {
         background: linear-gradient(135deg, #4f46e5, #06b6d4) !important;
         color: white !important;
-        border: 1px solid rgba(255,255,255,0.4) !important;
+        border: 1px solid rgba(255,255,255,0.6) !important;
     }
+    
     .reward-box {
-        background: rgba(6, 78, 59, 0.85);
-        border: 2px solid rgba(52, 211, 153, 0.8);
+        background: rgba(6, 78, 59, 0.9);
+        border: 2px solid rgba(52, 211, 153, 0.9);
         border-radius: 18px;
         padding: 20px;
         margin-top: 18px;
@@ -117,38 +121,38 @@ st.markdown("""
         justify-content: center;
         align-items: center;
         background: rgba(15, 23, 42, 0.95);
-        border: 2px solid rgba(56, 189, 248, 0.6);
+        border: 2px solid rgba(56, 189, 248, 0.8);
         border-radius: 16px;
         padding: 12px;
         margin: 18px 0;
     }
     
-    /* TUỲ CHỈNH TAB MENU: Nền tối rõ nét, chữ sáng, tab đang chọn nổi bật */
+    /* TAB MENU: Làm nổi bật thanh menu, chữ trắng tinh sắc nét */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
         background-color: rgba(15, 23, 42, 0.95) !important;
         padding: 10px;
         border-radius: 16px;
-        border: 1px solid rgba(56, 189, 248, 0.3);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+        border: 2px solid rgba(56, 189, 248, 0.5);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.8);
     }
     .stTabs [data-baseweb="tab"] {
         border-radius: 10px;
-        color: #e2e8f0 !important;
+        color: #ffffff !important;
         font-weight: 700;
-        background-color: rgba(30, 41, 59, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background-color: rgba(30, 41, 59, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.2);
     }
     .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #4f46e5, #ec4899) !important;
         color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.4) !important;
-        box-shadow: 0 0 15px rgba(236, 72, 153, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.8) !important;
+        box-shadow: 0 0 20px rgba(236, 72, 153, 0.7);
     }
     
-    /* Làm nổi bật các nhãn chữ (Label) và thông tin trong khung */
-    label, .stRadio label, .stTextInput label, .stSelectbox label {
-        color: #f1f5f9 !important;
+    /* CHỮ TIÊU ĐỀ VÀ NHÃN: Đảm bảo sáng rõ trên nền tối */
+    label, .stRadio label, .stTextInput label, .stSelectbox label, p, span {
+        color: #f8fafc !important;
         font-weight: 600 !important;
     }
 </style>
