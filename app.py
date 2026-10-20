@@ -25,7 +25,11 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
 
     .stApp {
-        background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0b0f19 70%);
+        background: linear-gradient(rgba(11, 15, 25, 0.75), rgba(11, 15, 25, 0.85)), 
+                    url('https://raw.githubusercontent.com/dophuong1795-hub/socratic-toan8/main/teacher_bg.jpg');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
         font-family: 'Plus Jakarta Sans', sans-serif;
         color: #f8fafc;
     }
