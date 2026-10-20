@@ -27,7 +27,7 @@ st.markdown("""
     /* NỀN TOÀN TRANG: Đẩy hẳn hình ảnh sang bên trái màn hình */
     .stApp {
         background: linear-gradient(rgba(11, 15, 25, 0.2), rgba(11, 15, 25, 0.35)), 
-                    url('https://raw.githubusercontent.com/dophuong1795-hub/socratic-toan8/main/teacher_bg.jpg');
+                    url('https://raw.githubusercontent.com/dophuong1795-hub/socratic-toan8/main/teacher_bg.jpg.jpg');
         background-size: cover;
         background-position: left center; /* Đẩy hẳn hình sang trái */
         background-attachment: fixed;
