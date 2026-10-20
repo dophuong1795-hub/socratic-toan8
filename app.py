@@ -1,3 +1,4 @@
+import streamlit as str_module
 import streamlit as st
 import streamlit.components.v1 as components
 from google import genai
@@ -12,89 +13,123 @@ from datetime import datetime
 
 # ================= CẤU HÌNH GIAO DIỆN STREAMLIT =================
 st.set_page_config(
-    page_title="Đấu Trường Toán Học 8 - Cô Mai Phương",
-    page_icon="📐",
+    page_title="Phi Hành Gia Toán Học 8 - Cô Mai Phương",
+    page_icon="🚀",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-# ================= CSS TÙY CHỈNH GIAO DIỆN =================
+# ================= CSS TÙY CHỈNH GIAO DIỆN PHONG CÁCH VŨ TRỤ =================
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+
+    .stApp {
+        background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0b0f19 70%);
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        color: #f8fafc;
+    }
     .block-container {
         padding-top: 1.5rem !important;
         padding-bottom: 3rem !important;
-        max-width: 760px !important;
+        max-width: 780px !important;
     }
     .hero-banner {
-        background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
-        border-radius: 20px;
-        padding: 22px 20px;
+        background: linear-gradient(135deg, #312e81 0%, #4338ca 50%, #db2777 100%);
+        border: 2px solid rgba(245, 158, 11, 0.4);
+        border-radius: 24px;
+        padding: 24px 22px;
         color: white;
         text-align: center;
-        box-shadow: 0 10px 25px rgba(79, 70, 229, 0.25);
-        margin-bottom: 22px;
+        box-shadow: 0 12px 35px rgba(67, 56, 202, 0.4);
+        margin-bottom: 24px;
+        position: relative;
+        overflow: hidden;
     }
     .hero-banner h1 {
-        font-size: 26px !important;
+        font-size: 28px !important;
         font-weight: 800 !important;
         margin: 0 !important;
-        color: white !important;
+        color: #fef08a !important;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.3);
     }
     .hero-banner p {
         font-size: 14px;
-        margin: 6px 0 0 0;
+        margin: 8px 0 0 0;
+        color: #e2e8f0;
         opacity: 0.95;
     }
     .step-badge {
         display: inline-block;
-        background-color: #EEF2FF;
-        color: #4F46E5;
+        background: rgba(56, 189, 248, 0.15);
+        color: #38bdf8;
         font-weight: 700;
         font-size: 13px;
-        padding: 4px 14px;
+        padding: 6px 16px;
         border-radius: 999px;
-        margin-bottom: 12px;
-        border: 1px solid #C7D2FE;
+        margin-bottom: 14px;
+        border: 1px solid rgba(56, 189, 248, 0.4);
+        box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
     }
     div[data-testid="stButton"] button {
         border-radius: 14px !important;
-        border: 2px solid #E2E8F0 !important;
+        border: 1px solid rgba(99, 102, 241, 0.4) !important;
         font-size: 15px !important;
         font-weight: 600 !important;
-        padding: 12px 18px !important;
-        background-color: #F8FAFC !important;
-        color: #1E293B !important;
-        transition: all 0.2s ease !important;
+        padding: 12px 20px !important;
+        background-color: rgba(30, 41, 59, 0.8) !important;
+        color: #f8fafc !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+        transition: all 0.25s ease !important;
     }
     div[data-testid="stButton"] button:hover {
-        background-color: #EEF2FF !important;
-        border-color: #6366F1 !important;
-        color: #4F46E5 !important;
+        background-color: rgba(67, 56, 202, 0.4) !important;
+        border-color: #38bdf8 !important;
+        color: #38bdf8 !important;
         transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(56, 189, 248, 0.3) !important;
     }
     div[data-testid="stButton"] button[kind="primary"] {
-        background: linear-gradient(135deg, #4F46E5, #6366F1) !important;
+        background: linear-gradient(135deg, #4f46e5, #06b6d4) !important;
         color: white !important;
-        border: none !important;
+        border: 1px solid rgba(255,255,255,0.2) !important;
+        box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4) !important;
     }
     .reward-box {
-        background: #F0FDF4;
-        border: 2px solid #86EFAC;
-        border-radius: 16px;
+        background: rgba(6, 78, 59, 0.4);
+        border: 2px solid rgba(52, 211, 153, 0.6);
+        border-radius: 18px;
         padding: 20px;
-        margin-top: 15px;
+        margin-top: 18px;
+        box-shadow: 0 8px 25px rgba(6, 78, 59, 0.3);
     }
     .geogebra-container {
         display: flex;
         justify-content: center;
         align-items: center;
-        background: #FFFFFF;
-        border: 2px solid #E2E8F0;
-        border-radius: 14px;
+        background: #0f172a;
+        border: 2px solid rgba(56, 189, 248, 0.4);
+        border-radius: 16px;
         padding: 12px;
-        margin: 15px 0;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        margin: 18px 0;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+    }
+    /* Tùy chỉnh màu chữ các Tab trong sáng */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: rgba(15, 23, 42, 0.6);
+        padding: 8px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 10px;
+        color: #cbd5e1;
+        font-weight: 600;
+    }
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #4f46e5, #ec4899) !important;
+        color: white !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -107,7 +142,7 @@ if not API_KEY:
 
 # Khởi tạo Gemini Client
 client = genai.Client(api_key=API_KEY)
-MODEL_NAME = "gemini-3.8-flash"
+MODEL_NAME = "gemini-2.5-flash"
 
 # ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC TOÁN 8 =================
 def format_math(text: str) -> str:
@@ -273,18 +308,18 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
 if "submission_history" not in st.session_state:
     st.session_state.submission_history = []
 
-# ================= BANNER TIÊU ĐỀ =================
+# ================= BANNER VŨ TRỤ =================
 st.markdown("""
 <div class="hero-banner">
-    <h1>📐 ĐẤU TRƯỜNG TOÁN HỌC 8</h1>
-    <p>Chinh phục Đại số & Hình học cùng cô Mai Phương • Học tập gợi mở theo từng bước</p>
+    <h1>🚀 PHI HÀNH GIA TOÁN HỌC 8</h1>
+    <p>Khám phá Vũ trụ Tri thức Đại số & Hình học cùng cô Mai Phương • Học tập gợi mở từng bước</p>
 </div>
 """, unsafe_allow_html=True)
 
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🎮 Thử Thách Tương Tác", 
+    "🪐 Thử Thách Tương Tác", 
     "📝 Nộp Bài Tập", 
-    "🍄 Đại Chiến Bowser",
+    "👾 Đại Chiến Bowser",
     "📊 Bảng Điểm Lớp"
 ])
 
@@ -307,17 +342,17 @@ with tab1:
     if "reward_ggb" not in st.session_state:
         st.session_state.reward_ggb = None
 
-    with st.expander("📸 Đề bài / Ảnh chụp bài toán (Số học, Đại số hoặc Hình học)", expanded=(st.session_state.card is None)):
+    with st.expander("📸 Trạm quét ảnh bài toán (Số học, Đại số hoặc Hình học)", expanded=(st.session_state.card is None)):
         up_game_img = st.file_uploader("Tải/chụp ảnh bài toán:", type=["jpg", "png", "jpeg"], key="up_game_img")
-        math_mode = st.radio("Phân loại môn:", ["Tự động nhận diện", "Toán Số (Đại số)", "Toán Hình (Hình học)"], horizontal=True)
+        math_mode = st.radio("Phân loại hệ thống:", ["Tự động nhận diện", "Toán Số (Đại số)", "Toán Hình (Hình học)"], horizontal=True)
         
         if up_game_img:
             st.session_state.img_data = Image.open(up_game_img)
             st.image(st.session_state.img_data, caption="Ảnh đề bài đang xử lý", use_container_width=True)
 
         if st.session_state.img_data and st.session_state.card is None:
-            if st.button("🚀 Bắt đầu nhận Thử thách Bước 1!", type="primary", use_container_width=True):
-                with st.spinner("Đợi cô phân tích đề bài theo chuẩn chương trình SGK Toán 8..."):
+            if st.button("🚀 Khởi động Trạm thử thách Bước 1!", type="primary", use_container_width=True):
+                with st.spinner("Phi hành đoàn AI đang phân tích quỹ đạo đề bài theo chuẩn SGK Toán 8..."):
                     try:
                         p_start = f"Tạo câu hỏi thử thách Bước 1 ngắn gọn. Phân loại yêu cầu: {math_mode}. TUYỆT ĐỐI KHÔNG dùng đường tròn."
                         c_data = execute_gemini_request([st.session_state.img_data, p_start], GAME_PROMPT, is_json=True)
@@ -339,7 +374,7 @@ with tab1:
         st.progress(progress_val)
 
         badge_type = "ĐẠI SỐ" if card.get("subject_type") == "algebra" else "HÌNH HỌC"
-        st.markdown(f'<span class="step-badge">[{badge_type}] CỬA ẢI: BƯỚC {curr} / {total}</span>', unsafe_allow_html=True)
+        st.markdown(f'<span class="step-badge">[{badge_type}] TRẠM KHÔNG GIAN: BƯỚC {curr} / {total}</span>', unsafe_allow_html=True)
         
         fb = format_math(card.get("feedback", ""))
         if fb:
@@ -352,7 +387,7 @@ with tab1:
         correct = card.get("correct_index", 0)
 
         if not st.session_state.answered:
-            st.markdown("**👉 Em hãy bấm chọn một đáp án đúng nhất:**")
+            st.markdown("**👉 Phi hành gia hãy chọn một tọa độ đáp án đúng nhất:**")
             for idx, opt in enumerate(opts):
                 clean_opt = format_math(opt)
                 clean_opt = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", clean_opt)
@@ -370,27 +405,27 @@ with tab1:
             correct_text = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", correct_text)
 
             if sel == correct:
-                st.success("🎉 **Chính xác!** Em đã lựa chọn tư duy chuẩn xác.")
+                st.success("🎉 **Chính xác!** Quỹ đạo tư duy chuẩn xác.")
             else:
-                st.error("❌ **Chưa chính xác.**")
-                st.markdown(f"Đáp án đúng là: **{chr(65+correct)}. {correct_text}**")
+                st.error("❌ **Chệch quỹ đạo.**")
+                st.markdown(f"Đáp án chuẩn: **{chr(65+correct)}. {correct_text}**")
 
-            st.markdown(f"**💡 Hướng suy luận:** {format_math(card.get('explanation', ''))}")
+            st.markdown(f"**💡 Trạm phân tích:** {format_math(card.get('explanation', ''))}")
 
             is_finish = card.get("is_finished") or (curr >= total)
 
             if is_finish:
                 st.balloons()
-                st.success("🏆 **XUẤT SẮC! Em đã hoàn thành trọn vẹn bài toán!**")
+                st.success("🏆 **HOÀN THÀNH XUẤT SẮC! Chinh phục trọn vẹn hành tinh toán học!**")
 
                 if not st.session_state.reward:
                     sol = card.get("full_solution", "")
                     ggb_cmds = card.get("ggb_commands", [])
                     if (not sol or not ggb_cmds) and st.session_state.img_data:
-                        with st.spinner("Đang mở khóa bài giải hoàn chỉnh và lệnh dựng hình GeoGebra chính xác theo đề bài..."):
+                        with st.spinner("Đang mở khóa kho báu lời giải và trạm hình học GeoGebra không gian..."):
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh đúng chuẩn kiến thức SGK Toán 8 (Kết nối tri thức). 
                             TUYỆT ĐỐI KHÔNG dùng kiến thức đường tròn.
-                            Nếu là Toán Hình: BẮT BUỘC sinh mảng ggb_commands chứa các lệnh GeoGebra tiếng Anh để dựng đúng hình của đề bài (ví dụ tọa độ điểm, tam giác, đường cao).
+                            Nếu là Toán Hình: BẮT BUỘC sinh mảng ggb_commands chứa các lệnh GeoGebra tiếng Anh để dựng đúng hình của đề bài.
                             Trả về JSON: {"full_solution": "...", "ggb_commands": ["..."]}"""
                             try:
                                 res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
@@ -403,13 +438,13 @@ with tab1:
 
                 st.markdown("""
                 <div class="reward-box">
-                    <h3 style="color: #15803D; margin-top:0;">🎁 PHẦN THƯỞNG: BÀI GIẢI MẪU HOÀN CHỈNH</h3>
-                    <p style="color: #166534; font-size: 14px;">Em hãy đối chiếu các bước lập luận và ghi chép cẩn thận vào vở nhé!</p>
+                    <h3 style="color: #34d399; margin-top:0;">🎁 KHO BÁU PHẦN THƯỞNG: BÀI GIẢI MẪU HOÀN CHỈNH</h3>
+                    <p style="color: #a7f3d0; font-size: 14px;">Hãy ghi chép cẩn thận vào nhật ký học tập nhé!</p>
                 </div>
                 """, unsafe_allow_html=True)
 
                 if card.get("subject_type") == "geometry":
-                    st.markdown("#### 📐 Bảng vẽ Hình học động GeoGebra (Dựng hình chuẩn theo đề bài):")
+                    st.markdown("#### 📐 Trạm Hình học không gian động GeoGebra:")
                     cmds = st.session_state.reward_ggb or ["A = (0, 4)", "B = (-3, 0)", "C = (3, 0)", "Polygon(A, B, C)"]
                     commands_js = "".join([f'try {{ api.evalCommand("{cmd}"); }} catch(e) {{}} \n' for cmd in cmds])
 
@@ -442,11 +477,11 @@ with tab1:
                 st.markdown(formatted_solution)
 
                 st.write("")
-                st.success("📝 **Bước tiếp theo:** Hãy chuyển sang tab **'Nộp Bài Tập'** để nộp bài làm của em cho cô chấm nhé!")
+                st.success("📝 **Bước tiếp theo:** Hãy chuyển sang tab **'Nộp Bài Tập'** để truyền tín hiệu bài làm về trạm điều khiển của cô nhé!")
             else:
                 st.write("")
-                if st.button("➡️ Sang thử thách tiếp theo", type="primary", use_container_width=True):
-                    with st.spinner("Đang chuẩn bị cửa ải tiếp theo..."):
+                if st.button("➡️ Tiến tới trạm tiếp theo", type="primary", use_container_width=True):
+                    with st.spinner("Đang dịch chuyển qua không gian tiếp theo..."):
                         p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. 
                         TUYỆT ĐỐI KHÔNG dùng đường tròn hoặc kiến thức ngoài chương trình lớp 8."""
                         try:
@@ -459,7 +494,7 @@ with tab1:
                             st.error(f"Lỗi tải màn: {err}")
 
         st.write("")
-        if st.button("🔄 Giải bài tập khác", use_container_width=True):
+        if st.button("🔄 Khám phá hành tinh bài tập khác", use_container_width=True):
             st.session_state.step = 1
             st.session_state.card = None
             st.session_state.answered = False
@@ -472,18 +507,18 @@ with tab1:
 # ================= TAB 2: NỘP BÀI & CHẤM ĐIỂM =================
 with tab2:
     st.markdown("""
-    <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 15px; border-radius: 14px; margin-bottom: 20px;">
-        <span style="font-weight: 700; color: #334155;">📋 Chấm tự luận bằng AI theo Rubric chuẩn môn Toán THCS (Đại số & Hình học)</span>
+    <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); padding: 16px; border-radius: 16px; margin-bottom: 20px;">
+        <span style="font-weight: 700; color: #38bdf8;">📋 Trạm truyền dữ liệu bài làm viết tay - AI giám sát theo Rubric chuẩn môn Toán THCS</span>
     </div>
     """, unsafe_allow_html=True)
 
     c1, c2 = st.columns(2)
     with c1:
-        s_name = st.text_input("Họ và tên học sinh:")
+        s_name = st.text_input("Tên phi hành gia (Họ và tên):")
     with c2:
-        s_class = st.selectbox("Lớp:", ["8A13", "8A18"])
+        s_class = st.selectbox("Hạm đội lớp:", ["8A13", "8A18"])
 
-    topic = st.selectbox("Chọn chuyên đề bài tập nộp:", [
+    topic = st.selectbox("Chọn hành tinh chuyên đề:", [
         "Đại số 8: Đơn thức và Đa thức nhiều biến",
         "Đại số 8: Các hằng đẳng thức đáng nhớ",
         "Đại số 8: Phân tích đa thức thành nhân tử",
@@ -497,18 +532,18 @@ with tab2:
         "Hình học 8: Định lý Thalès trong tam giác",
         "Hình học 8: Tam giác đồng dạng và định lý liên quan",
         "Hình học 8: Hình chóp tam giác đều & tứ giác đều",
-        "Bài kiểm tra tổng hợp (Số và Hình)"
+        "Bài kiểm tra tổng hợp vũ trụ (Số và Hình)"
     ])
 
-    up_hw = st.file_uploader("📸 Chụp ảnh bài giải viết tay trong vở:", type=["jpg", "png", "jpeg"], key="hw_submit_img")
+    up_hw = st.file_uploader("📸 Truyền ảnh nhật ký bài giải viết tay trong vở:", type=["jpg", "png", "jpeg"], key="hw_submit_img")
 
-    if st.button("🚀 Nộp bài và nhận kết quả", type="primary", use_container_width=True):
+    if st.button("🚀 Phóng tín hiệu nộp bài và nhận điểm", type="primary", use_container_width=True):
         if not s_name:
-            st.warning("Em hãy điền Họ và tên trước khi nộp nhé!")
+            st.warning("Phi hành gia hãy nhập Họ và tên trước khi phóng tín hiệu nhé!")
         elif not up_hw:
-            st.warning("Em chưa tải ảnh bài làm lên!")
+            st.warning("Bạn chưa đính kèm ảnh nhật ký bài làm!")
         else:
-            with st.spinner("Cô đang chấm bài chi tiết theo Rubric môn Toán..."):
+            with st.spinner("Trạm AI đang quét và chấm điểm chi tiết theo Rubric Vũ trụ Toán..."):
                 try:
                     hw_img = Image.open(up_hw)
                     RUBRIC = f"""
@@ -559,16 +594,16 @@ Chuyên đề nộp: "{topic}".
                         except Exception:
                             pass
 
-                    st.success("🎉 Đã hoàn tất chấm bài và tự động cập nhật vào sổ điểm của cô!")
-                    st.markdown(f"### Kết quả của: **{s_name}** - Lớp **{s_class}**")
+                    st.success("🎉 Tín hiệu đã truyền thành công! Điểm số tự động cập nhật về hạm đội của cô!")
+                    st.markdown(f"### Kết quả của phi hành gia: **{s_name}** - Hạm đội **{s_class}**")
                     st.markdown(score_res_clean)
                 except Exception as err:
-                    st.error(f"Lỗi trong quá trình chấm bài: {err}")
+                    st.error(f"Lỗi truyền tín hiệu: {err}")
 
-# ================= TAB 3: MINIGAME ĐẠI CHIẾN BOWSER (TỨ GIÁC) =================
+# ================= TAB 3: MINIGAME ĐẠI CHIẾN BOWSER (VŨ TRỤ TỨ GIÁC) =================
 with tab3:
-    st.subheader("🍄 Vượt Ải Tứ Giác - Đại Chiến Bowser")
-    st.caption("Auto-runner vượt 5 ải Hình học 8 (KNTT) & Hạ gục Bowser nhận +5 điểm cộng thực tế từ Cô Mai Phương!")
+    st.subheader("👾 Trạm Không Gian: Đại Chiến Bowser (Tứ Giác Toán 8)")
+    st.caption("Vượt qua 5 ải Tứ giác hệ thống & Tiêu diệt trùm Bowser để nhận +5 điểm cộng thực tế từ Cô Mai Phương!")
 
     sheet_webhook = st.secrets.get("GOOGLE_SHEET_WEBHOOK_URL", "https://script.google.com/macros/s/AKfycbwYEXAMPLE_REPLACE_HERE/exec")
 
@@ -598,41 +633,41 @@ with tab3:
 
       <div id="login-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border-2 border-amber-400/80 rounded-2xl max-w-md w-full p-6 shadow-2xl text-center">
-          <div class="inline-block p-3 bg-red-600 rounded-2xl shadow-lg mb-3">
-            <span class="font-pixel text-2xl text-white">M</span>
+          <div class="inline-block p-3 bg-indigo-600 rounded-2xl shadow-lg mb-3">
+            <span class="font-pixel text-2xl text-white">🚀</span>
           </div>
-          <h1 class="text-xl font-extrabold text-amber-400 mb-1">LỚP TOÁN CÔ MAI PHƯƠNG</h1>
+          <h1 class="text-xl font-extrabold text-amber-400 mb-1">VŨ TRỤ TOÁN HỌC - CÔ MAI PHƯƠNG</h1>
           <p class="text-xs text-slate-400 mb-5">Đại chiến Bowser - Vượt ải Tứ Giác Toán 8</p>
           
           <div class="space-y-3.5 text-left mb-6">
             <div>
-              <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Họ và tên học sinh:</label>
+              <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Tên Phi Hành Gia:</label>
               <input type="text" id="input-name" placeholder="Ví dụ: Nguyễn Văn An" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
             </div>
             <div>
-              <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Lớp:</label>
+              <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Hạm đội Lớp:</label>
               <input type="text" id="input-class" placeholder="Ví dụ: 8A13" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
             </div>
           </div>
 
           <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 text-xs text-slate-300 text-left mb-5 space-y-1">
-            <p>• <b>5 Mạng sống (❤️❤️❤️❤️❤️)</b>. Mario tự động chạy!</p>
+            <p>• <b>5 Mạng sống (❤️❤️❤️❤️❤️)</b>. Tự động phiêu lưu không gian!</p>
             <p>• Thời gian: <b>15s</b> (Nhận biết), <b>20s</b> (Thông hiểu), <b>30s</b> (Vận dụng).</p>
             <p>• Hạ gục Bowser nhận ngay <b>+5 Điểm cộng thực tế</b> từ Cô Mai Phương!</p>
           </div>
 
-          <button id="btn-start-game" class="w-full py-3.5 bg-gradient-to-r from-red-600 to-amber-500 hover:from-red-500 hover:to-amber-400 text-white font-extrabold text-sm rounded-xl shadow-lg transition transform active:scale-95">
-            BẮT ĐẦU VƯỢT ẢI NGAY
+          <button id="btn-start-game" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white font-extrabold text-sm rounded-xl shadow-lg transition transform active:scale-95">
+            BẮT ĐẦU PHÓNG VŨ TRỤ NGAY
           </button>
         </div>
       </div>
 
       <header class="w-full max-w-2xl flex items-center justify-between bg-slate-900/90 border border-slate-800 px-3 py-2 rounded-2xl mb-2 shadow-lg">
         <div class="flex items-center space-x-2">
-          <div class="w-7 h-7 rounded-lg bg-red-600 flex items-center justify-center font-pixel text-white text-[10px]">M</div>
+          <div class="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center font-pixel text-white text-[10px]">🚀</div>
           <div>
-            <h2 class="text-xs font-extrabold text-amber-400 leading-tight">LỚP TOÁN CÔ MAI PHƯƠNG</h2>
-            <p id="hud-student" class="text-[10px] text-slate-400">Học sinh: Đang kết nối...</p>
+            <h2 class="text-xs font-extrabold text-amber-400 leading-tight">PHI HÀNH GIA TOÁN 8</h2>
+            <p id="hud-student" class="text-[10px] text-slate-400">Phi hành gia: Đang kết nối...</p>
           </div>
         </div>
         
@@ -649,7 +684,7 @@ with tab3:
         </div>
       </header>
 
-      <main id="game-arena" class="relative w-full max-w-2xl aspect-[16/9] bg-sky-400 rounded-2xl border-2 border-amber-400/80 shadow-2xl overflow-hidden">
+      <main id="game-arena" class="relative w-full max-w-2xl aspect-[16/9] bg-slate-950 rounded-2xl border-2 border-cyan-500/60 shadow-2xl overflow-hidden">
         <canvas id="gameCanvas" width="860" height="484" class="w-full h-full block"></canvas>
       </main>
 
@@ -679,7 +714,7 @@ with tab3:
           <div id="quiz-short-container" class="space-y-2 mb-2 hidden">
             <input type="text" id="quiz-short-input" placeholder="Nhập đáp số hoặc tên hình..." autocomplete="off" class="w-full bg-slate-800 border-2 border-sky-500/60 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
             <button id="quiz-short-submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-md transition">
-              XÁC NHẬN ĐÁP ÁN (ENTER)
+              XÁC NHẬN TỌA ĐỘ (ENTER)
             </button>
           </div>
 
@@ -690,13 +725,13 @@ with tab3:
       <div id="stage-clear-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 hidden">
         <div class="bg-slate-900 border-2 border-emerald-400 rounded-2xl max-w-md w-full p-6 text-center shadow-2xl">
           <div class="text-3xl mb-2">🌟</div>
-          <h3 id="stage-clear-title" class="text-base font-extrabold text-emerald-400 mb-1">HOÀN THÀNH ẢI!</h3>
-          <p class="text-xs text-amber-400 font-bold mb-3">LỜI DẶN DÒ TỪ CÔ MAI PHƯƠNG</p>
+          <h3 id="stage-clear-title" class="text-base font-extrabold text-emerald-400 mb-1">VƯỢT TRẠM THÀNH CÔNG!</h3>
+          <p class="text-xs text-amber-400 font-bold mb-3">NHẬT KÝ TỪ CÔ MAI PHƯƠNG</p>
           
           <div id="stage-clear-msg" class="bg-slate-800/80 border border-slate-700 rounded-xl p-3.5 text-xs text-slate-200 text-left mb-5 leading-relaxed"></div>
 
           <button id="btn-continue-next-stage" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl transition shadow-lg">
-            TIẾP TỤC TIẾN LÊN ẢI TIẾP THEO ⏩
+            TIẾP TỤC KHÁM PHÁ TRẠM TIẾP THEO ⏩
           </button>
         </div>
       </div>
@@ -706,17 +741,17 @@ with tab3:
           
           <div class="text-center mb-3">
             <span id="summary-badge-icon" class="text-3xl">🏆</span>
-            <h2 id="summary-title" class="text-lg font-extrabold text-amber-400 mt-1">VINH DANH CHIẾN THẮNG!</h2>
-            <p id="summary-subtitle" class="text-[11px] text-emerald-400 font-semibold">Đã xuất sắc vượt qua 5 Ải & Hạ gục Bowser</p>
+            <h2 id="summary-title" class="text-lg font-extrabold text-amber-400 mt-1">VINH DANH VŨ TRỤ!</h2>
+            <p id="summary-subtitle" class="text-[11px] text-emerald-400 font-semibold">Đã hoàn thành xuất sắc nhiệm vụ không gian</p>
           </div>
 
           <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 mb-3 grid grid-cols-2 gap-2 text-xs">
-            <div><span class="text-slate-400">Học sinh:</span> <b id="sum-name" class="text-white">...</b></div>
-            <div><span class="text-slate-400">Lớp:</span> <b id="sum-class" class="text-white">...</b></div>
-            <div><span class="text-slate-400">Mã đề:</span> <b id="sum-examcode" class="text-amber-300">...</b></div>
+            <div><span class="text-slate-400">Phi hành gia:</span> <b id="sum-name" class="text-white">...</b></div>
+            <div><span class="text-slate-400">Hạm đội:</span> <b id="sum-class" class="text-white">...</b></div>
+            <div><span class="text-slate-400">Mã trạm:</span> <b id="sum-examcode" class="text-amber-300">...</b></div>
             <div><span class="text-slate-400">Tổng điểm:</span> <b id="sum-score" class="text-amber-400 font-pixel">0</b></div>
             <div class="col-span-2 bg-emerald-950/60 border border-emerald-500/40 p-2 rounded-lg text-emerald-300 text-center font-bold">
-              🎁 Phần thưởng: <span id="sum-bonus" class="text-amber-300 font-extrabold">+5 ĐIỂM CỘNG</span> từ Cô Mai Phương!
+              🎁 Thưởng trạm: <span id="sum-bonus" class="text-amber-300 font-extrabold">+5 ĐIỂM CỘNG</span> từ Cô Mai Phương!
             </div>
           </div>
 
@@ -724,15 +759,15 @@ with tab3:
 
           <div id="sync-status-box" class="border border-slate-700 bg-slate-950/60 rounded-xl p-2.5 text-center mb-3">
             <div id="sync-status-text" class="text-xs text-yellow-400 font-medium">
-              ⏳ Đang kết nối gửi kết quả về Google Sheets...
+              ⏳ Đang truyền kết quả về trạm Google Sheets...
             </div>
             <button id="btn-retry-sync" class="mt-2 hidden px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg transition">
-              🔄 Thử gửi lại dữ liệu
+              🔄 Truyền lại dữ liệu
             </button>
           </div>
 
           <button onclick="location.reload()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-bold text-xs rounded-xl transition">
-            CHƠI LẠI VỚI BỘ ĐỀ MỚI 🔁
+            PHÓNG LẠI HÀNH TRÌNH MỚI 🔁
           </button>
         </div>
       </div>
@@ -760,23 +795,23 @@ with tab3:
           } catch(e) {}
         }
 
-        function sndJump() { playTone(180, 'square', 0.15, 0.12); setTimeout(() => playTone(450, 'square', 0.15, 0.12), 60); }
-        function sndCoin() { playTone(988, 'square', 0.08, 0.15); setTimeout(() => playTone(1318, 'square', 0.22, 0.15), 70); }
-        function sndFireball() { playTone(320, 'triangle', 0.12, 0.25); setTimeout(() => playTone(140, 'sawtooth', 0.3, 0.25), 80); }
-        function sndWrong() { playTone(200, 'sawtooth', 0.2, 0.2); setTimeout(() => playTone(120, 'sawtooth', 0.3, 0.2), 150); }
-        function sndRoar() { playTone(85, 'sawtooth', 0.45, 0.3); setTimeout(() => playTone(60, 'sawtooth', 0.5, 0.3), 180); }
+        function sndJump() { playTone(220, 'square', 0.12, 0.1); setTimeout(() => playTone(550, 'square', 0.12, 0.1), 60); }
+        function sndCoin() { playTone(1046, 'square', 0.08, 0.12); setTimeout(() => playTone(1318, 'square', 0.2, 0.12), 70); }
+        function sndFireball() { playTone(350, 'triangle', 0.12, 0.2); setTimeout(() => playTone(150, 'sawtooth', 0.25, 0.2), 80); }
+        function sndWrong() { playTone(180, 'sawtooth', 0.2, 0.2); setTimeout(() => playTone(100, 'sawtooth', 0.3, 0.2), 150); }
+        function sndRoar() { playTone(90, 'sawtooth', 0.4, 0.25); setTimeout(() => playTone(50, 'sawtooth', 0.45, 0.25), 180); }
 
         let bgmInterval = null;
-        const bgmNotes = [261.6, 261.6, 0, 261.6, 0, 207.6, 233.1, 261.6];
+        const bgmNotes = [330, 330, 0, 330, 0, 262, 330, 392];
         let noteIdx = 0;
         function startBgm() {
           if (bgmInterval || isSoundMuted) return;
           bgmInterval = setInterval(() => {
             if (!gameState.isPaused && !gameState.isGameOver && bgmNotes[noteIdx] > 0) {
-              playTone(bgmNotes[noteIdx], 'square', 0.1, 0.03);
+              playTone(bgmNotes[noteIdx], 'square', 0.08, 0.025);
             }
             noteIdx = (noteIdx + 1) % bgmNotes.length;
-          }, 220);
+          }, 240);
         }
         function stopBgm() { if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; } }
 
@@ -838,13 +873,13 @@ with tab3:
 
         function buildExam() {
           return {
-            code: "CMP-8A-" + Math.floor(1000 + Math.random() * 9000),
+            code: "CMP-SPACE-8-" + Math.floor(1000 + Math.random() * 9000),
             stages: [
-              { name: "Màn 1: Tứ giác lồi", questions: shuffle(rawQuestionPool.stage1).slice(0, 3) },
-              { name: "Màn 2: Hình thang cân", questions: shuffle(rawQuestionPool.stage2).slice(0, 4) },
-              { name: "Màn 3: Hình bình hành", questions: shuffle(rawQuestionPool.stage3).slice(0, 5) },
-              { name: "Màn 4: Hình chữ nhật", questions: shuffle(rawQuestionPool.stage4).slice(0, 5) },
-              { name: "Màn 5: Hình thoi & Hình vuông", questions: shuffle(rawQuestionPool.stage5).slice(0, 5) },
+              { name: "Trạm 1: Tứ giác lồi", questions: shuffle(rawQuestionPool.stage1).slice(0, 3) },
+              { name: "Trạm 2: Hình thang cân", questions: shuffle(rawQuestionPool.stage2).slice(0, 4) },
+              { name: "Trạm 3: Hình bình hành", questions: shuffle(rawQuestionPool.stage3).slice(0, 5) },
+              { name: "Trạm 4: Hình chữ nhật", questions: shuffle(rawQuestionPool.stage4).slice(0, 5) },
+              { name: "Trạm 5: Hình thoi & Hình vuông", questions: shuffle(rawQuestionPool.stage5).slice(0, 5) },
             ],
             bossQuestions: shuffle(rawQuestionPool.boss).slice(0, 3)
           };
@@ -862,10 +897,10 @@ with tab3:
         const ctx = canvas.getContext("2d");
         const arenaEl = document.getElementById("game-arena");
 
-        const mario = { x: 100, y: 350, w: 34, h: 44, vy: 0, isJumping: false, legSwing: 0 };
+        const rocket = { x: 120, y: 330, w: 46, h: 28, vy: 0, isJumping: false, exhaustFlame: 0 };
         let worldOffset = 0;
-        let mysteryBox = { x: 750, y: 240, active: true, bounce: 0 };
-        let fireball = { active: false, x: 0, y: 0, vx: 0 };
+        let meteorBox = { x: 750, y: 230, active: true, bounce: 0 };
+        let laserBeam = { active: false, x: 0, y: 0, vx: 0 };
 
         function triggerShake() {
           arenaEl.classList.add("shake");
@@ -874,18 +909,18 @@ with tab3:
 
         function updateWorld() {
           if (gameState.isPaused || gameState.isGameOver) return;
-          mario.legSwing += 0.25;
+          rocket.exhaustFlame += 0.4;
 
-          if (mario.isJumping) {
-            mario.y += mario.vy;
-            mario.vy += 0.8;
-            if (mario.y >= 350) { mario.y = 350; mario.isJumping = false; }
+          if (rocket.isJumping) {
+            rocket.y += rocket.vy;
+            rocket.vy += 0.8;
+            if (rocket.y >= 330) { rocket.y = 330; rocket.isJumping = false; }
           }
 
-          if (fireball.active) {
-            fireball.x += fireball.vx;
-            if (fireball.x >= 680) {
-              fireball.active = false;
+          if (laserBeam.active) {
+            laserBeam.x += laserBeam.vx;
+            if (laserBeam.x >= 680) {
+              laserBeam.active = false;
               triggerShake();
               sndFireball();
             }
@@ -893,9 +928,9 @@ with tab3:
 
           if (!gameState.inBossFight) {
             worldOffset += 3.5;
-            mysteryBox.x -= 3.5;
-            if (mysteryBox.x <= 220 && mysteryBox.active) {
-              mysteryBox.active = false;
+            meteorBox.x -= 3.5;
+            if (meteorBox.x <= 220 && meteorBox.active) {
+              meteorBox.active = false;
               openNextQuestion();
             }
           }
@@ -903,56 +938,68 @@ with tab3:
 
         function drawWorld() {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = gameState.inBossFight ? "#2d0a1e" : "#38bdf8";
+          
+          // Vẽ nền không gian vũ trụ & các ngôi sao lấp lánh
+          ctx.fillStyle = gameState.inBossFight ? "#0f051d" : "#060913";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          ctx.fillStyle = gameState.inBossFight ? "#1f2937" : "#22c55e";
+          ctx.fillStyle = "#ffffff";
+          for(let i=0; i<30; i++) {
+            let sx = (i * 37 + worldOffset * 0.3) % canvas.width;
+            let sy = (i * 23) % (canvas.height - 50);
+            ctx.fillRect(sx, sy, 2, 2);
+          }
+
+          // Vẽ bề mặt hành tinh bên dưới
+          ctx.fillStyle = gameState.inBossFight ? "#31103f" : "#1e1b4b";
           ctx.fillRect(0, 394, canvas.width, 16);
-          ctx.fillStyle = gameState.inBossFight ? "#991b1b" : "#854d0e";
+          ctx.fillStyle = gameState.inBossFight ? "#581c87" : "#312e81";
           ctx.fillRect(0, 410, canvas.width, 74);
 
-          if (!gameState.inBossFight && mysteryBox.x > -50) {
+          // Vẽ thiên thạch / hộp bí ẩn không gian
+          if (!gameState.inBossFight && meteorBox.x > -50) {
             ctx.fillStyle = "#f59e0b";
-            ctx.fillRect(mysteryBox.x, mysteryBox.y, 44, 44);
-            ctx.strokeStyle = "#78350f";
+            ctx.fillRect(meteorBox.x, meteorBox.y, 44, 44);
+            ctx.strokeStyle = "#b45309";
             ctx.lineWidth = 3;
-            ctx.strokeRect(mysteryBox.x, mysteryBox.y, 44, 44);
+            ctx.strokeRect(meteorBox.x, meteorBox.y, 44, 44);
             ctx.fillStyle = "#ffffff";
             ctx.font = "bold 24px monospace";
-            ctx.fillText("?", mysteryBox.x + 14, mysteryBox.y + 31);
+            ctx.fillText("?", meteorBox.x + 14, meteorBox.y + 31);
           }
 
-          ctx.fillStyle = "#ef4444";
-          ctx.fillRect(mario.x, mario.y + 12, mario.w, 18);
-          ctx.fillRect(mario.x + 4, mario.y, 28, 14);
-          ctx.fillStyle = "#fbcfe8";
-          ctx.fillRect(mario.x + 8, mario.y + 8, 20, 10);
-          ctx.fillStyle = "#1d4ed8";
-          ctx.fillRect(mario.x + 6, mario.y + 28, mario.w - 12, 14);
+          // Vẽ Tên lửa (Phi hành gia)
+          ctx.fillStyle = "#38bdf8";
+          ctx.beginPath();
+          ctx.moveTo(rocket.x + rocket.w, rocket.y + rocket.h / 2);
+          ctx.lineTo(rocket.x, rocket.y);
+          ctx.lineTo(rocket.x + 10, rocket.y + rocket.h / 2);
+          ctx.lineTo(rocket.x, rocket.y + rocket.h);
+          ctx.closePath();
+          ctx.fill();
 
-          const legOffset = Math.sin(mario.legSwing) * 6;
-          ctx.fillStyle = "#78350f";
-          ctx.fillRect(mario.x + 4, mario.y + 40, 10, 6 + legOffset);
-          ctx.fillRect(mario.x + 18, mario.y + 40, 10, 6 - legOffset);
+          // Lửa tên lửa
+          let flameSize = 8 + Math.sin(rocket.exhaustFlame) * 5;
+          ctx.fillStyle = "#f97316";
+          ctx.fillRect(rocket.x - flameSize, rocket.y + 10, flameSize, 8);
 
-          if (fireball.active) {
-            ctx.fillStyle = "#f97316";
+          if (laserBeam.active) {
+            ctx.fillStyle = "#38bdf8";
             ctx.beginPath();
-            ctx.arc(fireball.x, fireball.y, 14, 0, Math.PI * 2);
+            ctx.arc(laserBeam.x, laserBeam.y, 14, 0, Math.PI * 2);
             ctx.fill();
           }
 
+          // Vẽ Trùm Bowser Không Gian (Hành tinh độc ác)
           if (gameState.inBossFight && !gameState.defeatedBoss) {
-            const bx = 680, by = 295;
-            ctx.fillStyle = "#064e3b";
+            const bx = 680, by = 285;
+            ctx.fillStyle = "#7c2d12";
             ctx.beginPath();
-            ctx.arc(bx + 40, by + 45, 42, 0, Math.PI * 2);
+            ctx.arc(bx + 40, by + 45, 48, 0, Math.PI * 2);
             ctx.fill();
 
-            ctx.fillStyle = "#d97706";
-            ctx.fillRect(bx - 10, by + 25, 40, 48);
-            ctx.fillStyle = "#dc2626";
-            ctx.fillRect(bx - 4, by + 6, 26, 20);
+            ctx.fillStyle = "#b91c1c";
+            ctx.fillRect(bx + 10, by + 15, 60, 50);
 
             ctx.fillStyle = "#000";
             ctx.fillRect(bx - 20, by - 36, 120, 16);
@@ -961,7 +1008,7 @@ with tab3:
             ctx.fillRect(bx - 18, by - 34, Math.max(0, hpW), 12);
             ctx.fillStyle = "#fff";
             ctx.font = "bold 10px monospace";
-            ctx.fillText("BOWSER: " + gameState.bossHp + "/" + gameState.bossMaxHp, bx - 14, by - 42);
+            ctx.fillText("TRÙM BOWSER: " + gameState.bossHp + "/" + gameState.bossMaxHp, bx - 14, by - 42);
           }
         }
 
@@ -975,7 +1022,7 @@ with tab3:
         document.getElementById("btn-start-game").onclick = () => {
           const name = document.getElementById("input-name").value.trim();
           const sClass = document.getElementById("input-class").value.trim();
-          if (!name || !sClass) { alert("Em vui lòng nhập đầy đủ Họ tên và Lớp nhé!"); return; }
+          if (!name || !sClass) { alert("Em vui lòng nhập đầy đủ Tên và Lớp nhé!"); return; }
           gameState.studentName = name;
           gameState.studentClass = sClass;
           gameState.examData = buildExam();
@@ -1010,7 +1057,7 @@ with tab3:
           } else {
             currentQ = gameState.examData.bossQuestions[gameState.bossMaxHp - gameState.bossHp];
             sndRoar();
-            badgeEl.textContent = "⚔️ BOWSER HP: " + gameState.bossHp + "/" + gameState.bossMaxHp + " - VẬN DỤNG CAO";
+            badgeEl.textContent = "⚔️ TIÊU DIỆT TRÙM HP: " + gameState.bossHp + "/" + gameState.bossMaxHp + " - VẬN DỤNG CAO";
           }
 
           questionTextEl.textContent = currentQ.q;
@@ -1030,7 +1077,7 @@ with tab3:
 
             if (gameState.timerSec <= 0) {
               clearInterval(gameState.timerInterval);
-              handleAnswer(false, "Đã hết thời gian!");
+              handleAnswer(false, "Đã hết thời gian không gian!");
             }
           }, 1000);
 
@@ -1075,16 +1122,16 @@ with tab3:
             gameState.correctCount++;
             gameState.score += gameState.inBossFight ? 300 : 100;
             document.getElementById("hud-score").textContent = gameState.score;
-            feedbackEl.innerHTML = '<span class="text-emerald-400 font-bold">🎉 CHÍNH XÁC! +' + (gameState.inBossFight ? 300 : 100) + ' Điểm</span>';
+            feedbackEl.innerHTML = '<span class="text-emerald-400 font-bold">🎉 TỌA ĐỘ CHUẨN XÁC! +' + (gameState.inBossFight ? 300 : 100) + ' Điểm</span>';
 
-            mario.isJumping = true;
-            mario.vy = -12;
+            rocket.isJumping = true;
+            rocket.vy = -12;
 
             if (gameState.inBossFight) {
-              fireball.active = true;
-              fireball.x = mario.x + 30;
-              fireball.y = mario.y + 16;
-              fireball.vx = 14;
+              laserBeam.active = true;
+              laserBeam.x = rocket.x + 30;
+              laserBeam.y = rocket.y + 14;
+              laserBeam.vx = 14;
               gameState.bossHp--;
             }
 
@@ -1096,7 +1143,7 @@ with tab3:
             sndWrong();
             gameState.lives--;
             document.getElementById("hud-lives").textContent = "❤️".repeat(Math.max(0, gameState.lives)) || "💀 Hết";
-            feedbackEl.innerHTML = '<span class="text-rose-400 font-bold">❌ ' + (customReason || "Chưa chính xác!") + '</span><br><span class="text-[11px] text-slate-300">Ghi nhớ: ' + currentQ.explain + '</span>';
+            feedbackEl.innerHTML = '<span class="text-rose-400 font-bold">❌ ' + (customReason || "Sai quỹ đạo!") + '</span><br><span class="text-[11px] text-slate-300">Ghi nhớ: ' + currentQ.explain + '</span>';
 
             setTimeout(() => {
               quizModal.classList.add("hidden");
@@ -1111,11 +1158,11 @@ with tab3:
 
         const stageClearModal = document.getElementById("stage-clear-modal");
         const teacherNotes = [
-          "Cô Mai Phương rất vui khi em nắm vững tính chất góc tứ giác lồi! Sang Ải 2 nhé!",
-          "Làm tốt lắm! Em đã thuộc lòng tính chất hai đường chéo của hình thang cân. Sang Ải 3 nào!",
-          "Xuất sắc! Tính chất hai đường chéo cắt nhau tại trung điểm là chìa khóa vàng. Tiến lên Ải 4!",
-          "Tuyệt vời! Em đã vận dụng thành thạo tính chất hình chữ nhật. Ải 5 đang chờ đón!",
-          "Hoàn thành 5 Ải! Hãy tập trung cao độ đánh bại Bowser để nhận +5 Điểm cộng nhé!"
+          "Cô Mai Phương rất tự hào! Em đã nắm vững góc tứ giác lồi. Tiếp tục phóng tới Trạm 2 nhé!",
+          "Xuất sắc! Em đã thuộc lòng tính chất hai đường chéo hình thang cân. Tiến lên Trạm 3!",
+          "Tuyệt vời! Quỹ đạo hình bình hành đã được chinh phục. Phóng tới Trạm 4 nào!",
+          "Quá đỉnh! Em vận dụng hoàn hảo tính chất hình chữ nhật. Trạm 5 đang chờ đón!",
+          "Đã vượt qua 5 Trạm không gian! Hãy tập trung tối đa tiêu diệt trùm Bowser để nhận +5 Điểm!"
         ];
 
         function advanceProgress() {
@@ -1137,8 +1184,8 @@ with tab3:
             document.getElementById("stage-clear-msg").textContent = teacherNotes[gameState.currentStageIdx];
             stageClearModal.classList.remove("hidden");
           } else {
-            mysteryBox.x = 760;
-            mysteryBox.active = true;
+            meteorBox.x = 760;
+            meteorBox.active = true;
             gameState.isPaused = false;
           }
         }
@@ -1153,8 +1200,8 @@ with tab3:
             sndRoar();
             setTimeout(() => openNextQuestion(), 600);
           } else {
-            mysteryBox.x = 760;
-            mysteryBox.active = true;
+            meteorBox.x = 760;
+            meteorBox.active = true;
             gameState.isPaused = false;
           }
         };
@@ -1171,14 +1218,14 @@ with tab3:
 
           if (isVictory) {
             document.getElementById("summary-badge-icon").textContent = "👑";
-            document.getElementById("summary-title").textContent = "CHIẾN THẮNG TUYỆT ĐỐI!";
+            document.getElementById("summary-title").textContent = "CHIẾN THẮNG VŨ TRỤ!";
             document.getElementById("sum-bonus").textContent = "+5 ĐIỂM CỘNG";
-            document.getElementById("summary-teacher-note").innerHTML = '🎉 <b>Lời khen từ Cô Mai Phương:</b> Em đã xuất sắc hạ gục Bowser! Cô cộng <b>+5 điểm thực tế</b> vào sổ điểm cho em!';
+            document.getElementById("summary-teacher-note").innerHTML = '🎉 <b>Lời khen từ Cô Mai Phương:</b> Em đã hạ gục trùm Bowser xuất sắc! Cô cộng ngay <b>+5 điểm thực tế</b> vào sổ điểm cho em!';
           } else {
             document.getElementById("summary-badge-icon").textContent = "🛡️";
-            document.getElementById("summary-title").textContent = "DỪNG BƯỚC THỬ THÁCH";
+            document.getElementById("summary-title").textContent = "HOÀN THÀNH NHIỆM VỤ";
             document.getElementById("sum-bonus").textContent = "0 ĐIỂM";
-            document.getElementById("summary-teacher-note").innerHTML = '💡 <b>Lời dặn từ Cô Mai Phương:</b> Em đã nỗ lực đạt <b>' + gameState.score + ' điểm</b>. Hãy xem lại bài và bấm Chơi lại để phục thù nhé!';
+            document.getElementById("summary-teacher-note").innerHTML = '💡 <b>Lời dặn từ Cô Mai Phương:</b> Em đã đạt <b>' + gameState.score + ' điểm</b>. Hãy xem lại kiến thức và phóng lại để đạt điểm tuyệt đối nhé!';
           }
 
           document.getElementById("summary-modal").classList.remove("hidden");
@@ -1189,7 +1236,7 @@ with tab3:
             name: gameState.studentName,
             student_class: gameState.studentClass,
             score: gameState.score,
-            topic: "Minigame Tứ Giác (Bowser)",
+            topic: "Minigame Vũ Trụ Tứ Giác (Bowser)",
             feedback: isVictory ? "Hạ gục Bowser (+5đ)" : "Chưa diệt Bowser"
           };
 
@@ -1201,7 +1248,7 @@ with tab3:
           const syncStatusText = document.getElementById("sync-status-text");
           const retryBtn = document.getElementById("btn-retry-sync");
 
-          syncStatusText.innerHTML = "⏳ Đang kết nối gửi kết quả về Google Sheets của cô...";
+          syncStatusText.innerHTML = "⏳ Đang truyền kết quả về trạm Google Sheets của cô...";
           syncStatusText.className = "text-xs text-yellow-400 font-medium";
           retryBtn.classList.add("hidden");
 
@@ -1213,11 +1260,11 @@ with tab3:
               body: JSON.stringify(payload)
             });
 
-            syncStatusText.innerHTML = "✅ Đã lưu kết quả thành công vào Google Sheets của Cô Mai Phương!";
+            syncStatusText.innerHTML = "✅ Đã lưu kết quả thành công vào trạm Google Sheets của Cô Mai Phương!";
             syncStatusText.className = "text-xs text-emerald-400 font-bold";
           } catch (err) {
-            syncStatusText.innerHTML = '<div class="text-rose-400 font-bold">⚠️ Chưa có mạng! Kết quả chưa gửi được.</div><div class="text-[10px] text-slate-300 mt-1">Em hãy chụp màn hình gửi cô hoặc bấm nút thử lại:</div>';
-            retryBtn.classList.add("hidden");
+            syncStatusText.innerHTML = '<div class="text-rose-400 font-bold">⚠️ Mất kết nối trạm!</div><div class="text-[10px] text-slate-300 mt-1">Hãy chụp màn hình gửi cô hoặc bấm nút truyền lại:</div>';
+            retryBtn.classList.remove("hidden");
           }
         }
 
@@ -1234,18 +1281,18 @@ with tab3:
 
 # ================= TAB 4: BẢNG ĐIỂM LỚP =================
 with tab4:
-    st.markdown("### 🔒 Khu Vực Quản Lý Điểm Của Giáo Viên")
-    st.caption("Dữ liệu điểm số được bảo mật để đảm bảo tính riêng tư của học sinh.")
+    st.markdown("### 🔒 Trạm Bảo Mật Sổ Điểm Giáo Viên")
+    st.caption("Dữ liệu hạm đội học sinh được mã hóa bảo mật.")
 
-    teacher_password = st.text_input("🔑 Nhập mật khẩu giáo viên để xem sổ điểm:", type="password", key="teacher_pass_tab4")
+    teacher_password = st.text_input("🔑 Nhập mật khẩu hạm đội để mở sổ điểm:", type="password", key="teacher_pass_tab4")
     ADMIN_PASS = "Maiphuong2026"
 
     if teacher_password:
         if teacher_password == ADMIN_PASS:
-            st.success("🔓 Xác thực thành công! Chào cô Mai Phương.")
+            st.success("🔓 Xác thực trạm thành công! Chào cô Mai Phương.")
             
             if len(st.session_state.submission_history) == 0:
-                st.info("Chưa có học sinh nào nộp bài trong phiên làm việc này.")
+                st.info("Chưa có phi hành gia nào truyền bài nộp trong phiên này.")
             else:
                 df = pd.DataFrame(st.session_state.submission_history)
                 st.dataframe(df, use_container_width=True)
@@ -1254,14 +1301,14 @@ with tab4:
 
                 st.write("---")
                 st.download_button(
-                    label="📗 Tải file bảng điểm (.CSV cho Google Sheets)",
+                    label="📗 Tải file bảng điểm Vũ Trụ (.CSV cho Google Sheets)",
                     data=csv_data,
-                    file_name=f"Bang_Diem_Toan8_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    file_name=f"Bang_Diem_VuTru_Toan8_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                     mime="text/csv",
                     type="primary",
                     use_container_width=True
                 )
         else:
-            st.error("⛔ Mật khẩu không chính xác! Học sinh vui lòng không truy cập khu vực này.")
+            st.error("⛔ Mật khẩu không chính xác! Khu vực hạn chế truy cập.")
     else:
-        st.info("👉 Vui lòng nhập mật khẩu để mở khóa sổ theo dõi điểm.")
+        st.info("👉 Vui lòng nhập mật khẩu bảo mật để mở trạm theo dõi điểm.")
