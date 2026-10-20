@@ -24,38 +24,47 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
 
+    /* Làm tối nền ảnh phía sau sâu hơn một chút để chữ cực kỳ nổi bật */
     .stApp {
-        background: linear-gradient(rgba(11, 15, 25, 0.75), rgba(11, 15, 25, 0.85)), 
-                    url('https://raw.githubusercontent.com/dophuong1795-hub/socratic-toan8/main/teacher_bg.jpg');
+        background: linear-gradient(rgba(11, 15, 25, 0.88), rgba(11, 15, 25, 0.95)), 
+                    url('https://raw.githubusercontent.com/dophuong1795-hub/socratic-toan8/main/teacher_bg.jpg.jpg');
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
         font-family: 'Plus Jakarta Sans', sans-serif;
         color: #f8fafc;
     }
+    
+    /* Khung nội dung chính với lớp kính mờ tối màu lịch lãm */
     .block-container {
         padding-top: 1.5rem !important;
         padding-bottom: 3rem !important;
         max-width: 780px !important;
+        background: rgba(15, 23, 42, 0.88);
+        backdrop-filter: blur(16px);
+        border-radius: 24px;
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
+        margin-top: 2rem;
+        margin-bottom: 2rem;
     }
+
     .hero-banner {
         background: linear-gradient(135deg, #312e81 0%, #4338ca 50%, #db2777 100%);
-        border: 2px solid rgba(245, 158, 11, 0.4);
-        border-radius: 24px;
+        border: 2px solid rgba(245, 158, 11, 0.6);
+        border-radius: 20px;
         padding: 24px 22px;
         color: white;
         text-align: center;
-        box-shadow: 0 12px 35px rgba(67, 56, 202, 0.4);
+        box-shadow: 0 12px 35px rgba(67, 56, 202, 0.6);
         margin-bottom: 24px;
-        position: relative;
-        overflow: hidden;
     }
     .hero-banner h1 {
         font-size: 28px !important;
         font-weight: 800 !important;
         margin: 0 !important;
         color: #fef08a !important;
-        text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        text-shadow: 0 2px 10px rgba(0,0,0,0.5);
     }
     .hero-banner p {
         font-size: 14px;
@@ -65,75 +74,82 @@ st.markdown("""
     }
     .step-badge {
         display: inline-block;
-        background: rgba(56, 189, 248, 0.15);
+        background: rgba(56, 189, 248, 0.2);
         color: #38bdf8;
         font-weight: 700;
         font-size: 13px;
         padding: 6px 16px;
         border-radius: 999px;
         margin-bottom: 14px;
-        border: 1px solid rgba(56, 189, 248, 0.4);
-        box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+        border: 1px solid rgba(56, 189, 248, 0.6);
     }
     div[data-testid="stButton"] button {
         border-radius: 14px !important;
-        border: 1px solid rgba(99, 102, 241, 0.4) !important;
+        border: 1px solid rgba(99, 102, 241, 0.5) !important;
         font-size: 15px !important;
         font-weight: 600 !important;
         padding: 12px 20px !important;
-        background-color: rgba(30, 41, 59, 0.8) !important;
+        background-color: rgba(30, 41, 59, 0.95) !important;
         color: #f8fafc !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
         transition: all 0.25s ease !important;
     }
     div[data-testid="stButton"] button:hover {
-        background-color: rgba(67, 56, 202, 0.4) !important;
+        background-color: rgba(67, 56, 202, 0.8) !important;
         border-color: #38bdf8 !important;
         color: #38bdf8 !important;
         transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(56, 189, 248, 0.3) !important;
     }
     div[data-testid="stButton"] button[kind="primary"] {
         background: linear-gradient(135deg, #4f46e5, #06b6d4) !important;
         color: white !important;
-        border: 1px solid rgba(255,255,255,0.2) !important;
-        box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4) !important;
+        border: 1px solid rgba(255,255,255,0.4) !important;
     }
     .reward-box {
-        background: rgba(6, 78, 59, 0.4);
-        border: 2px solid rgba(52, 211, 153, 0.6);
+        background: rgba(6, 78, 59, 0.85);
+        border: 2px solid rgba(52, 211, 153, 0.8);
         border-radius: 18px;
         padding: 20px;
         margin-top: 18px;
-        box-shadow: 0 8px 25px rgba(6, 78, 59, 0.3);
     }
     .geogebra-container {
         display: flex;
         justify-content: center;
         align-items: center;
-        background: #0f172a;
-        border: 2px solid rgba(56, 189, 248, 0.4);
+        background: rgba(15, 23, 42, 0.95);
+        border: 2px solid rgba(56, 189, 248, 0.6);
         border-radius: 16px;
         padding: 12px;
         margin: 18px 0;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.4);
     }
-    /* Tùy chỉnh màu chữ các Tab trong sáng */
+    
+    /* TUỲ CHỈNH TAB MENU: Nền tối rõ nét, chữ sáng, tab đang chọn nổi bật */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
-        background-color: rgba(15, 23, 42, 0.6);
-        padding: 8px;
+        background-color: rgba(15, 23, 42, 0.95) !important;
+        padding: 10px;
         border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.5);
     }
     .stTabs [data-baseweb="tab"] {
         border-radius: 10px;
-        color: #cbd5e1;
-        font-weight: 600;
+        color: #e2e8f0 !important;
+        font-weight: 700;
+        background-color: rgba(30, 41, 59, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
     .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #4f46e5, #ec4899) !important;
         color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.4) !important;
+        box-shadow: 0 0 15px rgba(236, 72, 153, 0.5);
+    }
+    
+    /* Làm nổi bật các nhãn chữ (Label) và thông tin trong khung */
+    label, .stRadio label, .stTextInput label, .stSelectbox label {
+        color: #f1f5f9 !important;
+        font-weight: 600 !important;
     }
 </style>
 """, unsafe_allow_html=True)
