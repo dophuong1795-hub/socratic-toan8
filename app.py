@@ -24,10 +24,10 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
 
-    /* NỀN TOÀN TRANG: Giữ bức ảnh cô giáo sáng rực, rõ nét tuyệt đối */
+    /* NỀN TOÀN TRANG: Giữ bức ảnh cô giáo sáng rõ ở phía sau */
     .stApp {
         background: linear-gradient(rgba(11, 15, 25, 0.15), rgba(11, 15, 25, 0.3)), 
-                    url('https://raw.githubusercontent.com/dophuong1795-hub/socratic-toan8/main/teacher_bg.jpg.jpg');
+                    url('https://raw.githubusercontent.com/dophuong1795-hub/socratic-toan8/main/teacher_bg.jpg');
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
@@ -35,14 +35,14 @@ st.markdown("""
         color: #ffffff;
     }
     
-    /* KHUNG NỘI DUNG CHÍNH: Dùng kính mờ trong suốt (Glassmorphism) để nhìn rõ ảnh nền phía sau */
+    /* KHUNG NỘI DUNG CHÍNH: Kính mờ cao cấp */
     .block-container {
         padding-top: 1.5rem !important;
         padding-bottom: 3rem !important;
         max-width: 780px !important;
-        background: rgba(11, 15, 25, 0.72) !important;
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        background: rgba(11, 15, 25, 0.82) !important;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
         border-radius: 24px;
         border: 1px solid rgba(56, 189, 248, 0.4);
         box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7);
@@ -50,7 +50,43 @@ st.markdown("""
         margin-bottom: 2rem;
     }
 
-    /* XỬ LÝ 2 THANH TRẮNG (EXPANDER): Biến thành trong suốt, viền sáng tinh tế */
+    /* XỬ LÝ CÁC KHUNG NHẬP LIỆU (INPUT, SELECTBOX, UPLOAD) THÀNH MÀU TỐI DỄ ĐỌC */
+    
+    /* 1. Ô nhập text (Text Input) và Selectbox */
+    input[type="text"], .stSelectbox [data-baseweb="select"] > div {
+        background-color: rgba(30, 41, 59, 0.95) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(56, 189, 248, 0.5) !important;
+        border-radius: 12px !important;
+    }
+    
+    /* Màu chữ bên trong ô selectbox và input */
+    .stSelectbox span, input[type="text"] {
+        color: #ffffff !important;
+    }
+
+    /* 2. Khung Upload ảnh */
+    [data-testid="stFileUploader"] {
+        background: rgba(30, 41, 59, 0.85) !important;
+        border: 2px dashed rgba(56, 189, 248, 0.6) !important;
+        border-radius: 16px;
+        padding: 15px;
+    }
+    
+    /* Chữ hướng dẫn trong khung upload (như 200MB per file...) đổi sang màu sáng dễ đọc */
+    [data-testid="stFileUploader"] small, [data-testid="stFileUploader"] span {
+        color: #cbd5e1 !important;
+    }
+
+    /* Nút Browse files trong khung upload */
+    [data-testid="stFileUploader"] button {
+        background: linear-gradient(135deg, #4f46e5, #06b6d4) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 10px !important;
+    }
+
+    /* XỬ LÝ THANH EXPANDER */
     [data-testid="stExpander"] {
         background: rgba(30, 41, 59, 0.65) !important;
         border: 1px solid rgba(56, 189, 248, 0.4) !important;
@@ -65,14 +101,6 @@ st.markdown("""
     }
     [data-testid="stExpander"] details {
         border: none !important;
-    }
-
-    /* KHUNG UPLOAD ẢNH: Trong suốt, hài hòa với không gian */
-    [data-testid="stFileUploader"] {
-        background: rgba(15, 23, 42, 0.5) !important;
-        border: 1px dashed rgba(56, 189, 248, 0.5) !important;
-        border-radius: 14px;
-        padding: 10px;
     }
 
     .hero-banner {
@@ -110,7 +138,7 @@ st.markdown("""
         border: 1px solid rgba(56, 189, 248, 0.7);
     }
     
-    /* NÚT BẤM */
+    /* NÚT BẤM CHÍNH */
     div[data-testid="stButton"] button {
         border-radius: 14px !important;
         border: 1px solid rgba(99, 102, 241, 0.6) !important;
@@ -181,7 +209,6 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-
 # Lấy Gemini API Key
 API_KEY = st.secrets.get("GEMINI_API_KEY")
 if not API_KEY:
