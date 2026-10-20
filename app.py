@@ -24,12 +24,12 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
 
-    /* NỀN TOÀN TRANG: Giữ bức ảnh cô giáo sáng rõ ở phía sau */
+    /* NỀN TOÀN TRANG: Đẩy hẳn hình ảnh sang bên trái màn hình */
     .stApp {
-        background: linear-gradient(rgba(11, 15, 25, 0.15), rgba(11, 15, 25, 0.3)), 
+        background: linear-gradient(rgba(11, 15, 25, 0.2), rgba(11, 15, 25, 0.35)), 
                     url('https://raw.githubusercontent.com/dophuong1795-hub/socratic-toan8/main/teacher_bg.jpg');
         background-size: cover;
-        background-position: center;
+        background-position: left center; /* Đẩy hẳn hình sang trái */
         background-attachment: fixed;
         font-family: 'Plus Jakarta Sans', sans-serif;
         color: #ffffff;
@@ -50,9 +50,7 @@ st.markdown("""
         margin-bottom: 2rem;
     }
 
-    /* XỬ LÝ CÁC KHUNG NHẬP LIỆU (INPUT, SELECTBOX, UPLOAD) THÀNH MÀU TỐI DỄ ĐỌC */
-    
-    /* 1. Ô nhập text (Text Input) và Selectbox */
+    /* Ô NHẬP LIỆU VÀ SELECTBOX TỐI MÀU DỄ ĐỌC */
     input[type="text"], .stSelectbox [data-baseweb="select"] > div {
         background-color: rgba(30, 41, 59, 0.95) !important;
         color: #ffffff !important;
@@ -60,12 +58,11 @@ st.markdown("""
         border-radius: 12px !important;
     }
     
-    /* Màu chữ bên trong ô selectbox và input */
     .stSelectbox span, input[type="text"] {
         color: #ffffff !important;
     }
 
-    /* 2. Khung Upload ảnh */
+    /* KHUNG UPLOAD ẢNH */
     [data-testid="stFileUploader"] {
         background: rgba(30, 41, 59, 0.85) !important;
         border: 2px dashed rgba(56, 189, 248, 0.6) !important;
@@ -73,12 +70,10 @@ st.markdown("""
         padding: 15px;
     }
     
-    /* Chữ hướng dẫn trong khung upload (như 200MB per file...) đổi sang màu sáng dễ đọc */
     [data-testid="stFileUploader"] small, [data-testid="stFileUploader"] span {
         color: #cbd5e1 !important;
     }
 
-    /* Nút Browse files trong khung upload */
     [data-testid="stFileUploader"] button {
         background: linear-gradient(135deg, #4f46e5, #06b6d4) !important;
         color: white !important;
