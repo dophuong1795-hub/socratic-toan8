@@ -670,9 +670,10 @@ Chuyên đề nộp: "{topic}".
                 except Exception as err:
                     st.error(f"Lỗi truyền tín hiệu: {err}")
 
+
 # ================= TAB 3: MINIGAME ĐẠI CHIẾN BOWSER (TỨ GIÁC) =================
-st.subheader("🍄 Super Mario Math: Side-Scrolling NES Thực Thụ • Hố Sâu & Ô Bẫy Bom")
-st.caption("Cuộn màn hình theo nhân vật • 12 ô [?] (5 Câu hỏi, 3 Xu, 2 Nấm, 2 Bom/Bẫy) • Hố sâu tử thần!")
+st.subheader("🍄 Super Mario Math: Cùng cô Mai Phương diệt Bower")
+st.caption("Hãy cẩn thận với những ô bí mật và hố boom nha!")
 
 DEFAULT_WEBHOOK = "https://script.google.com/macros/s/AKfycbwYEXAMPLE_REPLACE_HERE/exec"
 try:
@@ -725,8 +726,8 @@ mario_game_code = """
 
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 text-xs text-slate-300 text-left mb-5 space-y-1.5">
         <p>🎮 <b>Điều khiển:</b> Dùng <b>Mũi tên Trái / Phải (← / →)</b> để chạy cuộn màn hình, <b>Space / ↑</b> để nhảy!</p>
-        <p>📦 Húc đầu vào các ô <b>[?]</b>: 5 Câu hỏi, Xu, Nấm (+1 mạng), Bom/Bẫy (mất mạng).</p>
-        <p>⚠️ Cẩn thận rớt xuống <b>Hố sâu tử thần</b>! Trả lời đủ 5 câu hỏi để qua ải.</p>
+        <p>📦 Nhảy húc đầu vào các ô <b>[?]</b>: 5 Câu hỏi, 🍄 Nấm (+1 mạng), 🪙 Xu, 💣 Bom (-1 mạng).</p>
+        <p>⚠️ Nhảy qua <b>hố</b> trên đường đi! Trả lời đủ 5 câu hỏi để qua ải.</p>
       </div>
 
       <button id="btn-start-game" class="w-full py-3.5 bg-gradient-to-r from-red-600 to-amber-500 hover:from-red-500 hover:to-amber-400 text-white font-extrabold text-sm rounded-xl shadow-lg transition transform active:scale-95">
@@ -918,46 +919,88 @@ mario_game_code = """
     };
 
     // ===== NGÂN HÀNG CÂU HỎI =====
+    // Mỗi màn có nhiều câu; mỗi lần chơi game bốc ngẫu nhiên 2 Nhận biết + 2 Thông hiểu + 1 Vận dụng.
+    // Thêm câu mới: chép một dòng có sẵn rồi sửa. "short" = tự luận (correctAnswers), "mcq" = trắc nghiệm (correct = vị trí đáp án đúng, tính từ 0).
     const rawQuestionPool = {
       stage1: [
         { level: "Nhận biết", time: 15, type: "short", q: "Tổng các góc trong một tứ giác lồi luôn bằng bao nhiêu độ? (Chỉ nhập số)", correctAnswers: ["360"], explain: "Định lý: Tổng các góc của một tứ giác luôn bằng 360 độ." },
         { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác luôn nằm trong một nửa mặt phẳng có bờ là đường thẳng chứa bất kì cạnh nào gọi là tứ giác gì?", correctAnswers: ["lồi", "tứ giác lồi"], explain: "Định nghĩa: Đó là tứ giác lồi." },
-        { level: "Nhận biết", time: 15, type: "short", q: "Một tứ giác lồi có tổng cộng bao nhiêu đường chéo? (Chỉ nhập số)", correctAnswers: ["2"], explain: "Mỗi tứ giác lồi có đúng 2 đường chéo nối các đỉnh đối diện." },
+        { level: "Nhận biết", time: 15, type: "short", q: "Một tứ giác lồi có tổng cộng bao nhiêu đường chéo? (Chỉ nhập số)", correctAnswers: ["2"], explain: "Mỗi tứ giác lồi có đúng 2 đường chéo nối các đỉnh đối nhau." },
+        { level: "Nhận biết", time: 15, type: "mcq", q: "Trong tứ giác ABCD, các đường chéo là những đoạn thẳng nào?", answers: ["AC và BD", "AB và CD", "AD và BC"], correct: 0, explain: "Đường chéo nối hai đỉnh đối nhau: AC và BD." },
         { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác lồi có thể có nhiều nhất bao nhiêu góc nhọn?", answers: ["3 góc nhọn", "4 góc nhọn", "2 góc nhọn"], correct: 0, explain: "Nếu có 4 góc nhọn thì tổng 4 góc < 360° (vô lý). Vậy tối đa có 3 góc nhọn." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác ABCD có góc A = 70°, B = 90°, C = 80°. Tính số đo góc D bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["120"], explain: "Góc D = 360° - (70° + 90° + 80°) = 120°." }
+        { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác có thể có nhiều nhất bao nhiêu góc tù?", answers: ["3 góc tù", "4 góc tù", "2 góc tù"], correct: 0, explain: "4 góc tù thì tổng > 360° (vô lý). Có thể có 3 góc tù, ví dụ 100°, 100°, 100°, 60°." },
+        { level: "Thông hiểu", time: 20, type: "short", q: "Tứ giác có bốn góc bằng nhau thì mỗi góc bằng bao nhiêu độ? (Nhập số)", correctAnswers: ["90"], explain: "Mỗi góc = 360° : 4 = 90°." },
+        { level: "Thông hiểu", time: 20, type: "short", q: "Tứ giác ABCD có góc A + góc C = 200°. Tổng góc B + góc D bằng bao nhiêu độ? (Nhập số)", correctAnswers: ["160"], explain: "B + D = 360° - 200° = 160°." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác ABCD có góc A = 70°, B = 90°, C = 80°. Tính số đo góc D bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["120"], explain: "Góc D = 360° - (70° + 90° + 80°) = 120°." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác ABCD có góc A = 100°, góc B = 80° và góc C = góc D. Tính góc C bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["90"], explain: "C + D = 360° - 180° = 180°, mà C = D nên C = 90°." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác MNPQ có các góc M, N, P, Q tỉ lệ với 1 : 2 : 3 : 4. Góc Q bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["144"], explain: "Tổng 10 phần = 360° nên 1 phần = 36°. Góc Q = 4 · 36° = 144°." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác ABCD có góc B = 90°, C = 100°, D = 70°. Góc ngoài tại đỉnh A bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["80"], explain: "Góc A = 360° - 260° = 100°. Góc ngoài tại A = 180° - 100° = 80°." }
       ],
       stage2: [
         { level: "Nhận biết", time: 15, type: "short", q: "Hình thang có hai góc kề một đáy bằng nhau là hình thang gì?", correctAnswers: ["cân", "hình thang cân", "thang cân"], explain: "Định nghĩa SGK: Hình thang có 2 góc kề một đáy bằng nhau là hình thang cân." },
         { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình thang cân, hai đường chéo có mối quan hệ gì với nhau?", answers: ["Bằng nhau", "Vuông góc với nhau", "Cắt nhau tại trung điểm mỗi đường"], correct: 0, explain: "Tính chất SGK: Trong hình thang cân, hai đường chéo bằng nhau." },
+        { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có hai cạnh đối song song được gọi là hình gì?", correctAnswers: ["hình thang", "thang"], explain: "Định nghĩa: Hình thang là tứ giác có hai cạnh đối song song." },
+        { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình thang cân, hai cạnh bên có tính chất gì?", answers: ["Bằng nhau", "Song song với nhau", "Vuông góc với nhau"], correct: 0, explain: "Tính chất: Trong hình thang cân, hai cạnh bên bằng nhau." },
         { level: "Thông hiểu", time: 20, type: "short", q: "Hình thang có hai đường chéo bằng nhau là hình thang gì?", correctAnswers: ["cân", "hình thang cân", "thang cân"], explain: "Dấu hiệu nhận biết: Hình thang có 2 đường chéo bằng nhau là hình thang cân." },
         { level: "Thông hiểu", time: 20, type: "mcq", q: "Cho hình thang cân ABCD (AB // CD). Khẳng định nào sau đây là ĐÚNG?", answers: ["Góc C = góc D và góc A = góc B", "Góc A = góc C", "Góc B = góc D"], correct: 0, explain: "Trong hình thang cân, hai góc kề một đáy có số đo bằng nhau." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Hình thang cân ABCD (AB // CD) có góc D = 70°. Tính số đo góc A kề cạnh bên AD bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["110"], explain: "Vì AB // CD nên hai góc trong cùng phía bù nhau: Góc A = 180° - 70° = 110°." }
+        { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình thang ABCD (AB // CD) có góc A và góc D là hai góc kề cạnh bên AD. Hai góc này có quan hệ gì?", answers: ["Bù nhau (tổng 180°)", "Bằng nhau", "Phụ nhau (tổng 90°)"], correct: 0, explain: "AB // CD nên A và D là hai góc trong cùng phía, bù nhau." },
+        { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình thang có một góc vuông được gọi là hình gì?", answers: ["Hình thang vuông", "Hình thang cân", "Hình chữ nhật"], correct: 0, explain: "Định nghĩa: Hình thang có một góc vuông là hình thang vuông." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình thang cân ABCD (AB // CD) có góc D = 70°. Tính số đo góc A kề cạnh bên AD bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["110"], explain: "Vì AB // CD nên hai góc trong cùng phía bù nhau: Góc A = 180° - 70° = 110°." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình thang cân ABCD (AB // CD) có góc A = 115°. Góc C bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["65"], explain: "D = 180° - 115° = 65°, và hai góc kề đáy CD bằng nhau nên C = D = 65°." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình thang cân ABCD có đường chéo AC = 7 cm. Đường chéo BD dài bao nhiêu cm? (Nhập số):", correctAnswers: ["7"], explain: "Hình thang cân có hai đường chéo bằng nhau nên BD = AC = 7 cm." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình thang cân ABCD (AB // CD) có AB = 4 cm, CD = 10 cm, AH là đường cao (H thuộc CD). Độ dài DH bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["3"], explain: "Trong hình thang cân, DH = (CD - AB) : 2 = (10 - 4) : 2 = 3 cm." }
       ],
       stage3: [
         { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có các cạnh đối song song được gọi là hình gì?", correctAnswers: ["hình bình hành", "bình hành"], explain: "Định nghĩa: Hình bình hành là tứ giác có các cạnh đối song song." },
         { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình bình hành, hai đường chéo có tính chất gì?", answers: ["Cắt nhau tại trung điểm của mỗi đường", "Vuông góc với nhau", "Bằng nhau"], correct: 0, explain: "Tính chất: Hai đường chéo cắt nhau tại trung điểm của mỗi đường." },
+        { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình bình hành, các cạnh đối có tính chất gì?", answers: ["Bằng nhau", "Vuông góc với nhau", "Cắt nhau"], correct: 0, explain: "Tính chất: Trong hình bình hành, các cạnh đối bằng nhau." },
+        { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình bình hành, các góc đối có tính chất gì?", answers: ["Bằng nhau", "Bù nhau", "Phụ nhau"], correct: 0, explain: "Tính chất: Trong hình bình hành, các góc đối bằng nhau." },
         { level: "Thông hiểu", time: 20, type: "short", q: "Tứ giác có hai đường chéo cắt nhau tại trung điểm của mỗi đường là hình gì?", correctAnswers: ["hình bình hành", "bình hành"], explain: "Dấu hiệu nhận biết: Tứ giác có 2 đường chéo cắt nhau tại trung điểm là hình bình hành." },
         { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình thang có hai cạnh bên song song là hình gì?", answers: ["Hình bình hành", "Hình thang cân", "Hình chữ nhật"], correct: 0, explain: "Nhận xét SGK: Hình thang có 2 cạnh bên song song là hình bình hành." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Hình bình hành ABCD có góc A = 115°. Tính số đo góc đối C bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["115"], explain: "Tính chất: Hai góc đối hình bình hành bằng nhau nên góc C = góc A = 115°." }
+        { level: "Thông hiểu", time: 20, type: "mcq", q: "Tứ giác có một cặp cạnh đối vừa song song vừa bằng nhau là hình gì?", answers: ["Hình bình hành", "Hình thang cân", "Hình thang vuông"], correct: 0, explain: "Dấu hiệu nhận biết: Tứ giác có hai cạnh đối song song và bằng nhau là hình bình hành." },
+        { level: "Thông hiểu", time: 20, type: "mcq", q: "Trong hình bình hành ABCD, hai góc kề một cạnh (ví dụ góc A và góc B) có quan hệ gì?", answers: ["Bù nhau (tổng 180°)", "Bằng nhau", "Phụ nhau (tổng 90°)"], correct: 0, explain: "AD // BC nên góc A và góc B là hai góc trong cùng phía, bù nhau." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình bình hành ABCD có góc A = 115°. Tính số đo góc đối C bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["115"], explain: "Tính chất: Hai góc đối hình bình hành bằng nhau nên góc C = góc A = 115°." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình bình hành ABCD có góc A = 70°. Góc B bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["110"], explain: "Hai góc kề một cạnh bù nhau: B = 180° - 70° = 110°." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình bình hành ABCD có AB = 8 cm, BC = 5 cm. Chu vi hình bình hành bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["26"], explain: "Các cạnh đối bằng nhau nên chu vi = 2 · (8 + 5) = 26 cm." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình bình hành ABCD có hai đường chéo cắt nhau tại O, AC = 12 cm. Độ dài OA bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["6"], explain: "O là trung điểm AC nên OA = 12 : 2 = 6 cm." }
       ],
       stage4: [
         { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có bốn góc vuông được gọi là hình gì?", correctAnswers: ["hình chữ nhật", "chữ nhật"], explain: "Định nghĩa: Hình chữ nhật là tứ giác có bốn góc vuông." },
-        { level: "Nhận biết", time: 15, type: "short", q: "Hình chữ nhật có tất cả bao nhiêu trục đối xứng? (Nhập số)", correctAnswers: ["2"], explain: "Hình chữ nhật có 2 trục đối xứng là hai đường trung trực của các cạnh." },
+        { level: "Nhận biết", time: 15, type: "short", q: "Hình chữ nhật có tất cả bao nhiêu trục đối xứng? (Nhập số)", correctAnswers: ["2"], explain: "Hình chữ nhật có 2 trục đối xứng là hai đường thẳng đi qua trung điểm các cặp cạnh đối." },
+        { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình chữ nhật, hai đường chéo có tính chất gì?", answers: ["Bằng nhau và cắt nhau tại trung điểm mỗi đường", "Vuông góc với nhau", "Là tia phân giác các góc"], correct: 0, explain: "Tính chất: Hai đường chéo hình chữ nhật bằng nhau và cắt nhau tại trung điểm mỗi đường." },
+        { level: "Nhận biết", time: 15, type: "short", q: "Mỗi góc của hình chữ nhật bằng bao nhiêu độ? (Nhập số)", correctAnswers: ["90"], explain: "Hình chữ nhật có bốn góc vuông, mỗi góc 90°." },
         { level: "Thông hiểu", time: 20, type: "short", q: "Hình bình hành có hai đường chéo bằng nhau là hình gì?", correctAnswers: ["hình chữ nhật", "chữ nhật"], explain: "Dấu hiệu nhận biết: Hình bình hành có 2 đường chéo bằng nhau là hình chữ nhật." },
         { level: "Thông hiểu", time: 20, type: "mcq", q: "Trong tam giác vuông, đường trung tuyến ứng với cạnh huyền có độ dài bằng mấy phần cạnh huyền?", answers: ["Một nửa cạnh huyền", "Bằng cạnh huyền", "Gấp đôi cạnh huyền"], correct: 0, explain: "Định lý: Trong tam giác vuông, đường trung tuyến ứng với cạnh huyền bằng nửa cạnh huyền." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Cho tam giác ABC vuông tại A có cạnh huyền BC = 18 cm. Độ dài đường trung tuyến AM ứng với cạnh huyền bằng mấy cm? (Nhập số):", correctAnswers: ["9"], explain: "Theo định lý: AM = BC / 2 = 18 / 2 = 9 cm." }
+        { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình bình hành có một góc vuông là hình gì?", answers: ["Hình chữ nhật", "Hình thoi", "Hình thang cân"], correct: 0, explain: "Dấu hiệu nhận biết: Hình bình hành có một góc vuông là hình chữ nhật." },
+        { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình thang cân có một góc vuông là hình gì?", answers: ["Hình chữ nhật", "Hình thoi", "Hình vuông"], correct: 0, explain: "Dấu hiệu nhận biết: Hình thang cân có một góc vuông là hình chữ nhật." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Cho tam giác ABC vuông tại A có cạnh huyền BC = 18 cm. Độ dài đường trung tuyến AM ứng với cạnh huyền bằng mấy cm? (Nhập số):", correctAnswers: ["9"], explain: "Theo định lý: AM = BC / 2 = 18 / 2 = 9 cm." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình chữ nhật có hai cạnh dài 6 cm và 8 cm. Đường chéo dài bao nhiêu cm? (Nhập số):", correctAnswers: ["10"], explain: "Theo định lý Pythagore: đường chéo² = 6² + 8² = 100, nên đường chéo = 10 cm." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình chữ nhật ABCD có đường chéo AC = 14 cm, O là giao điểm hai đường chéo. Độ dài OB bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["7"], explain: "Hai đường chéo bằng nhau và cắt nhau tại trung điểm: OB = BD : 2 = AC : 2 = 7 cm." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình chữ nhật có chiều dài 9 cm và chu vi 30 cm. Chiều rộng bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["6"], explain: "Nửa chu vi = 15 cm, chiều rộng = 15 - 9 = 6 cm." }
       ],
       stage5: [
         { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có bốn cạnh bằng nhau được gọi là hình gì?", correctAnswers: ["hình thoi", "thoi"], explain: "Định nghĩa: Hình thoi là tứ giác có bốn cạnh bằng nhau." },
         { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác vừa là hình chữ nhật vừa là hình thoi là hình gì?", correctAnswers: ["hình vuông", "vuông"], explain: "Định nghĩa: Hình vuông là hình chữ nhật đồng thời là hình thoi." },
+        { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có bốn góc vuông và bốn cạnh bằng nhau là hình gì?", correctAnswers: ["hình vuông", "vuông"], explain: "Định nghĩa: Hình vuông là tứ giác có bốn góc vuông và bốn cạnh bằng nhau." },
+        { level: "Nhận biết", time: 15, type: "mcq", q: "Hình thoi có bao nhiêu trục đối xứng?", answers: ["2", "4", "1"], correct: 0, explain: "Hình thoi có 2 trục đối xứng là hai đường chéo của nó." },
         { level: "Thông hiểu", time: 20, type: "mcq", q: "Trong hình thoi, hai đường chéo có tính chất đặc trưng nào sau đây?", answers: ["Vuông góc với nhau và là tia phân giác các góc", "Bằng nhau và song song", "Cắt nhau tại 1/3 mỗi đường"], correct: 0, explain: "Tính chất: Hai đường chéo hình thoi vuông góc và là phân giác các góc." },
         { level: "Thông hiểu", time: 20, type: "short", q: "Hình bình hành có hai đường chéo vuông góc với nhau là hình gì?", correctAnswers: ["hình thoi", "thoi"], explain: "Dấu hiệu: Hình bình hành có 2 đường chéo vuông góc là hình thoi." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Một hình thoi có chu vi bằng 52 cm. Độ dài một cạnh của hình thoi đó bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["13"], explain: "Hình thoi có 4 cạnh bằng nhau nên độ dài một cạnh = 52 / 4 = 13 cm." }
+        { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình chữ nhật có hai cạnh kề bằng nhau là hình gì?", answers: ["Hình vuông", "Hình thoi không vuông", "Hình bình hành"], correct: 0, explain: "Dấu hiệu nhận biết: Hình chữ nhật có hai cạnh kề bằng nhau là hình vuông." },
+        { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình thoi có một góc vuông là hình gì?", answers: ["Hình vuông", "Hình chữ nhật không vuông", "Hình thang cân không vuông"], correct: 0, explain: "Dấu hiệu nhận biết: Hình thoi có một góc vuông là hình vuông." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Một hình thoi có chu vi bằng 52 cm. Độ dài một cạnh của hình thoi đó bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["13"], explain: "Hình thoi có 4 cạnh bằng nhau nên độ dài một cạnh = 52 / 4 = 13 cm." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình vuông có cạnh 5 cm. Chu vi hình vuông bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["20"], explain: "Chu vi = 4 · 5 = 20 cm." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình thoi có hai đường chéo dài 6 cm và 8 cm. Cạnh hình thoi dài bao nhiêu cm? (Nhập số):", correctAnswers: ["5"], explain: "Hai đường chéo vuông góc tại trung điểm, tạo tam giác vuông có hai cạnh góc vuông 3 cm và 4 cm. Cạnh = √(3² + 4²) = 5 cm." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình thoi ABCD có góc A = 50°. Góc B bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["130"], explain: "Hình thoi là hình bình hành nên hai góc kề một cạnh bù nhau: B = 180° - 50° = 130°." }
       ],
       boss: [
         { level: "Vận dụng cao", time: 30, type: "mcq", q: "Nối trung điểm 4 cạnh của một hình chữ nhật ta luôn nhận được hình gì?", answers: ["Hình thoi", "Hình bình hành thông thường", "Hình vuông"], correct: 0, explain: "Bốn cạnh của tứ giác mới đều bằng nửa đường chéo hình chữ nhật nên bằng nhau => Là Hình thoi." },
         { level: "Vận dụng cao", time: 30, type: "mcq", q: "Nối trung điểm 4 cạnh của một hình thoi ta luôn nhận được hình gì?", answers: ["Hình chữ nhật", "Hình vuông", "Hình bình hành có góc 60°"], correct: 0, explain: "Vì hai đường chéo hình thoi vuông góc nên các cạnh của tứ giác trung điểm vuông góc với nhau => Hình chữ nhật." },
-        { level: "Vận dụng cao", time: 30, type: "short", q: "Hình thoi ABCD có cạnh bằng 10 cm và góc A = 60°. Độ dài đường chéo BD bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["10"], explain: "Tam giác ABD cân có góc A = 60° nên là tam giác đều => BD = AB = 10 cm." }
+        { level: "Vận dụng cao", time: 30, type: "mcq", q: "Nối trung điểm 4 cạnh của một tứ giác bất kì ta luôn nhận được hình gì?", answers: ["Hình bình hành", "Hình thang cân", "Hình chữ nhật"], correct: 0, explain: "Mỗi cặp cạnh đối của tứ giác mới đều song song và bằng nửa một đường chéo => Hình bình hành." },
+        { level: "Vận dụng cao", time: 30, type: "mcq", q: "Nối trung điểm 4 cạnh của một hình vuông ta luôn nhận được hình gì?", answers: ["Hình vuông", "Hình chữ nhật không vuông", "Hình thoi không vuông"], correct: 0, explain: "Hai đường chéo hình vuông bằng nhau và vuông góc nên tứ giác trung điểm vừa là hình thoi vừa là hình chữ nhật => Hình vuông." },
+        { level: "Vận dụng cao", time: 30, type: "short", q: "Hình thoi ABCD có cạnh bằng 10 cm và góc A = 60°. Độ dài đường chéo BD bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["10"], explain: "Tam giác ABD cân có góc A = 60° nên là tam giác đều => BD = AB = 10 cm." },
+        { level: "Vận dụng cao", time: 30, type: "short", q: "Hình thoi có cạnh 10 cm và một đường chéo dài 12 cm. Đường chéo còn lại dài bao nhiêu cm? (Nhập số):", correctAnswers: ["16"], explain: "Nửa đường chéo đã biết = 6 cm. Nửa đường chéo còn lại = √(10² - 6²) = 8 cm, nên đường chéo = 16 cm." },
+        { level: "Vận dụng cao", time: 30, type: "short", q: "Tam giác ABC vuông tại A có AB = 6 cm, AC = 8 cm. Đường trung tuyến AM ứng với cạnh huyền dài bao nhiêu cm? (Nhập số):", correctAnswers: ["5"], explain: "BC = √(6² + 8²) = 10 cm, AM = BC : 2 = 5 cm." },
+        { level: "Vận dụng cao", time: 30, type: "short", q: "Hình vuông có đường chéo dài 8 cm. Diện tích hình vuông bằng bao nhiêu cm²? (Nhập số):", correctAnswers: ["32"], explain: "Hình vuông cũng là hình thoi nên diện tích = (8 · 8) : 2 = 32 cm²." }
       ]
     };
 
@@ -977,25 +1020,39 @@ mario_game_code = """
       return { ...q, answers: order.map(i => q.answers[i]), correct: order.indexOf(q.correct) };
     }
 
+    // Bốc 5 câu/màn theo mức độ, xếp từ dễ đến khó
+    const PICK_PLAN = [ ["Nhận biết", 2], ["Thông hiểu", 2], ["Vận dụng", 1] ];
+
+    function pickStageQuestions(pool) {
+      const picked = [];
+      PICK_PLAN.forEach(([level, n]) => {
+        picked.push(...shuffle(pool.filter(q => q.level === level)).slice(0, n));
+      });
+      // Nếu mức độ nào thiếu câu thì bù bằng câu khác cho đủ 5
+      const rest = shuffle(pool.filter(q => !picked.includes(q)));
+      while (picked.length < 5 && rest.length) picked.push(rest.shift());
+      return picked.map(prepareQuestion);
+    }
+
     function buildExam() {
-      const prep = list => list.map(prepareQuestion);
       return {
         code: "CMP-8A-" + Math.floor(1000 + Math.random() * 9000),
         stages: [
-          { name: "Màn 1: Tứ giác lồi", questions: prep(rawQuestionPool.stage1), bg: "#5c94fc" },
-          { name: "Màn 2: Hình thang cân", questions: prep(rawQuestionPool.stage2), bg: "#d97706" },
-          { name: "Màn 3: Hình bình hành", questions: prep(rawQuestionPool.stage3), bg: "#0d9488" },
-          { name: "Màn 4: Hình chữ nhật", questions: prep(rawQuestionPool.stage4), bg: "#0284c7" },
-          { name: "Màn 5: Hình thoi và Hình vuông", questions: prep(rawQuestionPool.stage5), bg: "#7c3aed" }
+          { name: "Màn 1: Tứ giác lồi", questions: pickStageQuestions(rawQuestionPool.stage1), bg: "#5c94fc" },
+          { name: "Màn 2: Hình thang cân", questions: pickStageQuestions(rawQuestionPool.stage2), bg: "#d97706" },
+          { name: "Màn 3: Hình bình hành", questions: pickStageQuestions(rawQuestionPool.stage3), bg: "#0d9488" },
+          { name: "Màn 4: Hình chữ nhật", questions: pickStageQuestions(rawQuestionPool.stage4), bg: "#0284c7" },
+          { name: "Màn 5: Hình thoi và Hình vuông", questions: pickStageQuestions(rawQuestionPool.stage5), bg: "#7c3aed" }
         ],
-        bossQuestions: prep(rawQuestionPool.boss)
+        // Trùm: trộn toàn bộ câu, trả lời sai thì gặp câu khác
+        bossQuestions: shuffle(rawQuestionPool.boss).map(prepareQuestion)
       };
     }
 
     // Chuẩn hóa đáp án tự luận: bỏ hoa/thường, bỏ đơn vị "độ", "°", "cm", gộp khoảng trắng
     function normalizeAnswer(s) {
       return String(s).normalize("NFC").toLowerCase()
-        .replace(/°|độ|cm/g, "")
+        .replace(/°|độ|cm²|cm2|cm/g, "")
         .replace(/\\s+/g, " ")
         .trim();
     }
@@ -1013,40 +1070,50 @@ mario_game_code = """
     const ctx = canvas.getContext("2d");
     const arenaEl = document.getElementById("game-arena");
 
+    // ===== CẤU HÌNH ĐỘ KHÓ (chỉnh ở đây) =====
     const WORLD_W = 3000;
     const GROUND_TOP = 400;
-    const GROUND_Y = 356;            // y của Mario khi đứng trên mặt đất
-    const BOX_SIZE = 36;
+    const MARIO_SCALE = 1.5;         // phóng to nhân vật (hình gốc 32x44)
+    const MARIO_W = 32 * MARIO_SCALE, MARIO_H = 44 * MARIO_SCALE;
+    const GROUND_Y = GROUND_TOP - MARIO_H;   // y của Mario khi đứng trên mặt đất
+    const BOX_SIZE = 52;             // ô [?] to hơn
+    const BOX_Y = 198;               // độ cao ô [?] (nhảy là húc tới)
+    const MAX_LIVES = 9;             // số mạng tối đa có thể tích lũy
+    const TRAP_PENALTY = 200;        // điểm bị trừ khi mở trúng bom
     const BOSS_X = 1200, BOSS_Y = 260;
-    const STAGE_PITS = [ { start: 1200, width: 120 }, { start: 2200, width: 140 } ];
+    const STAGE_PITS = [ { start: 1160, width: 70 }, { start: 2220, width: 80 } ];  // hố hẹp, dễ nhảy
 
-    const mario = { x: 100, y: GROUND_Y, w: 32, h: 44, vx: 0, vy: 0, isJumping: false, falling: false, fallPit: null, facing: 1, legSwing: 0, speed: 4 };
+    const mario = { x: 100, y: GROUND_Y, w: MARIO_W, h: MARIO_H, vx: 0, vy: 0, isJumping: false, falling: false, fallPit: null, facing: 1, legSwing: 0, speed: 4 };
     let cameraX = 0;
     const keys = { left: false, right: false };
 
     let mysteryBoxes = [];
     let groundPits = [];
     let floatingCoins = [];
+    let popItems = [];               // nấm / bom / xu nhô lên khi mở ô
     const fireball = { active: false, x: 0, y: 0, vx: 0 };
     let bossFlash = 0;
 
     function initLevelBoxes() {
       mysteryBoxes = [
         { x: 300,  type: 'quiz' },
-        { x: 500,  type: 'coin' },
-        { x: 700,  type: 'quiz' },
-        { x: 900,  type: 'trap' },
-        { x: 1050, type: 'mushroom' },
-        { x: 1450, type: 'quiz' },
-        { x: 1650, type: 'coin' },
-        { x: 1900, type: 'quiz' },
-        { x: 2080, type: 'trap' },
-        { x: 2450, type: 'mushroom' },
-        { x: 2650, type: 'quiz' },
-        { x: 2850, type: 'coin' }
-      ].map(b => ({ ...b, y: 220, active: true, bump: 0 }));
+        { x: 460,  type: 'mushroom' },
+        { x: 620,  type: 'coin' },
+        { x: 790,  type: 'quiz' },
+        { x: 960,  type: 'mushroom' },
+        { x: 1350, type: 'quiz' },
+        { x: 1520, type: 'trap' },
+        { x: 1690, type: 'mushroom' },
+        { x: 1870, type: 'quiz' },
+        { x: 2040, type: 'coin' },
+        { x: 2420, type: 'mushroom' },
+        { x: 2580, type: 'trap' },
+        { x: 2740, type: 'quiz' },
+        { x: 2880, type: 'mushroom' }
+      ].map(b => ({ ...b, y: BOX_Y, active: true, bump: 0 }));
       groundPits = STAGE_PITS.map(p => ({ ...p }));
       floatingCoins = [];
+      popItems = [];
     }
 
     function resetMario(x) {
@@ -1059,7 +1126,7 @@ mario_game_code = """
     function updateHud() {
       document.getElementById("hud-score").textContent = String(gameState.score).padStart(6, '0');
       document.getElementById("hud-coins").textContent = "🪙 x" + gameState.coins;
-      document.getElementById("hud-lives").textContent = gameState.lives > 0 ? "❤️".repeat(gameState.lives) : "💀";
+      document.getElementById("hud-lives").textContent = gameState.lives > 0 ? "❤️x" + gameState.lives : "💀";
     }
 
     // ===== BÀN PHÍM (bỏ qua khi đang gõ vào ô nhập) =====
@@ -1106,6 +1173,11 @@ mario_game_code = """
       return groundPits.find(p => cx > p.start + 4 && cx < p.start + p.width - 4) || null;
     }
 
+    // Vật phẩm nhô lên khỏi ô để học sinh thấy mình nhận được gì
+    function spawnPopItem(box, kind, label, color) {
+      popItems.push({ kind, label, color, x: box.x + BOX_SIZE / 2, baseY: box.y, rise: 0, life: 90 });
+    }
+
     function hitBox(box) {
       box.active = false;
       box.bump = 8;
@@ -1113,16 +1185,20 @@ mario_game_code = """
         sndCoin();
         gameState.coins++;
         gameState.score += 200;
-        floatingCoins.push({ x: box.x + 6, y: box.y - 10, vy: -9 });
+        floatingCoins.push({ x: box.x + BOX_SIZE / 2 - 12, y: box.y - 10, vy: -9 });
+        spawnPopItem(box, 'text', "+200", "#facc15");
         updateHud();
       } else if (box.type === 'mushroom') {
         sndPowerup();
-        gameState.lives = Math.min(5, gameState.lives + 1);
+        const full = gameState.lives >= MAX_LIVES;
+        gameState.lives = Math.min(MAX_LIVES, gameState.lives + 1);
+        spawnPopItem(box, 'mushroom', full ? "ĐẦY MẠNG" : "+1 MẠNG", "#4ade80");
         updateHud();
       } else if (box.type === 'trap') {
         sndTrap();
         triggerShake();
-        gameState.score = Math.max(0, gameState.score - 1000);
+        gameState.score = Math.max(0, gameState.score - TRAP_PENALTY);
+        spawnPopItem(box, 'bomb', "-1 MẠNG", "#f87171");
         loseLife();
       } else {
         openNextQuestion();
@@ -1131,8 +1207,8 @@ mario_game_code = """
 
     function checkBoxBump() {
       for (const box of mysteryBoxes) {
-        const overlapX = mario.x + mario.w - 6 > box.x && mario.x + 6 < box.x + BOX_SIZE;
-        const headHit = mario.y <= box.y + BOX_SIZE && mario.y > box.y + BOX_SIZE - 16;
+        const overlapX = mario.x + mario.w - 4 > box.x && mario.x + 4 < box.x + BOX_SIZE;
+        const headHit = mario.y <= box.y + BOX_SIZE && mario.y > box.y + BOX_SIZE - 18;
         if (overlapX && headHit) {
           mario.y = box.y + BOX_SIZE;
           mario.vy = 1;
@@ -1149,7 +1225,7 @@ mario_game_code = """
       // Di chuyển ngang (khóa khi đang rơi hố)
       if (active && !mario.falling) {
         if (keys.left)  { mario.x = Math.max(30, mario.x - mario.speed); mario.facing = -1; mario.legSwing += 0.3; }
-        if (keys.right) { mario.x = Math.min(WORLD_W - 100, mario.x + mario.speed); mario.facing = 1; mario.legSwing += 0.3; }
+        if (keys.right) { mario.x = Math.min(WORLD_W - 60, mario.x + mario.speed); mario.facing = 1; mario.legSwing += 0.3; }
         cameraX = Math.max(0, Math.min(WORLD_W - canvas.width, mario.x - 300));
       }
 
@@ -1180,6 +1256,8 @@ mario_game_code = """
       floatingCoins.forEach(fc => { fc.y += fc.vy; fc.vy += 0.6; });
       floatingCoins = floatingCoins.filter(fc => fc.vy < 9);
       mysteryBoxes.forEach(b => { if (b.bump > 0) b.bump--; });
+      popItems.forEach(p => { if (p.rise < 46) p.rise += 2.5; p.life--; });
+      popItems = popItems.filter(p => p.life > 0);
 
       if (fireball.active) {
         fireball.x += fireball.vx;
@@ -1190,13 +1268,15 @@ mario_game_code = """
 
     // ===== VẼ =====
     function drawMario() {
-      const mx = mario.x, my = mario.y;
       ctx.save();
-      if (mario.facing < 0) { ctx.translate(mx * 2 + mario.w, 0); ctx.scale(-1, 1); }
+      ctx.translate(mario.x, mario.y);
+      if (mario.facing < 0) { ctx.translate(mario.w, 0); ctx.scale(-1, 1); }
 
       if (IMG.mario.ok) {
-        ctx.drawImage(IMG.mario, mx, my, mario.w, mario.h);
+        ctx.drawImage(IMG.mario, 0, 0, mario.w, mario.h);
       } else {
+        ctx.scale(MARIO_SCALE, MARIO_SCALE);   // vẽ hình pixel gốc 32x44 rồi phóng to
+        const mx = 0, my = 0;
         const legOffset = (keys.left || keys.right) && !mario.isJumping ? Math.round(Math.sin(mario.legSwing) * 2) : 0;
         ctx.fillStyle = "#8b4513";
         ctx.fillRect(mx + 4, my + 38 + legOffset, 10, 6);
@@ -1218,6 +1298,59 @@ mario_game_code = """
         ctx.fillRect(mx + 6, my + 2, 22, 8);
         ctx.fillRect(mx + 12, my - 2, 16, 4);
       }
+      ctx.restore();
+    }
+
+    function drawMushroom(cx, bottom) {
+      // thân
+      ctx.fillStyle = "#fde7c8";
+      ctx.fillRect(cx - 11, bottom - 20, 22, 20);
+      ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.strokeRect(cx - 11, bottom - 20, 22, 20);
+      ctx.fillStyle = "#000";
+      ctx.fillRect(cx - 6, bottom - 15, 3, 7);
+      ctx.fillRect(cx + 3, bottom - 15, 3, 7);
+      // mũ đỏ chấm trắng
+      ctx.fillStyle = "#e52521";
+      ctx.beginPath(); ctx.arc(cx, bottom - 20, 22, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#fff";
+      [[-11, -30, 5], [10, -31, 5], [0, -37, 4]].forEach(([dx, dy, r]) => {
+        ctx.beginPath(); ctx.arc(cx + dx, bottom + dy, r, 0, Math.PI * 2); ctx.fill();
+      });
+    }
+
+    function drawBomb(cx, bottom, t) {
+      const cy = bottom - 20;
+      ctx.fillStyle = "#111827";
+      ctx.beginPath(); ctx.arc(cx, cy, 20, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#f87171"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.beginPath(); ctx.arc(cx - 7, cy - 7, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#6b7280"; ctx.fillRect(cx - 5, cy - 26, 10, 7);
+      ctx.strokeStyle = "#a16207"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(cx, cy - 26); ctx.quadraticCurveTo(cx + 8, cy - 36, cx + 14, cy - 32); ctx.stroke();
+      ctx.fillStyle = t % 8 < 4 ? "#facc15" : "#f97316";   // tia lửa nhấp nháy
+      ctx.beginPath(); ctx.arc(cx + 15, cy - 33, 5, 0, Math.PI * 2); ctx.fill();
+    }
+
+    function drawPopItem(p) {
+      const bottom = p.baseY - p.rise + BOX_SIZE * 0.2;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, p.life / 20);
+      if (p.kind === 'mushroom') drawMushroom(p.x, bottom);
+      else if (p.kind === 'bomb') drawBomb(p.x, bottom, p.life);
+      ctx.restore();
+    }
+
+    function drawPopLabel(p) {
+      const y = p.baseY - p.rise - (p.kind === 'text' ? 0 : 52);
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, p.life / 20);
+      ctx.font = "800 20px 'Plus Jakarta Sans', sans-serif";   // font pixel không có dấu tiếng Việt
+      ctx.textAlign = "center";
+      ctx.lineWidth = 4; ctx.strokeStyle = "#000";
+      ctx.strokeText(p.label, p.x, y);
+      ctx.fillStyle = p.color;
+      ctx.fillText(p.label, p.x, y);
       ctx.restore();
     }
 
@@ -1301,23 +1434,35 @@ mario_game_code = """
         });
 
         // Cờ đích cuối màn
-        ctx.fillStyle = "#e5e7eb"; ctx.fillRect(2940, 150, 6, 250);
+        ctx.fillStyle = "#e5e7eb"; ctx.fillRect(2975, 150, 6, 250);
         ctx.fillStyle = "#22c55e";
-        ctx.beginPath(); ctx.moveTo(2946, 155); ctx.lineTo(2986, 170); ctx.lineTo(2946, 185); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(2981, 155); ctx.lineTo(3000, 170); ctx.lineTo(2981, 185); ctx.fill();
+
+        // Vật phẩm nhô lên (vẽ trước ô để trông như chui ra từ trong ô)
+        popItems.forEach(drawPopItem);
 
         mysteryBoxes.forEach(box => {
-          const by = box.y - (box.bump > 0 ? Math.sin((box.bump / 8) * Math.PI) * 8 : 0);
+          const by = box.y - (box.bump > 0 ? Math.sin((box.bump / 8) * Math.PI) * 10 : 0);
           if (IMG.box.ok && box.active) {
             ctx.drawImage(IMG.box, box.x, by, BOX_SIZE, BOX_SIZE);
           } else {
             ctx.fillStyle = box.active ? "#f8b800" : "#7c3f00";
             ctx.fillRect(box.x, by, BOX_SIZE, BOX_SIZE);
             ctx.strokeStyle = "#000"; ctx.lineWidth = 3; ctx.strokeRect(box.x, by, BOX_SIZE, BOX_SIZE);
+            if (box.active) {
+              ctx.fillStyle = "#000";
+              [[5,5],[BOX_SIZE-9,5],[5,BOX_SIZE-9],[BOX_SIZE-9,BOX_SIZE-9]].forEach(([dx,dy]) => ctx.fillRect(box.x+dx, by+dy, 4, 4));
+            }
             ctx.fillStyle = box.active ? "#000" : "#ffcc00";
-            ctx.font = "bold 16px 'Press Start 2P', monospace";
-            ctx.fillText(box.active ? "?" : "✓", box.x + 10, by + 26);
+            ctx.font = "bold 24px 'Press Start 2P', monospace";
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText(box.active ? "?" : "✓", box.x + BOX_SIZE / 2 + 1, by + BOX_SIZE / 2 + 2);
+            ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
           }
         });
+
+        // Chữ thông báo (+1 MẠNG / -1 MẠNG) vẽ trên cùng
+        popItems.forEach(drawPopLabel);
 
         floatingCoins.forEach(fc => {
           ctx.fillStyle = "#facc15";
@@ -1496,7 +1641,7 @@ mario_game_code = """
           gameState.bossHp--;
           fireball.active = true;
           fireball.x = mario.x + 30;
-          fireball.y = mario.y + 16;
+          fireball.y = mario.y + mario.h * 0.4;
           fireball.vx = 9;
         } else if (!mario.isJumping && !mario.falling) {
           mario.isJumping = true;
@@ -1679,7 +1824,6 @@ mario_game_code = """
 
 mario_game_code = mario_game_code.replace("WEBHOOK_URL_PLACEHOLDER", sheet_webhook)
 components.html(mario_game_code, height=720, scrolling=True)
-
 
 # ================= TAB 4: BẢNG ĐIỂM LỚP =================
 with tab4:
