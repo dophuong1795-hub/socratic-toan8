@@ -785,6 +785,9 @@ MARIO_GAME_HTML = """
     .font-pixel { font-family: 'Press Start 2P', monospace; }
     .font-body { font-family: 'Plus Jakarta Sans', sans-serif; }
     .shake { animation: shake-anim 0.35s cubic-bezier(.36,.07,.19,.97) both; }
+    html, body { touch-action: manipulation; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+    .pad-btn { touch-action: none; -webkit-user-select: none; user-select: none; }
+    .pad-btn.pressed { transform: scale(0.92); filter: brightness(1.3); }
     @keyframes shake-anim {
       10%, 90% { transform: translate3d(-2px, 0, 0); }
       20%, 80% { transform: translate3d(4px, 0, 0); }
@@ -796,7 +799,7 @@ MARIO_GAME_HTML = """
 <body class="bg-slate-950 text-slate-100 font-body min-h-screen flex flex-col items-center justify-start p-2 select-none">
 
   <!-- ĐĂNG NHẬP -->
-  <div id="login-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
+  <div id="login-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto">
     <div class="bg-slate-900 border-2 border-amber-400/80 rounded-2xl max-w-md w-full p-6 shadow-2xl text-center">
       <div class="inline-block p-3 bg-red-600 rounded-2xl shadow-lg mb-3">
         <span class="font-pixel text-2xl text-white">M</span>
@@ -816,7 +819,8 @@ MARIO_GAME_HTML = """
       </div>
 
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 text-xs text-slate-300 text-left mb-5 space-y-1.5">
-        <p>🎮 <b>Điều khiển:</b> Dùng <b>Mũi tên Trái / Phải (← / →)</b> để chạy cuộn màn hình, <b>Space / ↑</b> để nhảy!</p>
+        <p>🎮 <b>Máy tính:</b> <b>← / →</b> để chạy, <b>Space / ↑</b> để nhảy.</p>
+        <p>📱 <b>Điện thoại:</b> giữ nút <b>◀ / ▶</b> để chạy, bấm nút <b>NHẢY</b> (hoặc chạm vào màn hình game) để nhảy.</p>
         <p>📦 Nhảy húc đầu vào các ô <b>[?]</b>: 5 Câu hỏi, 🍄 Nấm (+1 mạng), 🪙 Xu, 💣 Bom (-1 mạng).</p>
         <p>⚠️ Nhảy qua <b>hố</b> trên đường đi! Trả lời đủ 5 câu hỏi để qua ải.</p>
       </div>
@@ -828,25 +832,25 @@ MARIO_GAME_HTML = """
   </div>
 
   <!-- HUD THÔNG TIN NES MARIO -->
-  <header class="w-full max-w-3xl flex items-center justify-between bg-black border-2 border-slate-800 px-4 py-2.5 mb-2 font-pixel text-[11px] text-white rounded-xl shadow-lg">
+  <header class="w-full max-w-3xl flex flex-wrap items-center justify-between gap-x-2 gap-y-1 bg-black border-2 border-slate-800 px-2 sm:px-4 py-2 mb-2 font-pixel text-[9px] sm:text-[11px] text-white rounded-xl shadow-lg">
     <div class="text-center">
-      <div class="text-red-500 mb-0.5 text-[9px]">SCORE</div>
+      <div class="text-red-500 mb-0.5 text-[8px] sm:text-[9px]">SCORE</div>
       <div id="hud-score" class="text-white">000000</div>
     </div>
     <div class="text-center">
-      <div class="text-red-500 mb-0.5 text-[9px]">COINS</div>
+      <div class="text-red-500 mb-0.5 text-[8px] sm:text-[9px]">COINS</div>
       <div id="hud-coins" class="text-amber-400">🪙 x0</div>
     </div>
     <div class="text-center">
-      <div class="text-red-500 mb-0.5 text-[9px]">WORLD</div>
+      <div class="text-red-500 mb-0.5 text-[8px] sm:text-[9px]">WORLD</div>
       <div id="hud-world" class="text-cyan-400">1-1</div>
     </div>
     <div class="text-center">
-      <div class="text-red-500 mb-0.5 text-[9px]">QUESTIONS</div>
+      <div class="text-red-500 mb-0.5 text-[8px] sm:text-[9px]">CÂU HỎI</div>
       <div id="hud-quest" class="text-amber-300">0/5</div>
     </div>
     <div class="text-center">
-      <div class="text-red-500 mb-0.5 text-[9px]">LIVES</div>
+      <div class="text-red-500 mb-0.5 text-[8px] sm:text-[9px]">LIVES</div>
       <div id="hud-lives" class="text-rose-500 text-xs">❤️❤️❤️❤️❤️</div>
     </div>
     <button id="btn-toggle-sound" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 text-xs font-body">🔊</button>
@@ -856,6 +860,15 @@ MARIO_GAME_HTML = """
   <main id="game-arena" class="relative w-full max-w-3xl aspect-[16/9] bg-[#5c94fc] rounded-2xl border-4 border-slate-800 shadow-2xl overflow-hidden">
     <canvas id="gameCanvas" width="900" height="506" class="w-full h-full block"></canvas>
   </main>
+
+  <!-- NÚT ĐIỀU KHIỂN CẢM ỨNG (điện thoại / máy tính bảng) -->
+  <div id="touch-pad" class="w-full max-w-3xl flex items-center justify-between mt-3 px-1">
+    <div class="flex gap-3">
+      <button id="pad-left" class="pad-btn w-16 h-16 sm:w-14 sm:h-14 rounded-full bg-slate-800 border-2 border-sky-400/70 text-2xl text-white shadow-lg transition-transform">◀</button>
+      <button id="pad-right" class="pad-btn w-16 h-16 sm:w-14 sm:h-14 rounded-full bg-slate-800 border-2 border-sky-400/70 text-2xl text-white shadow-lg transition-transform">▶</button>
+    </div>
+    <button id="pad-jump" class="pad-btn w-24 h-16 sm:w-20 sm:h-14 rounded-full bg-gradient-to-r from-red-600 to-amber-500 border-2 border-amber-300 font-extrabold text-sm text-white shadow-lg transition-transform">NHẢY ⤴</button>
+  </div>
 
   <!-- MODAL CÂU HỎI -->
   <div id="quiz-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-3 hidden">
@@ -885,7 +898,7 @@ MARIO_GAME_HTML = """
   </div>
 
   <!-- MODAL HOÀN THÀNH ẢI -->
-  <div id="stage-clear-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+  <div id="stage-clear-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto hidden">
     <div class="bg-slate-900 border-2 border-emerald-400 rounded-2xl max-w-md w-full p-6 text-center shadow-2xl">
       <div class="text-3xl mb-2">🌟</div>
       <h3 id="stage-clear-title" class="text-base font-extrabold text-emerald-400 mb-1">HOÀN THÀNH ẢI!</h3>
@@ -1232,13 +1245,17 @@ MARIO_GAME_HTML = """
       if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
       if (e.code === 'Space' || e.code === 'ArrowUp') {
         e.preventDefault();
-        if (!mario.isJumping && !mario.falling && !gameState.isPaused && !gameState.isGameOver) {
-          mario.isJumping = true;
-          mario.vy = -14;
-          sndJump();
-        }
+        doJump();
       }
     });
+
+    function doJump() {
+      if (!mario.isJumping && !mario.falling && !gameState.isPaused && !gameState.isGameOver) {
+        mario.isJumping = true;
+        mario.vy = -14;
+        sndJump();
+      }
+    }
 
     window.addEventListener('keyup', (e) => {
       if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
@@ -1246,6 +1263,47 @@ MARIO_GAME_HTML = """
     });
 
     window.addEventListener('blur', () => { keys.left = keys.right = false; });
+
+    // ===== NÚT CẢM ỨNG: giữ để chạy, chạm để nhảy =====
+    function bindHoldButton(id, key) {
+      const btn = document.getElementById(id);
+      const press = (e) => {
+        e.preventDefault();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        keys[key] = true;
+        btn.classList.add("pressed");
+        if (e.pointerId !== undefined && btn.setPointerCapture) {
+          try { btn.setPointerCapture(e.pointerId); } catch (err) {}
+        }
+      };
+      const release = (e) => {
+        if (e) e.preventDefault();
+        keys[key] = false;
+        btn.classList.remove("pressed");
+      };
+      btn.addEventListener("pointerdown", press);
+      btn.addEventListener("pointerup", release);
+      btn.addEventListener("pointercancel", release);
+      btn.addEventListener("lostpointercapture", () => release());
+      btn.addEventListener("contextmenu", (e) => e.preventDefault());
+    }
+    bindHoldButton("pad-left", "left");
+    bindHoldButton("pad-right", "right");
+
+    const jumpBtn = document.getElementById("pad-jump");
+    jumpBtn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      jumpBtn.classList.add("pressed");
+      doJump();
+    });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(ev =>
+      jumpBtn.addEventListener(ev, () => jumpBtn.classList.remove("pressed")));
+    jumpBtn.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    // Chạm thẳng vào màn hình game cũng nhảy
+    canvas.addEventListener("pointerdown", (e) => { e.preventDefault(); doJump(); });
+    canvas.style.touchAction = "none";
 
     function triggerShake() {
       arenaEl.classList.add("shake");
@@ -1920,7 +1978,7 @@ with tab3:
 
     sheet_webhook = get_secret("GOOGLE_SHEET_WEBHOOK_URL", DEFAULT_WEBHOOK) or DEFAULT_WEBHOOK
     game_html = MARIO_GAME_HTML.replace('"WEBHOOK_URL_PLACEHOLDER"', json.dumps(sheet_webhook))
-    components.html(game_html, height=720, scrolling=True)
+    components.html(game_html, height=780, scrolling=True)
 
 # ================= TAB 4: BẢNG ĐIỂM LỚP =================
 with tab4:
