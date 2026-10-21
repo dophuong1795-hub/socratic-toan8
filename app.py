@@ -779,118 +779,128 @@ SPACE_GAME_HTML = """
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Vượt Ải Không Gian - Lớp Toán Cô Mai Phương</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
-    .font-pixel { font-family: 'Press Start 2P', monospace; }
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800;900&family=Chakra+Petch:wght@600;700;800&display=swap');
+    .font-hud { font-family: 'Chakra Petch', sans-serif; letter-spacing: 0.05em; }
     .font-body { font-family: 'Plus Jakarta Sans', sans-serif; }
     .shake { animation: shake-anim 0.35s cubic-bezier(.36,.07,.19,.97) both; }
     html, body { touch-action: manipulation; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
     .pad-btn { touch-action: none; -webkit-user-select: none; user-select: none; }
     .pad-btn.pressed { transform: scale(0.92); filter: brightness(1.3); }
     @keyframes shake-anim {
-      10%, 90% { transform: translate3d(-2px, 0, 0); }
-      20%, 80% { transform: translate3d(4px, 0, 0); }
+      10%, 90% { transform: translate3d(-3px, 0, 0); }
+      20%, 80% { transform: translate3d(5px, 0, 0); }
       30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
       40%, 60% { transform: translate3d(6px, 0, 0); }
     }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 font-body min-h-screen flex flex-col items-center justify-start p-2 select-none">
+<body class="bg-[#030712] text-slate-100 font-body min-h-screen flex flex-col items-center justify-start p-2 select-none">
 
-  <!-- ĐĂNG NHẬP -->
-  <div id="login-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto">
-    <div class="bg-slate-900 border-2 border-amber-400/80 rounded-2xl max-w-md w-full p-6 shadow-2xl text-center">
-      <div class="inline-block p-3 bg-indigo-600 rounded-2xl shadow-lg mb-3">
-        <span class="text-3xl">🚀</span>
+  <!-- TAB TIÊU ĐỀ -->
+  <div class="w-full max-w-3xl flex items-center justify-between mb-2 px-1">
+    <div class="flex items-center gap-2 bg-indigo-950/90 border border-cyan-400/50 rounded-xl px-3.5 py-1.5 shadow-lg shadow-cyan-950/40">
+      <span class="text-xl">🌌</span>
+      <span class="text-xs sm:text-sm font-extrabold text-cyan-300 tracking-wider uppercase font-hud">TAB: VƯỢT ẢI KHÔNG GIAN</span>
+    </div>
+    <div class="text-[11px] text-slate-400 font-medium hidden sm:block">Hình học 8 - Khám Phá Thế Giới Tứ Giác</div>
+  </div>
+
+  <!-- MODAL ĐĂNG NHẬP -->
+  <div id="login-modal" class="fixed inset-0 z-50 bg-[#030712]/95 backdrop-blur-md flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-slate-900 border-2 border-cyan-400/80 rounded-2xl max-w-md w-full p-6 shadow-2xl text-center">
+      <div class="inline-block p-3.5 bg-gradient-to-tr from-cyan-600 to-indigo-600 rounded-2xl shadow-lg mb-3">
+        <span class="text-3xl">👨‍🚀</span>
       </div>
-      <h1 class="text-xl font-extrabold text-amber-400 mb-1">LỚP TOÁN CÔ MAI PHƯƠNG</h1>
-      <p class="text-xs text-slate-400 mb-5">Phi Hành Gia Toán Học: Vượt Ải Không Gian & Chinh Phục Quái Thú Tứ Giác</p>
+      <h1 class="text-lg sm:text-xl font-extrabold text-amber-400 mb-1">LỚP TOÁN CÔ MAI PHƯƠNG</h1>
+      <p class="text-xs text-cyan-300 font-semibold mb-4">Vượt Ải Không Gian: Giải Mã Hạm Đội UFO & Tiêu Diệt Quái Thú Tứ Giác</p>
 
-      <div class="space-y-3.5 text-left mb-6">
+      <div class="space-y-3 text-left mb-5">
         <div>
-          <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Họ và tên học sinh:</label>
-          <input type="text" id="input-name" placeholder="Ví dụ: Nguyễn Văn An" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
+          <label class="block text-[11px] font-bold text-slate-300 uppercase mb-1">Họ và tên học sinh:</label>
+          <input type="text" id="input-name" placeholder="Ví dụ: Nguyễn Mai An" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400">
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Lớp:</label>
-          <input type="text" id="input-class" placeholder="Ví dụ: 8A13" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
+          <label class="block text-[11px] font-bold text-slate-300 uppercase mb-1">Lớp:</label>
+          <input type="text" id="input-class" placeholder="Ví dụ: 8A13" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400">
         </div>
       </div>
 
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 text-xs text-slate-300 text-left mb-5 space-y-1.5">
-        <p>🎮 <b>Máy tính:</b> <b>← / →</b> để chạy, <b>Space / ↑</b> để nhảy.</p>
-        <p>📱 <b>Điện thoại:</b> giữ nút <b>◀</b> (bên trái) để lùi, <b>▶</b> (bên phải) để tiến; bấm nút <b>NHẢY</b> bên trái hoặc chạm vào màn hình game để nhảy.</p>
-        <p>🧊 Nhảy húc đầu vào các <b>khối năng lượng</b> (Δ, π, √x...): 5 Câu hỏi, 🧪 Bình oxy (+1 mạng), 💎 Tinh thể, ☄️ Thiên thạch (-1 mạng).</p>
-        <p>⚠️ Nhảy qua <b>hố đen</b> trên đường đi! Trả lời đủ 5 câu hỏi để qua ải, rồi hạ <b>Quái Thú Tứ Giác</b>.</p>
+        <p>🎮 <b>Máy tính:</b> <b>← / →</b> để chạy, <b>Space / ↑</b> kích hoạt Jetpack nhảy.</p>
+        <p>📱 <b>Điện thoại:</b> giữ <b>◀</b> lùi, <b>▶</b> tiến; bấm <b>JETPACK</b> để bay lên.</p>
+        <p>🛸 <b>Hạm đội UFO lơ lửng:</b> Nhảy húc đầu để mở 5 Câu hỏi, 🧪 Bình oxy, 💎 Tinh thể, ☄️ Thiên thạch.</p>
+        <p>⚠️ <b>Hố sâu:</b> Có cột Laser cảnh báo tím chiếu rọi từ xa.</p>
+        <p>🇻🇳 Thắng ải 5 để cắm cờ Việt Nam trên Mặt Trăng và lái phi thuyền về Trái Đất!</p>
       </div>
 
-      <button id="btn-start-game" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white font-extrabold text-sm rounded-xl shadow-lg transition transform active:scale-95">
-        BẮT ĐẦU VƯỢT ẢI NGAY
+      <button id="btn-start-game" class="w-full py-3.5 bg-gradient-to-r from-cyan-600 via-indigo-600 to-fuchsia-600 hover:from-cyan-500 hover:to-fuchsia-500 text-white font-extrabold text-sm rounded-xl shadow-lg transition transform active:scale-95">
+        BẮT ĐẦU VƯỢT ẢI NGAY 🚀
       </button>
     </div>
   </div>
 
-  <!-- HUD THÔNG TIN PHI HÀNH GIA -->
-  <header class="w-full max-w-3xl flex flex-wrap items-center justify-between gap-x-2 gap-y-1 bg-black border-2 border-slate-800 px-2 sm:px-4 py-2 mb-2 font-pixel text-[9px] sm:text-[11px] text-white rounded-xl shadow-lg">
+  <!-- HUD THÔNG TIN -->
+  <header class="w-full max-w-3xl flex flex-wrap items-center justify-between gap-x-2 gap-y-1 bg-black/90 backdrop-blur border-2 border-cyan-900 px-3 py-2 mb-2 font-hud text-xs sm:text-sm text-white rounded-xl shadow-lg">
     <div class="text-center">
-      <div class="text-cyan-400 mb-0.5 text-[8px] sm:text-[9px]">SCORE</div>
-      <div id="hud-score" class="text-white">000000</div>
+      <div class="text-cyan-400 mb-0.5 text-[9px]">SCORE</div>
+      <div id="hud-score" class="text-white font-bold">000000</div>
     </div>
     <div class="text-center">
-      <div class="text-cyan-400 mb-0.5 text-[8px] sm:text-[9px]">GEMS</div>
-      <div id="hud-coins" class="text-fuchsia-300">💎 x0</div>
+      <div class="text-cyan-400 mb-0.5 text-[9px]">CRYSTALS</div>
+      <div id="hud-coins" class="text-cyan-300 font-bold">💎 x0</div>
     </div>
     <div class="text-center">
-      <div class="text-cyan-400 mb-0.5 text-[8px] sm:text-[9px]">PLANET</div>
-      <div id="hud-world" class="text-amber-300">P-1</div>
+      <div class="text-cyan-400 mb-0.5 text-[9px]">SECTOR</div>
+      <div id="hud-world" class="text-amber-300 font-bold">P-1</div>
     </div>
     <div class="text-center">
-      <div class="text-cyan-400 mb-0.5 text-[8px] sm:text-[9px]">QUESTIONS</div>
-      <div id="hud-quest" class="text-amber-300">0/5</div>
+      <div class="text-cyan-400 mb-0.5 text-[9px]">ENERGY</div>
+      <div id="hud-quest" class="text-emerald-400 font-bold">0/5</div>
     </div>
     <div class="text-center">
-      <div class="text-cyan-400 mb-0.5 text-[8px] sm:text-[9px]">OXYGEN</div>
-      <div id="hud-lives" class="text-rose-500 text-xs">❤️❤️❤️❤️❤️</div>
+      <div class="text-cyan-400 mb-0.5 text-[9px]">OXYGEN</div>
+      <div id="hud-lives" class="text-rose-500 font-bold text-sm">❤️❤️❤️❤️❤️</div>
     </div>
     <button id="btn-toggle-sound" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 text-xs font-body">🔊</button>
   </header>
 
   <!-- MÀN HÌNH GAME CANVAS -->
-  <main id="game-arena" class="relative w-full max-w-3xl aspect-[16/9] bg-[#0b1026] rounded-2xl border-4 border-slate-800 shadow-2xl overflow-hidden">
+  <main id="game-arena" class="relative w-full max-w-3xl aspect-[16/9] bg-[#030712] rounded-2xl border-4 border-slate-800 shadow-2xl overflow-hidden">
     <canvas id="gameCanvas" width="900" height="506" class="w-full h-full block"></canvas>
   </main>
 
-  <!-- NÚT ĐIỀU KHIỂN CẢM ỨNG: tay trái = lùi + nhảy, tay phải = tiến -->
+  <!-- NÚT ĐIỀU KHIỂN CẢM ỨNG DI ĐỘNG -->
   <div id="touch-pad" class="w-full max-w-3xl flex items-center justify-between mt-3 px-1">
     <div class="flex items-center gap-3">
-      <button id="pad-left" class="pad-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-slate-800 border-4 border-sky-400/80 text-4xl text-white shadow-lg transition-transform">◀</button>
-      <button id="pad-jump" class="pad-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-indigo-600 to-cyan-500 border-4 border-cyan-300 font-extrabold text-base sm:text-lg leading-tight text-white shadow-lg transition-transform">NHẢY<br>⤴</button>
+      <button id="pad-left" class="pad-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-slate-800/90 border-4 border-cyan-400 text-4xl text-white shadow-lg transition-transform">◀</button>
+      <button id="pad-jump" class="pad-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-cyan-600 to-indigo-600 border-4 border-cyan-300 font-extrabold text-base sm:text-lg leading-tight text-white shadow-lg transition-transform">JETPACK<br>⤴</button>
     </div>
-    <button id="pad-right" class="pad-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-slate-800 border-4 border-sky-400/80 text-4xl text-white shadow-lg transition-transform">▶</button>
+    <button id="pad-right" class="pad-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-slate-800/90 border-4 border-cyan-400 text-4xl text-white shadow-lg transition-transform">▶</button>
   </div>
 
   <!-- MODAL CÂU HỎI -->
-  <div id="quiz-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-3 hidden">
-    <div class="bg-slate-900 border-2 border-sky-400/90 rounded-2xl max-w-xl w-full p-4 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
+  <div id="quiz-modal" class="fixed inset-0 z-50 bg-[#030712]/90 backdrop-blur-sm flex items-center justify-center p-3 hidden">
+    <div class="bg-slate-900 border-2 border-cyan-400/90 rounded-2xl max-w-xl w-full p-4 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
-        <span id="quiz-level-badge" class="px-2.5 py-1 bg-sky-500/20 text-sky-400 border border-sky-500/40 rounded-lg text-xs font-bold uppercase">NHẬN BIẾT (15s)</span>
-        <div class="flex items-center space-x-1.5 font-pixel text-xs text-amber-400">
+        <span id="quiz-level-badge" class="px-2.5 py-1 bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 rounded-lg text-xs font-bold uppercase">🛸 HẠM ĐỘI UFO (15s)</span>
+        <div class="flex items-center space-x-1.5 font-hud text-xs text-amber-400">
           <span>⏳</span><span id="quiz-timer-text">15s</span>
         </div>
       </div>
 
       <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mb-3">
-        <div id="timer-bar" class="h-full bg-amber-400 transition-all duration-100 ease-linear" style="width: 100%;"></div>
+        <div id="timer-bar" class="h-full bg-cyan-400 transition-all duration-100 ease-linear" style="width: 100%;"></div>
       </div>
 
       <div id="quiz-question-text" class="text-sm font-bold text-amber-200 mb-3 leading-relaxed">Đề bài...</div>
-
       <div id="quiz-options-container" class="space-y-2 mb-2"></div>
 
       <div id="quiz-short-container" class="space-y-2 mb-2 hidden">
-        <input type="text" id="quiz-short-input" placeholder="Nhập đáp số hoặc tên hình..." autocomplete="off" class="w-full bg-slate-800 border-2 border-sky-500/60 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
-        <button id="quiz-short-submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-md transition">XÁC NHẬN ĐÁP ÁN (ENTER)</button>
+        <input type="text" id="quiz-short-input" placeholder="Nhập đáp số hoặc kết quả tính toán..." autocomplete="off" class="w-full bg-slate-800 border-2 border-cyan-500/60 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
+        <button id="quiz-short-submit" class="w-full py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-extrabold text-xs rounded-xl shadow-md transition">BẮN TIA NĂNG LƯỢNG (ENTER)</button>
       </div>
 
       <div id="quiz-feedback" class="mt-2 text-xs font-semibold min-h-[20px]"></div>
@@ -898,30 +908,30 @@ SPACE_GAME_HTML = """
   </div>
 
   <!-- MODAL HOÀN THÀNH ẢI -->
-  <div id="stage-clear-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto hidden">
+  <div id="stage-clear-modal" class="fixed inset-0 z-50 bg-[#030712]/90 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto hidden">
     <div class="bg-slate-900 border-2 border-emerald-400 rounded-2xl max-w-md w-full p-6 text-center shadow-2xl">
-      <div class="text-3xl mb-2">🌟</div>
-      <h3 id="stage-clear-title" class="text-base font-extrabold text-emerald-400 mb-1">HOÀN THÀNH ẢI!</h3>
+      <div class="text-4xl mb-2">🌌✨</div>
+      <h3 id="stage-clear-title" class="text-base font-extrabold text-emerald-400 mb-1">VƯỢT ẢI THÀNH CÔNG!</h3>
       <p class="text-xs text-amber-400 font-bold mb-3">LỜI DẶN DÒ TỪ CÔ MAI PHƯƠNG</p>
       <div id="stage-clear-msg" class="bg-slate-800/80 border border-slate-700 rounded-xl p-3.5 text-xs text-slate-200 text-left mb-5 leading-relaxed"></div>
       <button id="btn-continue-next-stage" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl transition shadow-lg">TIẾP TỤC TIẾN LÊN ẢI TIẾP THEO ⏩</button>
     </div>
   </div>
 
-  <!-- MODAL TỔNG KẾT -->
-  <div id="summary-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-3 hidden">
+  <!-- MODAL TỔNG KẾT CHIẾN THẮNG -->
+  <div id="summary-modal" class="fixed inset-0 z-50 bg-[#030712]/95 backdrop-blur-md flex items-center justify-center p-3 hidden">
     <div class="bg-slate-900 border-2 border-amber-400 rounded-2xl max-w-md w-full p-5 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
       <div class="text-center mb-3">
-        <span id="summary-badge-icon" class="text-3xl">🏆</span>
+        <span class="text-4xl">🇻🇳👑</span>
         <h2 id="summary-title" class="text-lg font-extrabold text-amber-400 mt-1">VINH DANH CHIẾN THẮNG!</h2>
-        <p id="summary-subtitle" class="text-[11px] text-emerald-400 font-semibold">Đã xuất sắc vượt qua 5 Ải & Hạ gục Quái Thú Tứ Giác</p>
+        <p id="summary-subtitle" class="text-[11px] text-cyan-400 font-semibold">Đã cắm cờ Việt Nam lên Mặt Trăng & Trở về Trái Đất an toàn!</p>
       </div>
 
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 mb-3 grid grid-cols-2 gap-2 text-xs">
         <div><span class="text-slate-400">Học sinh:</span> <b id="sum-name" class="text-white">...</b></div>
         <div><span class="text-slate-400">Lớp:</span> <b id="sum-class" class="text-white">...</b></div>
         <div><span class="text-slate-400">Mã đề:</span> <b id="sum-examcode" class="text-amber-300">...</b></div>
-        <div><span class="text-slate-400">Tổng điểm:</span> <b id="sum-score" class="text-amber-400 font-pixel">0</b></div>
+        <div><span class="text-slate-400">Tổng điểm:</span> <b id="sum-score" class="text-amber-400 font-hud">0</b></div>
         <div class="col-span-2 bg-emerald-950/60 border border-emerald-500/40 p-2 rounded-lg text-emerald-300 text-center font-bold">
           🎁 Phần thưởng: <span id="sum-bonus" class="text-amber-300 font-extrabold">+5 ĐIỂM CỘNG</span> từ Cô Mai Phương!
         </div>
@@ -941,38 +951,7 @@ SPACE_GAME_HTML = """
   <script>
     const GOOGLE_SCRIPT_WEBAPP_URL = "WEBHOOK_URL_PLACEHOLDER";
 
-    // ===== TÀI NGUYÊN ẢNH (tùy chọn) =====
-    // Dán "data:image/png;base64,..." hoặc mã <svg>...</svg> hoặc đường dẫn ảnh.
-    // Để "" thì game tự vẽ hình pixel mặc định.
-    const ASSETS = {
-      hero: "",        // phi hành gia, gợi ý 64x88 px, nền trong suốt, quay mặt sang PHẢI
-      boss: "",        // Quái Thú Tứ Giác, gợi ý 160x160 px
-      box: "",         // khối năng lượng 72x72 px
-      background: ""   // hình nền 1280x720 px
-    };
-
-    function toSrc(value) {
-      if (!value) return "";
-      if (value.trim().startsWith("<svg")) return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(value);
-      return value;
-    }
-    function loadImage(src) {
-      const img = new Image();
-      img.ok = false;
-      if (!src) return img;
-      img.onload = () => { img.ok = true; };
-      img.onerror = () => { img.ok = false; };
-      img.src = src;
-      return img;
-    }
-    const IMG = {
-      hero: loadImage(toSrc(ASSETS.hero)),
-      boss: loadImage(toSrc(ASSETS.boss)),
-      box: loadImage(toSrc(ASSETS.box)),
-      background: loadImage(toSrc(ASSETS.background))
-    };
-
-    // ===== ÂM THANH =====
+    // ===== HỆ THỐNG ÂM THANH KHÔNG GIAN =====
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     let isSoundMuted = false;
 
@@ -993,25 +972,68 @@ SPACE_GAME_HTML = """
       } catch(e) {}
     }
 
-    function sndJump() { playTone(330, 'triangle', 0.12, 0.14); setTimeout(() => playTone(620, 'triangle', 0.14, 0.12), 50); }
-    function sndCoin() { playTone(880, 'sine', 0.08, 0.16); setTimeout(() => playTone(1175, 'sine', 0.08, 0.16), 60); setTimeout(() => playTone(1760, 'sine', 0.18, 0.12), 120); }
-    function sndPowerup() { playTone(392, 'triangle', 0.12, 0.16); setTimeout(() => playTone(587, 'triangle', 0.12, 0.16), 90); setTimeout(() => playTone(880, 'sine', 0.25, 0.14), 180); }
-    function sndTrap() { playTone(150, 'sawtooth', 0.25, 0.25); setTimeout(() => playTone(80, 'sawtooth', 0.3, 0.25), 120); }
-    function sndWrong() { playTone(200, 'sawtooth', 0.2, 0.2); setTimeout(() => playTone(120, 'sawtooth', 0.3, 0.2), 150); }
-    function sndRoar() { playTone(85, 'sawtooth', 0.45, 0.3); setTimeout(() => playTone(60, 'sawtooth', 0.5, 0.3), 180); }
-    function sndBump() { playTone(110, 'square', 0.08, 0.15); }
+    function sndJump() {
+      if (isSoundMuted) return;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(160, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(580, audioCtx.currentTime + 0.18);
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.18);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.18);
+      } catch(e) {}
+    }
+
+    function sndCrystal() {
+      playTone(1046.5, 'sine', 0.08, 0.15);
+      setTimeout(() => playTone(1318.5, 'sine', 0.1, 0.14), 60);
+      setTimeout(() => playTone(2093.0, 'sine', 0.22, 0.16), 120);
+    }
+
+    function sndOxygen() {
+      playTone(440, 'triangle', 0.12, 0.15);
+      setTimeout(() => playTone(659.25, 'triangle', 0.12, 0.15), 80);
+      setTimeout(() => playTone(880, 'sine', 0.22, 0.16), 160);
+    }
+
+    function sndMeteorImpact() {
+      playTone(180, 'sawtooth', 0.2, 0.25);
+      setTimeout(() => playTone(85, 'square', 0.35, 0.25), 80);
+    }
+
+    function sndWrong() {
+      playTone(220, 'sawtooth', 0.2, 0.2);
+      setTimeout(() => playTone(140, 'sawtooth', 0.3, 0.2), 120);
+    }
+
+    function sndBossRoar() {
+      playTone(95, 'sawtooth', 0.5, 0.3);
+      setTimeout(() => playTone(65, 'sawtooth', 0.6, 0.3), 150);
+    }
+
+    function sndBump() { playTone(130, 'square', 0.08, 0.12); }
+    function sndVictoryFanfare() {
+      const notes = [523.25, 659.25, 783.99, 1046.5];
+      notes.forEach((f, i) => setTimeout(() => playTone(f, 'triangle', 0.35, 0.2), i * 150));
+    }
 
     let bgmInterval = null;
-    const bgmNotes = [220, 0, 329.6, 0, 293.7, 0, 392, 0, 349.2, 0, 293.7, 0, 261.6, 0, 329.6, 0];   // giai điệu vũ trụ tự sáng tác
+    const ufoNotes = [330, 392, 493.88, 587.33, 523.25, 392, 440, 293.66];
     let noteIdx = 0;
     function startBgm() {
       if (bgmInterval || isSoundMuted) return;
       bgmInterval = setInterval(() => {
-        if (gameState.started && !gameState.isPaused && !gameState.isGameOver && bgmNotes[noteIdx] > 0) {
-          playTone(bgmNotes[noteIdx], 'triangle', 0.18, 0.035);
+        if (gameState.started && !gameState.isPaused && !gameState.isGameOver && !endingCutscene.active) {
+          playTone(ufoNotes[noteIdx], 'sine', 0.28, 0.035);
         }
-        noteIdx = (noteIdx + 1) % bgmNotes.length;
-      }, 220);
+        noteIdx = (noteIdx + 1) % ufoNotes.length;
+      }, 300);
     }
     function stopBgm() { if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; } }
 
@@ -1022,89 +1044,48 @@ SPACE_GAME_HTML = """
       if (isSoundMuted) stopBgm(); else startBgm();
     };
 
-    // ===== NGÂN HÀNG CÂU HỎI =====
-    // Mỗi màn có nhiều câu; mỗi lần chơi game bốc ngẫu nhiên 2 Nhận biết + 2 Thông hiểu + 1 Vận dụng.
-    // Thêm câu mới: chép một dòng có sẵn rồi sửa. "short" = tự luận (correctAnswers), "mcq" = trắc nghiệm (correct = vị trí đáp án đúng, tính từ 0).
+    // ===== NGÂN HÀNG CÂU HỎI TỨ GIÁC =====
     const rawQuestionPool = {
       stage1: [
         { level: "Nhận biết", time: 15, type: "short", q: "Tổng các góc trong một tứ giác lồi luôn bằng bao nhiêu độ? (Chỉ nhập số)", correctAnswers: ["360"], explain: "Định lý: Tổng các góc của một tứ giác luôn bằng 360 độ." },
         { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác luôn nằm trong một nửa mặt phẳng có bờ là đường thẳng chứa bất kì cạnh nào gọi là tứ giác gì?", correctAnswers: ["lồi", "tứ giác lồi"], explain: "Định nghĩa: Đó là tứ giác lồi." },
         { level: "Nhận biết", time: 15, type: "short", q: "Một tứ giác lồi có tổng cộng bao nhiêu đường chéo? (Chỉ nhập số)", correctAnswers: ["2"], explain: "Mỗi tứ giác lồi có đúng 2 đường chéo nối các đỉnh đối nhau." },
-        { level: "Nhận biết", time: 15, type: "mcq", q: "Trong tứ giác ABCD, các đường chéo là những đoạn thẳng nào?", answers: ["AC và BD", "AB và CD", "AD và BC"], correct: 0, explain: "Đường chéo nối hai đỉnh đối nhau: AC và BD." },
-        { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác lồi có thể có nhiều nhất bao nhiêu góc nhọn?", answers: ["3 góc nhọn", "4 góc nhọn", "2 góc nhọn"], correct: 0, explain: "Nếu có 4 góc nhọn thì tổng 4 góc < 360° (vô lý). Vậy tối đa có 3 góc nhọn." },
-        { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác có thể có nhiều nhất bao nhiêu góc tù?", answers: ["3 góc tù", "4 góc tù", "2 góc tù"], correct: 0, explain: "4 góc tù thì tổng > 360° (vô lý). Có thể có 3 góc tù, ví dụ 100°, 100°, 100°, 60°." },
         { level: "Thông hiểu", time: 20, type: "short", q: "Tứ giác có bốn góc bằng nhau thì mỗi góc bằng bao nhiêu độ? (Nhập số)", correctAnswers: ["90"], explain: "Mỗi góc = 360° : 4 = 90°." },
-        { level: "Thông hiểu", time: 20, type: "short", q: "Tứ giác ABCD có góc A + góc C = 200°. Tổng góc B + góc D bằng bao nhiêu độ? (Nhập số)", correctAnswers: ["160"], explain: "B + D = 360° - 200° = 160°." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác ABCD có góc A = 70°, B = 90°, C = 80°. Tính số đo góc D bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["120"], explain: "Góc D = 360° - (70° + 90° + 80°) = 120°." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác ABCD có góc A = 100°, góc B = 80° và góc C = góc D. Tính góc C bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["90"], explain: "C + D = 360° - 180° = 180°, mà C = D nên C = 90°." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác MNPQ có các góc M, N, P, Q tỉ lệ với 1 : 2 : 3 : 4. Góc Q bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["144"], explain: "Tổng 10 phần = 360° nên 1 phần = 36°. Góc Q = 4 · 36° = 144°." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác ABCD có góc B = 90°, C = 100°, D = 70°. Góc ngoài tại đỉnh A bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["80"], explain: "Góc A = 360° - 260° = 100°. Góc ngoài tại A = 180° - 100° = 80°." }
+        { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác ABCD có góc A = 70°, B = 90°, C = 80°. Tính số đo góc D bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["120"], explain: "Góc D = 360° - (70° + 90° + 80°) = 120°." }
       ],
       stage2: [
-        { level: "Nhận biết", time: 15, type: "short", q: "Hình thang có hai góc kề một đáy bằng nhau là hình thang gì?", correctAnswers: ["cân", "hình thang cân", "thang cân"], explain: "Định nghĩa SGK: Hình thang có 2 góc kề một đáy bằng nhau là hình thang cân." },
-        { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình thang cân, hai đường chéo có mối quan hệ gì với nhau?", answers: ["Bằng nhau", "Vuông góc với nhau", "Cắt nhau tại trung điểm mỗi đường"], correct: 0, explain: "Tính chất SGK: Trong hình thang cân, hai đường chéo bằng nhau." },
-        { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có hai cạnh đối song song được gọi là hình gì?", correctAnswers: ["hình thang", "thang"], explain: "Định nghĩa: Hình thang là tứ giác có hai cạnh đối song song." },
-        { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình thang cân, hai cạnh bên có tính chất gì?", answers: ["Bằng nhau", "Song song với nhau", "Vuông góc với nhau"], correct: 0, explain: "Tính chất: Trong hình thang cân, hai cạnh bên bằng nhau." },
-        { level: "Thông hiểu", time: 20, type: "short", q: "Hình thang có hai đường chéo bằng nhau là hình thang gì?", correctAnswers: ["cân", "hình thang cân", "thang cân"], explain: "Dấu hiệu nhận biết: Hình thang có 2 đường chéo bằng nhau là hình thang cân." },
-        { level: "Thông hiểu", time: 20, type: "mcq", q: "Cho hình thang cân ABCD (AB // CD). Khẳng định nào sau đây là ĐÚNG?", answers: ["Góc C = góc D và góc A = góc B", "Góc A = góc C", "Góc B = góc D"], correct: 0, explain: "Trong hình thang cân, hai góc kề một đáy có số đo bằng nhau." },
-        { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình thang ABCD (AB // CD) có góc A và góc D là hai góc kề cạnh bên AD. Hai góc này có quan hệ gì?", answers: ["Bù nhau (tổng 180°)", "Bằng nhau", "Phụ nhau (tổng 90°)"], correct: 0, explain: "AB // CD nên A và D là hai góc trong cùng phía, bù nhau." },
-        { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình thang có một góc vuông được gọi là hình gì?", answers: ["Hình thang vuông", "Hình thang cân", "Hình chữ nhật"], correct: 0, explain: "Định nghĩa: Hình thang có một góc vuông là hình thang vuông." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Hình thang cân ABCD (AB // CD) có góc D = 70°. Tính số đo góc A kề cạnh bên AD bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["110"], explain: "Vì AB // CD nên hai góc trong cùng phía bù nhau: Góc A = 180° - 70° = 110°." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Hình thang cân ABCD (AB // CD) có góc A = 115°. Góc C bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["65"], explain: "D = 180° - 115° = 65°, và hai góc kề đáy CD bằng nhau nên C = D = 65°." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Hình thang cân ABCD có đường chéo AC = 7 cm. Đường chéo BD dài bao nhiêu cm? (Nhập số):", correctAnswers: ["7"], explain: "Hình thang cân có hai đường chéo bằng nhau nên BD = AC = 7 cm." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Hình thang cân ABCD (AB // CD) có AB = 4 cm, CD = 10 cm, AH là đường cao (H thuộc CD). Độ dài DH bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["3"], explain: "Trong hình thang cân, DH = (CD - AB) : 2 = (10 - 4) : 2 = 3 cm." }
+        { level: "Nhận biết", time: 15, type: "short", q: "Hình thang có hai góc kề một đáy bằng nhau là hình thang gì?", correctAnswers: ["cân", "hình thang cân"], explain: "Định nghĩa: Hình thang có 2 góc kề một đáy bằng nhau là hình thang cân." },
+        { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình thang cân, hai đường chéo có mối quan hệ gì với nhau?", answers: ["Bằng nhau", "Vuông góc với nhau", "Cắt nhau tại trung điểm mỗi đường"], correct: 0, explain: "Tính chất: Trong hình thang cân, hai đường chéo bằng nhau." },
+        { level: "Thông hiểu", time: 20, type: "short", q: "Hình thang có hai đường chéo bằng nhau là hình thang gì?", correctAnswers: ["cân", "hình thang cân"], explain: "Dấu hiệu nhận biết: Hình thang có 2 đường chéo bằng nhau là hình thang cân." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình thang cân ABCD (AB // CD) có góc D = 70°. Tính số đo góc A kề cạnh bên AD: (Nhập số)", correctAnswers: ["110"], explain: "Góc A = 180° - 70° = 110°." },
+        { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình thang có một góc vuông được gọi là hình gì?", answers: ["Hình thang vuông", "Hình thang cân", "Hình chữ nhật"], correct: 0, explain: "Định nghĩa: Hình thang có một góc vuông là hình thang vuông." }
       ],
       stage3: [
         { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có các cạnh đối song song được gọi là hình gì?", correctAnswers: ["hình bình hành", "bình hành"], explain: "Định nghĩa: Hình bình hành là tứ giác có các cạnh đối song song." },
         { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình bình hành, hai đường chéo có tính chất gì?", answers: ["Cắt nhau tại trung điểm của mỗi đường", "Vuông góc với nhau", "Bằng nhau"], correct: 0, explain: "Tính chất: Hai đường chéo cắt nhau tại trung điểm của mỗi đường." },
-        { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình bình hành, các cạnh đối có tính chất gì?", answers: ["Bằng nhau", "Vuông góc với nhau", "Cắt nhau"], correct: 0, explain: "Tính chất: Trong hình bình hành, các cạnh đối bằng nhau." },
-        { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình bình hành, các góc đối có tính chất gì?", answers: ["Bằng nhau", "Bù nhau", "Phụ nhau"], correct: 0, explain: "Tính chất: Trong hình bình hành, các góc đối bằng nhau." },
-        { level: "Thông hiểu", time: 20, type: "short", q: "Tứ giác có hai đường chéo cắt nhau tại trung điểm của mỗi đường là hình gì?", correctAnswers: ["hình bình hành", "bình hành"], explain: "Dấu hiệu nhận biết: Tứ giác có 2 đường chéo cắt nhau tại trung điểm là hình bình hành." },
-        { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình thang có hai cạnh bên song song là hình gì?", answers: ["Hình bình hành", "Hình thang cân", "Hình chữ nhật"], correct: 0, explain: "Nhận xét SGK: Hình thang có 2 cạnh bên song song là hình bình hành." },
-        { level: "Thông hiểu", time: 20, type: "mcq", q: "Tứ giác có một cặp cạnh đối vừa song song vừa bằng nhau là hình gì?", answers: ["Hình bình hành", "Hình thang cân", "Hình thang vuông"], correct: 0, explain: "Dấu hiệu nhận biết: Tứ giác có hai cạnh đối song song và bằng nhau là hình bình hành." },
-        { level: "Thông hiểu", time: 20, type: "mcq", q: "Trong hình bình hành ABCD, hai góc kề một cạnh (ví dụ góc A và góc B) có quan hệ gì?", answers: ["Bù nhau (tổng 180°)", "Bằng nhau", "Phụ nhau (tổng 90°)"], correct: 0, explain: "AD // BC nên góc A và góc B là hai góc trong cùng phía, bù nhau." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Hình bình hành ABCD có góc A = 115°. Tính số đo góc đối C bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["115"], explain: "Tính chất: Hai góc đối hình bình hành bằng nhau nên góc C = góc A = 115°." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Hình bình hành ABCD có góc A = 70°. Góc B bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["110"], explain: "Hai góc kề một cạnh bù nhau: B = 180° - 70° = 110°." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Hình bình hành ABCD có AB = 8 cm, BC = 5 cm. Chu vi hình bình hành bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["26"], explain: "Các cạnh đối bằng nhau nên chu vi = 2 · (8 + 5) = 26 cm." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Hình bình hành ABCD có hai đường chéo cắt nhau tại O, AC = 12 cm. Độ dài OA bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["6"], explain: "O là trung điểm AC nên OA = 12 : 2 = 6 cm." }
+        { level: "Thông hiểu", time: 20, type: "short", q: "Tứ giác có hai đường chéo cắt nhau tại trung điểm mỗi đường là hình gì?", correctAnswers: ["hình bình hành", "bình hành"], explain: "Dấu hiệu nhận biết hình bình hành." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình bình hành ABCD có góc A = 115°. Tính số đo góc đối C bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["115"], explain: "Hai góc đối hình bình hành bằng nhau: C = A = 115°." },
+        { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình thang có hai cạnh bên song song là hình gì?", answers: ["Hình bình hành", "Hình thang cân", "Hình chữ nhật"], correct: 0, explain: "Hình thang có 2 cạnh bên song song là hình bình hành." }
       ],
       stage4: [
         { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có bốn góc vuông được gọi là hình gì?", correctAnswers: ["hình chữ nhật", "chữ nhật"], explain: "Định nghĩa: Hình chữ nhật là tứ giác có bốn góc vuông." },
-        { level: "Nhận biết", time: 15, type: "short", q: "Hình chữ nhật có tất cả bao nhiêu trục đối xứng? (Nhập số)", correctAnswers: ["2"], explain: "Hình chữ nhật có 2 trục đối xứng là hai đường thẳng đi qua trung điểm các cặp cạnh đối." },
-        { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình chữ nhật, hai đường chéo có tính chất gì?", answers: ["Bằng nhau và cắt nhau tại trung điểm mỗi đường", "Vuông góc với nhau", "Là tia phân giác các góc"], correct: 0, explain: "Tính chất: Hai đường chéo hình chữ nhật bằng nhau và cắt nhau tại trung điểm mỗi đường." },
-        { level: "Nhận biết", time: 15, type: "short", q: "Mỗi góc của hình chữ nhật bằng bao nhiêu độ? (Nhập số)", correctAnswers: ["90"], explain: "Hình chữ nhật có bốn góc vuông, mỗi góc 90°." },
-        { level: "Thông hiểu", time: 20, type: "short", q: "Hình bình hành có hai đường chéo bằng nhau là hình gì?", correctAnswers: ["hình chữ nhật", "chữ nhật"], explain: "Dấu hiệu nhận biết: Hình bình hành có 2 đường chéo bằng nhau là hình chữ nhật." },
-        { level: "Thông hiểu", time: 20, type: "mcq", q: "Trong tam giác vuông, đường trung tuyến ứng với cạnh huyền có độ dài bằng mấy phần cạnh huyền?", answers: ["Một nửa cạnh huyền", "Bằng cạnh huyền", "Gấp đôi cạnh huyền"], correct: 0, explain: "Định lý: Trong tam giác vuông, đường trung tuyến ứng với cạnh huyền bằng nửa cạnh huyền." },
-        { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình bình hành có một góc vuông là hình gì?", answers: ["Hình chữ nhật", "Hình thoi", "Hình thang cân"], correct: 0, explain: "Dấu hiệu nhận biết: Hình bình hành có một góc vuông là hình chữ nhật." },
-        { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình thang cân có một góc vuông là hình gì?", answers: ["Hình chữ nhật", "Hình thoi", "Hình vuông"], correct: 0, explain: "Dấu hiệu nhận biết: Hình thang cân có một góc vuông là hình chữ nhật." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Cho tam giác ABC vuông tại A có cạnh huyền BC = 18 cm. Độ dài đường trung tuyến AM ứng với cạnh huyền bằng mấy cm? (Nhập số):", correctAnswers: ["9"], explain: "Theo định lý: AM = BC / 2 = 18 / 2 = 9 cm." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Hình chữ nhật có hai cạnh dài 6 cm và 8 cm. Đường chéo dài bao nhiêu cm? (Nhập số):", correctAnswers: ["10"], explain: "Theo định lý Pythagore: đường chéo² = 6² + 8² = 100, nên đường chéo = 10 cm." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Hình chữ nhật ABCD có đường chéo AC = 14 cm, O là giao điểm hai đường chéo. Độ dài OB bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["7"], explain: "Hai đường chéo bằng nhau và cắt nhau tại trung điểm: OB = BD : 2 = AC : 2 = 7 cm." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Hình chữ nhật có chiều dài 9 cm và chu vi 30 cm. Chiều rộng bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["6"], explain: "Nửa chu vi = 15 cm, chiều rộng = 15 - 9 = 6 cm." }
+        { level: "Thông hiểu", time: 20, type: "short", q: "Hình bình hành có hai đường chéo bằng nhau là hình gì?", correctAnswers: ["hình chữ nhật", "chữ nhật"], explain: "Dấu hiệu nhận biết hình chữ nhật." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình chữ nhật có hai cạnh dài 6 cm và 8 cm. Đường chéo dài bao nhiêu cm? (Nhập số):", correctAnswers: ["10"], explain: "Pythagore: d² = 6² + 8² = 100 => d = 10 cm." },
+        { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình bình hành có một góc vuông là hình gì?", answers: ["Hình chữ nhật", "Hình thoi", "Hình thang cân"], correct: 0, explain: "Dấu hiệu nhận biết: Hình bình hành có 1 góc vuông là hình chữ nhật." },
+        { level: "Nhận biết", time: 15, type: "short", q: "Hình chữ nhật có tất cả bao nhiêu trục đối xứng? (Nhập số)", correctAnswers: ["2"], explain: "Hình chữ nhật có 2 trục đối xứng." }
       ],
       stage5: [
         { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có bốn cạnh bằng nhau được gọi là hình gì?", correctAnswers: ["hình thoi", "thoi"], explain: "Định nghĩa: Hình thoi là tứ giác có bốn cạnh bằng nhau." },
         { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác vừa là hình chữ nhật vừa là hình thoi là hình gì?", correctAnswers: ["hình vuông", "vuông"], explain: "Định nghĩa: Hình vuông là hình chữ nhật đồng thời là hình thoi." },
-        { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có bốn góc vuông và bốn cạnh bằng nhau là hình gì?", correctAnswers: ["hình vuông", "vuông"], explain: "Định nghĩa: Hình vuông là tứ giác có bốn góc vuông và bốn cạnh bằng nhau." },
-        { level: "Nhận biết", time: 15, type: "mcq", q: "Hình thoi có bao nhiêu trục đối xứng?", answers: ["2", "4", "1"], correct: 0, explain: "Hình thoi có 2 trục đối xứng là hai đường chéo của nó." },
-        { level: "Thông hiểu", time: 20, type: "mcq", q: "Trong hình thoi, hai đường chéo có tính chất đặc trưng nào sau đây?", answers: ["Vuông góc với nhau và là tia phân giác các góc", "Bằng nhau và song song", "Cắt nhau tại 1/3 mỗi đường"], correct: 0, explain: "Tính chất: Hai đường chéo hình thoi vuông góc và là phân giác các góc." },
-        { level: "Thông hiểu", time: 20, type: "short", q: "Hình bình hành có hai đường chéo vuông góc với nhau là hình gì?", correctAnswers: ["hình thoi", "thoi"], explain: "Dấu hiệu: Hình bình hành có 2 đường chéo vuông góc là hình thoi." },
-        { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình chữ nhật có hai cạnh kề bằng nhau là hình gì?", answers: ["Hình vuông", "Hình thoi không vuông", "Hình bình hành"], correct: 0, explain: "Dấu hiệu nhận biết: Hình chữ nhật có hai cạnh kề bằng nhau là hình vuông." },
-        { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình thoi có một góc vuông là hình gì?", answers: ["Hình vuông", "Hình chữ nhật không vuông", "Hình thang cân không vuông"], correct: 0, explain: "Dấu hiệu nhận biết: Hình thoi có một góc vuông là hình vuông." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Một hình thoi có chu vi bằng 52 cm. Độ dài một cạnh của hình thoi đó bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["13"], explain: "Hình thoi có 4 cạnh bằng nhau nên độ dài một cạnh = 52 / 4 = 13 cm." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Hình vuông có cạnh 5 cm. Chu vi hình vuông bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["20"], explain: "Chu vi = 4 · 5 = 20 cm." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Hình thoi có hai đường chéo dài 6 cm và 8 cm. Cạnh hình thoi dài bao nhiêu cm? (Nhập số):", correctAnswers: ["5"], explain: "Hai đường chéo vuông góc tại trung điểm, tạo tam giác vuông có hai cạnh góc vuông 3 cm và 4 cm. Cạnh = √(3² + 4²) = 5 cm." },
-        { level: "Vận dụng", time: 30, type: "short", q: "Hình thoi ABCD có góc A = 50°. Góc B bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["130"], explain: "Hình thoi là hình bình hành nên hai góc kề một cạnh bù nhau: B = 180° - 50° = 130°." }
+        { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình thoi có một góc vuông là hình gì?", answers: ["Hình vuông", "Hình chữ nhật không vuông", "Hình thang cân"], correct: 0, explain: "Dấu hiệu: Hình thoi có một góc vuông là hình vuông." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Một hình thoi có chu vi bằng 52 cm. Độ dài một cạnh bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["13"], explain: "Cạnh = 52 / 4 = 13 cm." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình vuông có cạnh 5 cm. Chu vi hình vuông bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["20"], explain: "Chu vi = 4 · 5 = 20 cm." }
       ],
       boss: [
-        { level: "Vận dụng cao", time: 30, type: "mcq", q: "Nối trung điểm 4 cạnh của một hình chữ nhật ta luôn nhận được hình gì?", answers: ["Hình thoi", "Hình bình hành thông thường", "Hình vuông"], correct: 0, explain: "Bốn cạnh của tứ giác mới đều bằng nửa đường chéo hình chữ nhật nên bằng nhau => Là Hình thoi." },
-        { level: "Vận dụng cao", time: 30, type: "mcq", q: "Nối trung điểm 4 cạnh của một hình thoi ta luôn nhận được hình gì?", answers: ["Hình chữ nhật", "Hình vuông", "Hình bình hành có góc 60°"], correct: 0, explain: "Vì hai đường chéo hình thoi vuông góc nên các cạnh của tứ giác trung điểm vuông góc với nhau => Hình chữ nhật." },
-        { level: "Vận dụng cao", time: 30, type: "mcq", q: "Nối trung điểm 4 cạnh của một tứ giác bất kì ta luôn nhận được hình gì?", answers: ["Hình bình hành", "Hình thang cân", "Hình chữ nhật"], correct: 0, explain: "Mỗi cặp cạnh đối của tứ giác mới đều song song và bằng nửa một đường chéo => Hình bình hành." },
-        { level: "Vận dụng cao", time: 30, type: "mcq", q: "Nối trung điểm 4 cạnh của một hình vuông ta luôn nhận được hình gì?", answers: ["Hình vuông", "Hình chữ nhật không vuông", "Hình thoi không vuông"], correct: 0, explain: "Hai đường chéo hình vuông bằng nhau và vuông góc nên tứ giác trung điểm vừa là hình thoi vừa là hình chữ nhật => Hình vuông." },
-        { level: "Vận dụng cao", time: 30, type: "short", q: "Hình thoi ABCD có cạnh bằng 10 cm và góc A = 60°. Độ dài đường chéo BD bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["10"], explain: "Tam giác ABD cân có góc A = 60° nên là tam giác đều => BD = AB = 10 cm." },
-        { level: "Vận dụng cao", time: 30, type: "short", q: "Hình thoi có cạnh 10 cm và một đường chéo dài 12 cm. Đường chéo còn lại dài bao nhiêu cm? (Nhập số):", correctAnswers: ["16"], explain: "Nửa đường chéo đã biết = 6 cm. Nửa đường chéo còn lại = √(10² - 6²) = 8 cm, nên đường chéo = 16 cm." },
-        { level: "Vận dụng cao", time: 30, type: "short", q: "Tam giác ABC vuông tại A có AB = 6 cm, AC = 8 cm. Đường trung tuyến AM ứng với cạnh huyền dài bao nhiêu cm? (Nhập số):", correctAnswers: ["5"], explain: "BC = √(6² + 8²) = 10 cm, AM = BC : 2 = 5 cm." },
-        { level: "Vận dụng cao", time: 30, type: "short", q: "Hình vuông có đường chéo dài 8 cm. Diện tích hình vuông bằng bao nhiêu cm²? (Nhập số):", correctAnswers: ["32"], explain: "Hình vuông cũng là hình thoi nên diện tích = (8 · 8) : 2 = 32 cm²." }
+        { level: "Vận dụng cao", time: 30, type: "mcq", q: "[QUÁI THÚ TỨ GIÁC] Nối trung điểm 4 cạnh của một hình chữ nhật ta luôn nhận được hình gì?", answers: ["Hình thoi", "Hình bình hành thông thường", "Hình vuông"], correct: 0, explain: "Bốn cạnh bằng nhau vì bằng nửa đường chéo hình chữ nhật => Hình thoi." },
+        { level: "Vận dụng cao", time: 30, type: "mcq", q: "[QUÁI THÚ TỨ GIÁC] Nối trung điểm 4 cạnh của một hình thoi ta luôn nhận được hình gì?", answers: ["Hình chữ nhật", "Hình vuông", "Hình bình hành có góc 60°"], correct: 0, explain: "Hai đường chéo hình thoi vuông góc nên các cạnh vuông góc với nhau => Hình chữ nhật." },
+        { level: "Vận dụng cao", time: 30, type: "short", q: "[QUÁI THÚ TỨ GIÁC] Hình thoi ABCD có cạnh 10 cm và góc A = 60°. Độ dài đường chéo BD bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["10"], explain: "Tam giác ABD cân có góc 60° nên là tam giác đều => BD = 10 cm." },
+        { level: "Vận dụng cao", time: 30, type: "short", q: "[QUÁI THÚ TỨ GIÁC] Hình vuông có đường chéo dài 8 cm. Diện tích hình vuông bằng bao nhiêu cm²? (Nhập số):", correctAnswers: ["32"], explain: "Diện tích = (8 · 8) : 2 = 32 cm²." }
       ]
     };
 
@@ -1117,48 +1098,32 @@ SPACE_GAME_HTML = """
       return a;
     }
 
-    // Trộn thứ tự đáp án trắc nghiệm để mỗi lần chơi đáp án đúng không luôn ở vị trí 1
     function prepareQuestion(q) {
       if (q.type !== "mcq") return { ...q };
       const order = shuffle(q.answers.map((_, i) => i));
       return { ...q, answers: order.map(i => q.answers[i]), correct: order.indexOf(q.correct) };
     }
 
-    // Bốc 5 câu/màn theo mức độ, xếp từ dễ đến khó
-    const PICK_PLAN = [ ["Nhận biết", 2], ["Thông hiểu", 2], ["Vận dụng", 1] ];
-
     function pickStageQuestions(pool) {
-      const picked = [];
-      PICK_PLAN.forEach(([level, n]) => {
-        picked.push(...shuffle(pool.filter(q => q.level === level)).slice(0, n));
-      });
-      // Nếu mức độ nào thiếu câu thì bù bằng câu khác cho đủ 5
-      const rest = shuffle(pool.filter(q => !picked.includes(q)));
-      while (picked.length < 5 && rest.length) picked.push(rest.shift());
-      return picked.map(prepareQuestion);
+      return shuffle(pool).slice(0, 5).map(prepareQuestion);
     }
 
     function buildExam() {
       return {
         code: "CMP-8A-" + Math.floor(1000 + Math.random() * 9000),
         stages: [
-          { name: "Màn 1: Tứ giác lồi", questions: pickStageQuestions(rawQuestionPool.stage1), bg: "#0b1026" },
-          { name: "Màn 2: Hình thang cân", questions: pickStageQuestions(rawQuestionPool.stage2), bg: "#1e1035" },
-          { name: "Màn 3: Hình bình hành", questions: pickStageQuestions(rawQuestionPool.stage3), bg: "#062a33" },
-          { name: "Màn 4: Hình chữ nhật", questions: pickStageQuestions(rawQuestionPool.stage4), bg: "#101d42" },
-          { name: "Màn 5: Hình thoi và Hình vuông", questions: pickStageQuestions(rawQuestionPool.stage5), bg: "#2a0f3d" }
+          { name: "Ải 1: Tinh Vân Tứ Giác Lồi", questions: pickStageQuestions(rawQuestionPool.stage1), bg: "#04081c", ground: "#1e293b", groundLine: "#38bdf8", moonColor: "#e2e8f0" },
+          { name: "Ải 2: Vành Đai Hình Thang Cân", questions: pickStageQuestions(rawQuestionPool.stage2), bg: "#1e0b2e", ground: "#3b1754", groundLine: "#c084fc", moonColor: "#f3e8ff" },
+          { name: "Ải 3: Quỹ Đạo Hình Bình Hành", questions: pickStageQuestions(rawQuestionPool.stage3), bg: "#022226", ground: "#0f4249", groundLine: "#2dd4bf", moonColor: "#ccfbf1" },
+          { name: "Ải 4: Hành Tinh Hình Chữ Nhật", questions: pickStageQuestions(rawQuestionPool.stage4), bg: "#0a1945", ground: "#1b2c6b", groundLine: "#60a5fa", moonColor: "#dbeafe" },
+          { name: "Ải 5: Đại Chiến Quái Thú Tứ Giác", questions: pickStageQuestions(rawQuestionPool.stage5), bg: "#2d0614", ground: "#540d27", groundLine: "#f43f5e", moonColor: "#ffe4e6" }
         ],
-        // Trùm: trộn toàn bộ câu, trả lời sai thì gặp câu khác
         bossQuestions: shuffle(rawQuestionPool.boss).map(prepareQuestion)
       };
     }
 
-    // Chuẩn hóa đáp án tự luận: bỏ hoa/thường, bỏ đơn vị "độ", "°", "cm", gộp khoảng trắng
     function normalizeAnswer(s) {
-      return String(s).normalize("NFC").toLowerCase()
-        .replace(/°|độ|cm²|cm2|cm/g, "")
-        .replace(/\\s+/g, " ")
-        .trim();
+      return String(s).normalize("NFC").toLowerCase().replace(/°|độ|cm²|cm2|cm/g, "").replace(/\\s+/g, " ").trim();
     }
 
     // ===== TRẠNG THÁI GAME =====
@@ -1167,80 +1132,105 @@ SPACE_GAME_HTML = """
       currentStageIdx: 0, currentQuestionIdx: 0, inBossFight: false,
       bossHp: 3, bossMaxHp: 3, bossQIdx: 0, score: 0, coins: 0, lives: 5,
       isPaused: true, isGameOver: false, defeatedBoss: false, answerLocked: true,
-      timerSec: 15, timerMax: 15, timerInterval: null, lastPayload: null
+      timerSec: 15, timerMax: 15, timerInterval: null
+    };
+
+    const endingCutscene = {
+      active: false,
+      step: 0,
+      timer: 0,
+      shipX: 520,
+      shipY: 340,
+      shipVy: 0,
+      flagPlanted: false,
+      earthX: 720,
+      earthY: 100
     };
 
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
     const arenaEl = document.getElementById("game-arena");
 
-    // ===== CẤU HÌNH ĐỘ KHÓ (chỉnh ở đây) =====
     const WORLD_W = 3000;
-    const GROUND_TOP = 400;
-    const HERO_SCALE = 1.5;          // phóng to nhân vật (hình gốc 32x44)
-    const HERO_W = 32 * HERO_SCALE, HERO_H = 44 * HERO_SCALE;
-    const GROUND_Y = GROUND_TOP - HERO_H;    // y của phi hành gia khi đứng trên mặt đất
-    const BOX_SIZE = 52;             // khối năng lượng to hơn
-    const BOX_Y = 198;               // độ cao khối năng lượng (nhảy là húc tới)
-    const MAX_LIVES = 9;             // số mạng tối đa có thể tích lũy
-    const TRAP_PENALTY = 200;        // điểm bị trừ khi mở trúng thiên thạch
-    const BOSS_X = 1200, BOSS_Y = 260;
-    const STAGE_PITS = [ { start: 1160, width: 70 }, { start: 2220, width: 80 } ];  // hố đen hẹp, dễ nhảy
+    const GROUND_TOP = 406;
+    const ASTRONAUT_W = 44, ASTRONAUT_H = 60;
+    const GROUND_Y = GROUND_TOP - ASTRONAUT_H;
+    const UFO_W = 72, UFO_H = 46;
+    const UFO_Y = 220;
+    const MAX_LIVES = 9;
+    const BOSS_X = 1200, BOSS_Y = 220;
+    const STAGE_PITS = [ { start: 1140, width: 85 }, { start: 2200, width: 95 } ];
 
-    const hero = { x: 100, y: GROUND_Y, w: HERO_W, h: HERO_H, vx: 0, vy: 0, isJumping: false, falling: false, fallPit: null, facing: 1, legSwing: 0, speed: 4 };
+    const astronaut = {
+      x: 100, y: GROUND_Y, w: ASTRONAUT_W, h: ASTRONAUT_H,
+      vx: 0, vy: 0, isJumping: false, falling: false, fallPit: null,
+      facing: 1, runFrame: 0, speed: 4.8
+    };
+
     let cameraX = 0;
+    let animTick = 0;
     const keys = { left: false, right: false };
 
-    let mysteryBoxes = [];
+    let ufoFleet = [];
     let groundPits = [];
-    let floatingCoins = [];
-    let popItems = [];               // bình oxy / thiên thạch / tinh thể nhô lên khi mở khối
-    const laser = { active: false, x: 0, y: 0, vx: 0 };   // tia năng lượng bắn Quái Thú
+    let popItems = [];
+    const laserShot = { active: false, x: 0, y: 0, vx: 0 };
     let bossFlash = 0;
 
     function initLevelBoxes() {
-      mysteryBoxes = [
+      const symbols = ["Δ", "π", "√x", "Δ", "π", "√x", "Δ", "π", "√x", "Δ", "π", "√x", "Δ", "π"];
+      const blockConfigs = [
         { x: 300,  type: 'quiz' },
-        { x: 460,  type: 'oxygen' },
-        { x: 620,  type: 'coin' },
-        { x: 790,  type: 'quiz' },
-        { x: 960,  type: 'oxygen' },
+        { x: 470,  type: 'oxygen' },
+        { x: 640,  type: 'crystal' },
+        { x: 810,  type: 'quiz' },
+        { x: 980,  type: 'oxygen' },
         { x: 1350, type: 'quiz' },
-        { x: 1520, type: 'trap' },
+        { x: 1520, type: 'meteor' },
         { x: 1690, type: 'oxygen' },
         { x: 1870, type: 'quiz' },
-        { x: 2040, type: 'coin' },
+        { x: 2040, type: 'crystal' },
         { x: 2420, type: 'oxygen' },
-        { x: 2580, type: 'trap' },
+        { x: 2580, type: 'meteor' },
         { x: 2740, type: 'quiz' },
-        { x: 2880, type: 'oxygen' }
-      ].map(b => ({ ...b, y: BOX_Y, active: true, bump: 0 }));
+        { x: 2890, type: 'oxygen' }
+      ];
+
+      ufoFleet = blockConfigs.map((b, idx) => ({
+        ...b,
+        baseY: UFO_Y,
+        y: UFO_Y,
+        w: UFO_W,
+        h: UFO_H,
+        symbol: symbols[idx % symbols.length],
+        active: true,
+        bump: 0,
+        floatSeed: idx * 1.5
+      }));
+
       groundPits = STAGE_PITS.map(p => ({ ...p }));
-      floatingCoins = [];
       popItems = [];
     }
 
-    function resetHero(x) {
-      hero.x = x; hero.y = GROUND_Y; hero.vy = 0;
-      hero.isJumping = false; hero.falling = false; hero.fallPit = null; hero.facing = 1;
+    function resetAstronaut(x) {
+      astronaut.x = x; astronaut.y = GROUND_Y; astronaut.vy = 0;
+      astronaut.isJumping = false; astronaut.falling = false; astronaut.fallPit = null; astronaut.facing = 1;
       keys.left = keys.right = false;
     }
 
-    // ===== HUD =====
     function updateHud() {
       document.getElementById("hud-score").textContent = String(gameState.score).padStart(6, '0');
       document.getElementById("hud-coins").textContent = "💎 x" + gameState.coins;
       document.getElementById("hud-lives").textContent = gameState.lives > 0 ? "❤️x" + gameState.lives : "💀";
     }
 
-    // ===== BÀN PHÍM (bỏ qua khi đang gõ vào ô nhập) =====
     function isTyping(e) {
       const t = e.target;
       return t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
     }
 
     window.addEventListener('keydown', (e) => {
-      if (isTyping(e)) return;
+      if (isTyping(e) || endingCutscene.active) return;
       if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
       if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
       if (e.code === 'Space' || e.code === 'ArrowUp') {
@@ -1250,9 +1240,9 @@ SPACE_GAME_HTML = """
     });
 
     function doJump() {
-      if (!hero.isJumping && !hero.falling && !gameState.isPaused && !gameState.isGameOver) {
-        hero.isJumping = true;
-        hero.vy = -14;
+      if (!astronaut.isJumping && !astronaut.falling && !gameState.isPaused && !gameState.isGameOver && !endingCutscene.active) {
+        astronaut.isJumping = true;
+        astronaut.vy = -14;
         sndJump();
       }
     }
@@ -1262,14 +1252,13 @@ SPACE_GAME_HTML = """
       if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
     });
 
-    window.addEventListener('blur', () => { keys.left = keys.right = false; });
-
-    // ===== NÚT CẢM ỨNG: giữ để chạy, chạm để nhảy =====
     function bindHoldButton(id, key) {
       const btn = document.getElementById(id);
+      if (!btn) return;
       const press = (e) => {
         e.preventDefault();
         if (audioCtx.state === 'suspended') audioCtx.resume();
+        if (endingCutscene.active) return;
         keys[key] = true;
         btn.classList.add("pressed");
         if (e.pointerId !== undefined && btn.setPointerCapture) {
@@ -1299,9 +1288,7 @@ SPACE_GAME_HTML = """
     });
     ["pointerup", "pointercancel", "pointerleave"].forEach(ev =>
       jumpBtn.addEventListener(ev, () => jumpBtn.classList.remove("pressed")));
-    jumpBtn.addEventListener("contextmenu", (e) => e.preventDefault());
 
-    // Chạm thẳng vào màn hình game cũng nhảy
     canvas.addEventListener("pointerdown", (e) => { e.preventDefault(); doJump(); });
     canvas.style.touchAction = "none";
 
@@ -1316,52 +1303,55 @@ SPACE_GAME_HTML = """
       if (gameState.lives <= 0) finishGameSession(false);
     }
 
-    // ===== CẬP NHẬT THẾ GIỚI =====
-    function findPitUnderHero() {
-      const cx = hero.x + hero.w / 2;
-      return groundPits.find(p => cx > p.start + 4 && cx < p.start + p.width - 4) || null;
+    function findPitUnderAstronaut() {
+      const cx = astronaut.x + astronaut.w / 2;
+      return groundPits.find(p => cx > p.start + 6 && cx < p.start + p.width - 6) || null;
     }
 
-    // Vật phẩm nhô lên khỏi ô để học sinh thấy mình nhận được gì
-    function spawnPopItem(box, kind, label, color) {
-      popItems.push({ kind, label, color, x: box.x + BOX_SIZE / 2, baseY: box.y, rise: 0, life: 90 });
+    function spawnPopItem(ufo, kind, label, color) {
+      popItems.push({ kind, label, color, x: ufo.x + ufo.w / 2, baseY: ufo.y, rise: 0, life: 90 });
     }
 
-    function hitBox(box) {
-      box.active = false;
-      box.bump = 8;
-      if (box.type === 'coin') {
-        sndCoin();
-        gameState.coins++;
+    // XỬ LÝ HÚC TRÚNG UFO: ĐÃ SỬA TRIỆT ĐỂ LỖI KẸT ĐỨNG HÌNH
+    function hitUFO(ufo) {
+      ufo.active = false;
+      ufo.bump = 10;
+      // Đẩy phi hành gia bắt đầu rơi xuống đất ngay lập tức, không cho kẹt lơ lửng
+      astronaut.vy = 3.5;
+
+      if (ufo.type === 'crystal') {
+        sndCrystal();
+        gameState.coins += 2;
         gameState.score += 200;
-        floatingCoins.push({ x: box.x + BOX_SIZE / 2 - 12, y: box.y - 10, vy: -9 });
-        spawnPopItem(box, 'text', "+200", "#facc15");
+        spawnPopItem(ufo, 'crystal', "+200", "#38bdf8");
         updateHud();
-      } else if (box.type === 'oxygen') {
-        sndPowerup();
-        const full = gameState.lives >= MAX_LIVES;
+      } else if (ufo.type === 'oxygen') {
+        sndOxygen();
         gameState.lives = Math.min(MAX_LIVES, gameState.lives + 1);
-        spawnPopItem(box, 'oxygen', full ? "ĐẦY MẠNG" : "+1 MẠNG", "#4ade80");
+        spawnPopItem(ufo, 'oxygen', "+1 MẠNG", "#4ade80");
         updateHud();
-      } else if (box.type === 'trap') {
-        sndTrap();
+      } else if (ufo.type === 'meteor') {
+        sndMeteorImpact();
         triggerShake();
-        gameState.score = Math.max(0, gameState.score - TRAP_PENALTY);
-        spawnPopItem(box, 'meteor', "-1 MẠNG", "#f87171");
+        gameState.score = Math.max(0, gameState.score - 200);
+        spawnPopItem(ufo, 'meteor', "-1 MẠNG", "#f87171");
         loseLife();
       } else {
         openNextQuestion();
       }
     }
 
-    function checkBoxBump() {
-      for (const box of mysteryBoxes) {
-        const overlapX = hero.x + hero.w - 4 > box.x && hero.x + 4 < box.x + BOX_SIZE;
-        const headHit = hero.y <= box.y + BOX_SIZE && hero.y > box.y + BOX_SIZE - 18;
-        if (overlapX && headHit) {
-          hero.y = box.y + BOX_SIZE;
-          hero.vy = 1;
-          if (box.active) hitBox(box); else sndBump();
+    // VA CHẠM VỚI UFO: CHỈ BẮT KHI UFO ĐANG ACTIVE
+    function checkUFOBump() {
+      for (const ufo of ufoFleet) {
+        if (!ufo.active) continue; // Bỏ qua nếu UFO này đã mở rồi -> Tránh đứng hình!
+
+        const overlapX = astronaut.x + astronaut.w - 6 > ufo.x && astronaut.x + 6 < ufo.x + ufo.w;
+        const headHit = astronaut.y <= ufo.y + ufo.h && astronaut.y > ufo.y + ufo.h - 22;
+        
+        if (overlapX && headHit && astronaut.vy < 0) {
+          astronaut.y = ufo.y + ufo.h;
+          hitUFO(ufo);
           return;
         }
       }
@@ -1369,346 +1359,579 @@ SPACE_GAME_HTML = """
 
     function step() {
       if (!gameState.started || gameState.isGameOver) return;
+      animTick++;
+
+      if (endingCutscene.active) {
+        endingCutscene.timer++;
+        if (endingCutscene.step === 0) {
+          if (astronaut.x < 360) {
+            astronaut.x += 2;
+            astronaut.runFrame += 0.25;
+          } else {
+            endingCutscene.flagPlanted = true;
+            sndVictoryFanfare();
+            endingCutscene.step = 1;
+            endingCutscene.timer = 0;
+          }
+        } else if (endingCutscene.step === 1) {
+          if (endingCutscene.timer > 80) {
+            endingCutscene.step = 2;
+          }
+        } else if (endingCutscene.step === 2) {
+          if (astronaut.x < endingCutscene.shipX + 10) {
+            astronaut.x += 2.5;
+            astronaut.runFrame += 0.25;
+          } else {
+            endingCutscene.step = 3;
+            endingCutscene.timer = 0;
+          }
+        } else if (endingCutscene.step === 3) {
+          endingCutscene.shipVy -= 0.15;
+          endingCutscene.shipY += endingCutscene.shipVy;
+          endingCutscene.shipX += 1.6;
+          if (endingCutscene.shipY < -100) {
+            endingCutscene.active = false;
+            finishGameSession(true);
+          }
+        }
+        return;
+      }
+
       const active = !gameState.isPaused;
 
-      // Di chuyển ngang (khóa khi đang rơi hố)
-      if (active && !hero.falling) {
-        if (keys.left)  { hero.x = Math.max(30, hero.x - hero.speed); hero.facing = -1; hero.legSwing += 0.3; }
-        if (keys.right) { hero.x = Math.min(WORLD_W - 60, hero.x + hero.speed); hero.facing = 1; hero.legSwing += 0.3; }
-        cameraX = Math.max(0, Math.min(WORLD_W - canvas.width, hero.x - 300));
+      if (active && !astronaut.falling) {
+        if (keys.left)  { astronaut.x = Math.max(30, astronaut.x - astronaut.speed); astronaut.facing = -1; astronaut.runFrame += 0.25; }
+        if (keys.right) { astronaut.x = Math.min(WORLD_W - 60, astronaut.x + astronaut.speed); astronaut.facing = 1; astronaut.runFrame += 0.25; }
+        cameraX = Math.max(0, Math.min(WORLD_W - canvas.width, astronaut.x - 300));
       }
 
-      // Rơi xuống hố
-      if (hero.falling) {
-        hero.y += 7;
-        if (hero.y > canvas.height + 20) {
-          sndTrap();
+      if (astronaut.falling) {
+        astronaut.y += 7;
+        if (astronaut.y > canvas.height + 20) {
+          sndMeteorImpact();
           triggerShake();
-          const pit = hero.fallPit;
+          const pit = astronaut.fallPit;
           loseLife();
-          if (!gameState.isGameOver) resetHero(Math.max(60, pit.start - 90));
+          if (!gameState.isGameOver) resetAstronaut(Math.max(60, pit.start - 90));
         }
-      } else if (hero.isJumping) {
-        hero.y += hero.vy;
-        hero.vy += 0.8;
-        if (active && hero.vy < 0 && !gameState.inBossFight) checkBoxBump();
-        if (hero.y >= GROUND_Y) { hero.y = GROUND_Y; hero.vy = 0; hero.isJumping = false; }
+      } else if (astronaut.isJumping) {
+        astronaut.y += astronaut.vy;
+        astronaut.vy += 0.8;
+        if (active && astronaut.vy < 0 && !gameState.inBossFight) checkUFOBump();
+        if (astronaut.y >= GROUND_Y) { astronaut.y = GROUND_Y; astronaut.vy = 0; astronaut.isJumping = false; }
       }
 
-      // Đứng trên miệng hố -> rơi
-      if (active && !hero.isJumping && !hero.falling) {
-        const pit = findPitUnderHero();
-        if (pit) { hero.falling = true; hero.fallPit = pit; }
+      if (active && !astronaut.isJumping && !astronaut.falling) {
+        const pit = findPitUnderAstronaut();
+        if (pit) { astronaut.falling = true; astronaut.fallPit = pit; }
       }
 
-      // Hiệu ứng: tinh thể bay, khối nảy, tia năng lượng
-      floatingCoins.forEach(fc => { fc.y += fc.vy; fc.vy += 0.6; });
-      floatingCoins = floatingCoins.filter(fc => fc.vy < 9);
-      mysteryBoxes.forEach(b => { if (b.bump > 0) b.bump--; });
+      ufoFleet.forEach(ufo => {
+        ufo.y = ufo.baseY + Math.sin(animTick * 0.05 + ufo.floatSeed) * 7;
+        if (ufo.bump > 0) ufo.bump--;
+      });
+
       popItems.forEach(p => { if (p.rise < 46) p.rise += 2.5; p.life--; });
       popItems = popItems.filter(p => p.life > 0);
 
-      if (laser.active) {
-        laser.x += laser.vx;
-        if (laser.x >= BOSS_X + 20) { laser.active = false; bossFlash = 18; sndTrap(); triggerShake(); }
+      if (laserShot.active) {
+        laserShot.x += laserShot.vx;
+        if (laserShot.x >= BOSS_X + 40) {
+          laserShot.active = false;
+          bossFlash = 18;
+          sndMeteorImpact();
+          triggerShake();
+        }
       }
       if (bossFlash > 0) bossFlash--;
     }
 
-    // ===== VẼ =====
-    const STARS = Array.from({ length: 90 }, (_, i) => ({
-      x: (i * 137.5) % 900, y: (i * 61.3) % 380, r: i % 7 === 0 ? 3 : (i % 3 === 0 ? 2 : 1),
-      depth: i % 2 === 0 ? 0.15 : 0.3, c: i % 5 === 0 ? "#a5f3fc" : (i % 4 === 0 ? "#fde68a" : "#ffffff")
-    }));
-    // các hành tinh xa: [x, y, bán kính, màu, có vành đai?]
-    const CUBE_SYMBOLS = ["Δ", "π", "√x", "∑", "∠", "x²", "≅", "∞"];
-    const PLANETS = [[260, 120, 46, "#f472b6", true], [1050, 80, 30, "#34d399", false], [1750, 140, 58, "#60a5fa", true], [2550, 90, 38, "#fbbf24", false]];
-    // Phi hành gia pixel (nhân vật gốc của dự án): đồ trắng, mũ tròn kính xanh neon, ba lô oxy cam
-    function drawHero() {
+    // ===== HỆ THỐNG VẼ ĐỒ HỌA =====
+    function drawPixelAstronaut() {
       ctx.save();
-      ctx.translate(hero.x, hero.y);
-      if (hero.facing < 0) { ctx.translate(hero.w, 0); ctx.scale(-1, 1); }
+      ctx.translate(astronaut.x, astronaut.y);
+      if (astronaut.facing < 0) { ctx.translate(astronaut.w, 0); ctx.scale(-1, 1); }
 
-      if (IMG.hero.ok) {
-        ctx.drawImage(IMG.hero, 0, 0, hero.w, hero.h);
-      } else {
-        ctx.scale(HERO_SCALE, HERO_SCALE);   // vẽ hình pixel gốc 32x44 rồi phóng to
-        const legOffset = (keys.left || keys.right) && !hero.isJumping ? Math.round(Math.sin(hero.legSwing) * 2) : 0;
-        // ba lô oxy (sau lưng)
-        ctx.fillStyle = "#f97316"; ctx.fillRect(1, 17, 7, 15);
-        ctx.fillStyle = "#c2410c"; ctx.fillRect(1, 17, 7, 3);
-        // chân + ủng xám
-        ctx.fillStyle = "#e2e8f0";
-        ctx.fillRect(8, 33 + legOffset, 7, 7);
-        ctx.fillRect(18, 33 - legOffset, 7, 7);
-        ctx.fillStyle = "#64748b";
-        ctx.fillRect(7, 39 + legOffset, 9, 5);
-        ctx.fillRect(17, 39 - legOffset, 9, 5);
-        // thân áo trắng
-        ctx.fillStyle = "#f8fafc"; ctx.fillRect(7, 17, 20, 17);
-        ctx.fillStyle = "#cbd5e1"; ctx.fillRect(7, 31, 20, 3);
-        // bảng điều khiển trước ngực
-        ctx.fillStyle = "#1e293b"; ctx.fillRect(13, 21, 9, 6);
-        ctx.fillStyle = "#22d3ee"; ctx.fillRect(14, 22, 2, 2);
-        ctx.fillStyle = "#facc15"; ctx.fillRect(17, 22, 2, 2);
-        ctx.fillStyle = "#4ade80"; ctx.fillRect(20, 22, 1, 2);
-        // tay
-        ctx.fillStyle = "#e2e8f0"; ctx.fillRect(25, 19, 5, 9);
-        ctx.fillStyle = "#64748b"; ctx.fillRect(25, 27, 5, 3);
-        // mũ bảo hiểm tròn
-        ctx.fillStyle = "#f8fafc";
-        ctx.beginPath(); ctx.arc(17, 10, 11, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1.5; ctx.stroke();
-        // kính mũ xanh neon + vệt sáng
-        ctx.fillStyle = "#06b6d4"; ctx.fillRect(15, 5, 12, 9);
-        ctx.fillStyle = "#67e8f9"; ctx.fillRect(16, 6, 4, 3);
-        ctx.strokeStyle = "#0e7490"; ctx.strokeRect(15, 5, 12, 9);
-        // ăng-ten nhỏ
-        ctx.fillStyle = "#94a3b8"; ctx.fillRect(10, -3, 2, 4);
-        ctx.fillStyle = "#facc15"; ctx.fillRect(9, -5, 4, 3);
+      ctx.save();
+      ctx.translate(astronaut.w / 2, astronaut.h / 2);
+
+      // Ba lô phản lực Jetpack
+      ctx.fillStyle = "#475569";
+      ctx.fillRect(-22, -18, 9, 32);
+      ctx.fillStyle = "#06b6d4";
+      ctx.fillRect(-21, -12, 7, 8);
+
+      // Ngọn lửa Jetpack
+      if (astronaut.isJumping || endingCutscene.step === 3) {
+        const flameH = 14 + (animTick % 3) * 4;
+        ctx.fillStyle = "#f97316";
+        ctx.beginPath();
+        ctx.moveTo(-21, 14); ctx.lineTo(-13, 14); ctx.lineTo(-17, 14 + flameH);
+        ctx.closePath(); ctx.fill();
+
+        ctx.fillStyle = "#fef08a";
+        ctx.beginPath();
+        ctx.moveTo(-19, 14); ctx.lineTo(-15, 14); ctx.lineTo(-17, 14 + flameH * 0.6);
+        ctx.closePath(); ctx.fill();
       }
+
+      // Tay sau
+      const armSwing = (!astronaut.isJumping && (keys.left || keys.right)) ? Math.sin(astronaut.runFrame) * 8 : 0;
+      ctx.fillStyle = "#cbd5e1";
+      ctx.beginPath();
+      ctx.roundRect(-8 - armSwing, -6, 7, 18, 3);
+      ctx.fill();
+      ctx.fillStyle = "#06b6d4";
+      ctx.fillRect(-8 - armSwing, 8, 7, 5);
+
+      // Hai chân
+      const legRun = (!astronaut.isJumping && (keys.left || keys.right)) ? Math.sin(astronaut.runFrame) * 6 : 0;
+      ctx.fillStyle = "#e2e8f0";
+      ctx.fillRect(-8 - legRun, 12, 7, 12);
+      ctx.fillStyle = "#0284c7";
+      ctx.fillRect(-8 - legRun, 22, 10, 5);
+
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillRect(2 + legRun, 12, 7, 12);
+      ctx.fillStyle = "#0ea5e9";
+      ctx.fillRect(2 + legRun, 22, 10, 5);
+
+      // Thân áo
+      ctx.fillStyle = "#f1f5f9";
+      ctx.beginPath();
+      ctx.roundRect(-14, -12, 26, 26, 6);
+      ctx.fill();
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Bảng vi mạch
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(-5, -6, 12, 9);
+      ctx.fillStyle = (animTick % 30 < 15) ? "#22c55e" : "#10b981";
+      ctx.fillRect(-3, -4, 3, 3);
+      ctx.fillStyle = "#ef4444";
+      ctx.fillRect(2, -4, 3, 3);
+
+      // Tay trước
+      if (endingCutscene.step === 1) {
+        ctx.fillStyle = "#f8fafc";
+        ctx.beginPath(); ctx.roundRect(4, -18, 7, 18, 3); ctx.fill();
+        ctx.fillStyle = "#06b6d4"; ctx.fillRect(4, -22, 7, 5);
+      } else {
+        ctx.fillStyle = "#f8fafc";
+        ctx.beginPath();
+        ctx.roundRect(2 + armSwing, -6, 7, 18, 3);
+        ctx.fill();
+        ctx.fillStyle = "#06b6d4";
+        ctx.fillRect(2 + armSwing, 8, 7, 5);
+      }
+
+      // Mũ bảo hộ
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(0, -18, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Kính Visor
+      const visorGrad = ctx.createLinearGradient(0, -25, 10, -11);
+      visorGrad.addColorStop(0, "#fde047");
+      visorGrad.addColorStop(0.5, "#eab308");
+      visorGrad.addColorStop(1, "#ca8a04");
+      ctx.fillStyle = visorGrad;
+      ctx.beginPath();
+      ctx.roundRect(0, -24, 11, 12, 4);
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.fillRect(3, -22, 3, 3);
+
+      ctx.restore();
       ctx.restore();
     }
 
-    // Bình oxy: +1 mạng
-    function drawOxygen(cx, bottom) {
-      ctx.fillStyle = "#38bdf8";
-      ctx.fillRect(cx - 13, bottom - 34, 26, 34);
-      ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.strokeRect(cx - 13, bottom - 34, 26, 34);
-      ctx.fillStyle = "#e0f2fe"; ctx.fillRect(cx - 10, bottom - 30, 3, 24);
-      ctx.fillStyle = "#475569"; ctx.fillRect(cx - 5, bottom - 41, 10, 7);
-      ctx.strokeRect(cx - 5, bottom - 41, 10, 7);
-      ctx.fillStyle = "#fff";
-      ctx.font = "bold 11px 'Plus Jakarta Sans', sans-serif";
-      ctx.textAlign = "center"; ctx.fillText("O₂", cx + 2, bottom - 13); ctx.textAlign = "left";
+    function drawUFOBlock(ufo) {
+      const by = ufo.y - (ufo.bump > 0 ? Math.sin((ufo.bump / 10) * Math.PI) * 12 : 0);
+      ctx.save();
+      ctx.translate(ufo.x + ufo.w / 2, by + ufo.h / 2);
+
+      if (ufo.active) {
+        const beamGrad = ctx.createLinearGradient(0, 0, 0, 80);
+        beamGrad.addColorStop(0, "rgba(56, 189, 248, 0.4)");
+        beamGrad.addColorStop(1, "rgba(56, 189, 248, 0.0)");
+        ctx.fillStyle = beamGrad;
+        ctx.beginPath();
+        ctx.moveTo(-16, 8); ctx.lineTo(16, 8); ctx.lineTo(34, 80); ctx.lineTo(-34, 80);
+        ctx.closePath(); ctx.fill();
+      }
+
+      ctx.beginPath();
+      ctx.arc(0, -6, 20, Math.PI, 0);
+      if (ufo.active) {
+        const domeGrad = ctx.createRadialGradient(0, -10, 2, 0, -6, 20);
+        domeGrad.addColorStop(0, "#ffffff");
+        domeGrad.addColorStop(0.5, "#38bdf8");
+        domeGrad.addColorStop(1, "#0369a1");
+        ctx.fillStyle = domeGrad;
+      } else {
+        ctx.fillStyle = "rgba(71, 85, 105, 0.8)";
+      }
+      ctx.fill();
+      ctx.strokeStyle = ufo.active ? "#a5f3fc" : "#475569";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = ufo.active ? "#ffffff" : "#94a3b8";
+      ctx.font = "800 16px 'Plus Jakarta Sans'";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(ufo.symbol, 0, -8);
+
+      ctx.beginPath();
+      ctx.ellipse(0, 4, 34, 11, 0, 0, Math.PI * 2);
+      if (ufo.active) {
+        const saucerGrad = ctx.createLinearGradient(0, -6, 0, 14);
+        saucerGrad.addColorStop(0, "#f8fafc");
+        saucerGrad.addColorStop(0.5, "#94a3b8");
+        saucerGrad.addColorStop(1, "#475569");
+        ctx.fillStyle = saucerGrad;
+      } else {
+        ctx.fillStyle = "#334155";
+      }
+      ctx.fill();
+      ctx.strokeStyle = ufo.active ? "#38bdf8" : "#1e293b";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      const lightXs = [-24, -12, 0, 12, 24];
+      lightXs.forEach((lx, idx) => {
+        ctx.beginPath();
+        ctx.arc(lx, 4.5, 2.5, 0, Math.PI * 2);
+        if (ufo.active) {
+          const activeIdx = Math.floor((animTick / 8) % lightXs.length);
+          ctx.fillStyle = (idx === activeIdx) ? "#facc15" : (idx % 2 === 0 ? "#4ade80" : "#f43f5e");
+        } else {
+          ctx.fillStyle = "#0f172a";
+        }
+        ctx.fill();
+      });
+
+      ctx.restore();
     }
 
-    // Thiên thạch: -1 mạng
-    function drawMeteor(cx, bottom, t) {
-      const cy = bottom - 20;
-      // đuôi lửa
-      ctx.fillStyle = t % 8 < 4 ? "rgba(250,204,21,0.8)" : "rgba(249,115,22,0.8)";
-      ctx.beginPath(); ctx.moveTo(cx + 10, cy - 14); ctx.lineTo(cx + 34, cy - 34); ctx.lineTo(cx + 18, cy + 4); ctx.closePath(); ctx.fill();
-      // khối đá
-      ctx.fillStyle = "#57534e";
+    function drawDetailedMoon(x, y, r, moonColor) {
+      ctx.save();
       ctx.beginPath();
-      ctx.moveTo(cx - 18, cy - 4); ctx.lineTo(cx - 8, cy - 19); ctx.lineTo(cx + 12, cy - 16);
-      ctx.lineTo(cx + 19, cy + 2); ctx.lineTo(cx + 6, cy + 18); ctx.lineTo(cx - 13, cy + 14);
-      ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = "#f87171"; ctx.lineWidth = 2; ctx.stroke();
-      ctx.fillStyle = "#292524";
-      [[-6, -4, 5], [7, 6, 4], [5, -9, 3]].forEach(([dx, dy, r]) => {
-        ctx.beginPath(); ctx.arc(cx + dx, cy + dy, r, 0, Math.PI * 2); ctx.fill();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      const moonGrad = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
+      moonGrad.addColorStop(0, moonColor || "#f8fafc");
+      moonGrad.addColorStop(0.8, "#cbd5e1");
+      moonGrad.addColorStop(1, "#94a3b8");
+      ctx.fillStyle = moonGrad;
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      const craters = [
+        { dx: -25, dy: -20, cr: 14 },
+        { dx: 18, dy: -15, cr: 10 },
+        { dx: -10, dy: 24, cr: 16 },
+        { dx: 28, dy: 18, cr: 12 },
+        { dx: -35, dy: 10, cr: 8 },
+        { dx: 5, dy: -32, cr: 7 }
+      ];
+
+      craters.forEach(c => {
+        ctx.beginPath();
+        ctx.arc(x + c.dx, y + c.dy, c.cr, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(100, 116, 139, 0.35)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(71, 85, 105, 0.4)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
       });
+
+      ctx.restore();
+    }
+
+    function drawVietnamFlag(x, y) {
+      ctx.save();
+      ctx.fillStyle = "#e2e8f0";
+      ctx.fillRect(x, y - 70, 4, 70);
+      ctx.fillStyle = "#cbd5e1";
+      ctx.fillRect(x - 2, y - 2, 8, 4);
+
+      const wave = Math.sin(animTick * 0.1) * 3;
+      ctx.fillStyle = "#da251d";
+      ctx.beginPath();
+      ctx.moveTo(x + 4, y - 70);
+      ctx.lineTo(x + 48, y - 70 + wave);
+      ctx.lineTo(x + 48, y - 40 + wave);
+      ctx.lineTo(x + 4, y - 40);
+      ctx.closePath();
+      ctx.fill();
+
+      const starX = x + 26, starY = y - 55 + wave * 0.7;
+      ctx.fillStyle = "#ffff00";
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const outerAngle = (i * 72 - 18) * Math.PI / 180;
+        const innerAngle = (i * 72 + 18) * Math.PI / 180;
+        const ox = starX + Math.cos(outerAngle) * 8;
+        const oy = starY + Math.sin(outerAngle) * 8;
+        const ix = starX + Math.cos(innerAngle) * 3.5;
+        const iy = starY + Math.sin(innerAngle) * 3.5;
+        if (i === 0) ctx.moveTo(ox, oy); else ctx.lineTo(ox, oy);
+        ctx.lineTo(ix, iy);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawSpaceship(x, y, vy) {
+      ctx.save();
+      ctx.translate(x, y);
+
+      if (endingCutscene.step === 3) {
+        const flameL = 25 + Math.random() * 15;
+        ctx.fillStyle = "#f97316";
+        ctx.beginPath();
+        ctx.moveTo(-10, 25); ctx.lineTo(10, 25); ctx.lineTo(0, 25 + flameL);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#fef08a";
+        ctx.beginPath();
+        ctx.moveTo(-6, 25); ctx.lineTo(6, 25); ctx.lineTo(0, 25 + flameL * 0.6);
+        ctx.closePath(); ctx.fill();
+      }
+
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.moveTo(0, -35);
+      ctx.lineTo(16, 25);
+      ctx.lineTo(-16, 25);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = "#ef4444";
+      ctx.beginPath();
+      ctx.moveTo(-16, 10); ctx.lineTo(-28, 25); ctx.lineTo(-16, 25); ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(16, 10); ctx.lineTo(28, 25); ctx.lineTo(16, 25); ctx.closePath(); ctx.fill();
+
+      ctx.fillStyle = "#0284c7";
+      ctx.beginPath();
+      ctx.arc(0, -6, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawEarth(x, y, r) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      const earthGrad = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
+      earthGrad.addColorStop(0, "#38bdf8");
+      earthGrad.addColorStop(0.7, "#0284c7");
+      earthGrad.addColorStop(1, "#0f172a");
+      ctx.fillStyle = earthGrad;
+      ctx.fill();
+
+      ctx.fillStyle = "#22c55e";
+      ctx.beginPath(); ctx.arc(x - 10, y - 8, 14, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + 12, y + 10, 16, 0, Math.PI * 2); ctx.fill();
+
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.4)";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawOxygenBottle(cx, bottom) {
+      ctx.fillStyle = "#0284c7";
+      ctx.fillRect(cx - 9, bottom - 26, 18, 24);
+      ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2; ctx.strokeRect(cx - 9, bottom - 26, 18, 24);
+      ctx.fillStyle = "#38bdf8"; ctx.fillRect(cx - 5, bottom - 32, 10, 6);
+      ctx.fillStyle = "#ffffff"; ctx.font = "bold 10px 'Plus Jakarta Sans'"; ctx.textAlign = "center";
+      ctx.fillText("O2", cx, bottom - 10);
+    }
+
+    function drawMeteorItem(cx, bottom) {
+      const cy = bottom - 16;
+      ctx.fillStyle = "#78350f"; ctx.beginPath(); ctx.arc(cx, cy, 15, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#ea580c"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = (animTick % 6 < 3) ? "#facc15" : "#f97316"; ctx.beginPath(); ctx.arc(cx + 4, cy - 4, 5, 0, Math.PI * 2); ctx.fill();
+    }
+
+    function drawCrystalItem(cx, bottom) {
+      const cy = bottom - 16;
+      ctx.fillStyle = "#38bdf8"; ctx.beginPath();
+      ctx.moveTo(cx, cy - 14); ctx.lineTo(cx + 10, cy); ctx.lineTo(cx, cy + 14); ctx.lineTo(cx - 10, cy); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "#e0f2fe"; ctx.lineWidth = 1.5; ctx.stroke();
     }
 
     function drawPopItem(p) {
-      const bottom = p.baseY - p.rise + BOX_SIZE * 0.2;
+      const bottom = p.baseY - p.rise + 15;
       ctx.save();
       ctx.globalAlpha = Math.min(1, p.life / 20);
-      if (p.kind === 'oxygen') drawOxygen(p.x, bottom);
-      else if (p.kind === 'meteor') drawMeteor(p.x, bottom, p.life);
+      if (p.kind === 'oxygen') drawOxygenBottle(p.x, bottom);
+      else if (p.kind === 'meteor') drawMeteorItem(p.x, bottom);
+      else if (p.kind === 'crystal') drawCrystalItem(p.x, bottom);
       ctx.restore();
     }
 
     function drawPopLabel(p) {
-      const y = p.baseY - p.rise - (p.kind === 'text' ? 0 : 52);
+      const y = p.baseY - p.rise - 30;
       ctx.save();
       ctx.globalAlpha = Math.min(1, p.life / 20);
-      ctx.font = "800 20px 'Plus Jakarta Sans', sans-serif";   // font pixel không có dấu tiếng Việt
-      ctx.textAlign = "center";
-      ctx.lineWidth = 4; ctx.strokeStyle = "#000";
-      ctx.strokeText(p.label, p.x, y);
-      ctx.fillStyle = p.color;
-      ctx.fillText(p.label, p.x, y);
+      ctx.font = "800 18px 'Plus Jakarta Sans', sans-serif";
+      ctx.textAlign = "center"; ctx.lineWidth = 4; ctx.strokeStyle = "#000";
+      ctx.strokeText(p.label, p.x, y); ctx.fillStyle = p.color; ctx.fillText(p.label, p.x, y);
       ctx.restore();
     }
 
-    // Bề mặt hành tinh: đá tím xám có miệng hố nhỏ, hố đen là khoảng trống
-    function drawGround() {
+    function drawGroundAndPits(stage) {
+      ctx.fillStyle = stage ? stage.ground : "#1e293b";
+      ctx.strokeStyle = "#000"; ctx.lineWidth = 3;
       const segments = [];
       let lastX = 0;
       groundPits.forEach(pit => { segments.push([lastX, pit.start]); lastX = pit.start + pit.width; });
       segments.push([lastX, WORLD_W]);
+
       segments.forEach(([a, b]) => {
-        ctx.fillStyle = "#4c4566";
         ctx.fillRect(a, GROUND_TOP, b - a, canvas.height - GROUND_TOP);
-        ctx.fillStyle = "#a78bfa";
-        ctx.fillRect(a, GROUND_TOP, b - a, 5);          // viền sáng trên mặt đất
-        ctx.fillStyle = "#3b3552";
-        for (let gx = a + 30; gx < b - 30; gx += 140) {   // miệng hố thiên thạch
-          ctx.beginPath(); ctx.ellipse(gx, GROUND_TOP + 34, 22, 7, 0, 0, Math.PI * 2); ctx.fill();
-          ctx.beginPath(); ctx.ellipse(gx + 70, GROUND_TOP + 72, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
-        }
+        ctx.fillStyle = stage ? stage.groundLine : "#38bdf8";
+        ctx.fillRect(a, GROUND_TOP, b - a, 5);
+        ctx.fillStyle = stage ? stage.ground : "#1e293b";
       });
-      // hố đen: viền phát sáng tím
+
       groundPits.forEach(pit => {
-        const g = ctx.createLinearGradient(0, GROUND_TOP, 0, canvas.height);
-        g.addColorStop(0, "#000"); g.addColorStop(1, "#1e0b3a");
-        ctx.fillStyle = g;
+        ctx.fillStyle = "#000000";
         ctx.fillRect(pit.start, GROUND_TOP, pit.width, canvas.height - GROUND_TOP);
-        ctx.fillStyle = "#d946ef";
-        ctx.fillRect(pit.start - 3, GROUND_TOP, 3, canvas.height - GROUND_TOP);
-        ctx.fillRect(pit.start + pit.width, GROUND_TOP, 3, canvas.height - GROUND_TOP);
+
+        const pulse = 0.35 + Math.sin(animTick * 0.1) * 0.25;
+        const beamGrad = ctx.createLinearGradient(0, GROUND_TOP - 150, 0, GROUND_TOP);
+        beamGrad.addColorStop(0, "rgba(168, 85, 247, 0.0)");
+        beamGrad.addColorStop(1, `rgba(192, 132, 252, ${pulse + 0.35})`);
+
+        ctx.fillStyle = beamGrad;
+        ctx.fillRect(pit.start, GROUND_TOP - 150, pit.width, 150);
+
+        ctx.strokeStyle = "#c084fc"; ctx.lineWidth = 3;
+        ctx.strokeRect(pit.start, GROUND_TOP, pit.width, 5);
+
+        ctx.fillStyle = "#facc15"; ctx.font = "bold 12px 'Plus Jakarta Sans'"; ctx.textAlign = "center";
+        ctx.fillText("⚠️ HỐ SÂU", pit.start + pit.width / 2, GROUND_TOP - 16);
       });
     }
 
-    // Quái Thú Tứ Giác (nhân vật gốc): thân là tứ giác ABCD không đều, một mắt to, sừng ở các đỉnh
-    function drawBoss() {
+    function drawBossQuadrilateral() {
       const bx = BOSS_X, by = BOSS_Y;
-      const shakeX = bossFlash > 0 ? (bossFlash % 4 < 2 ? -4 : 4) : 0;
-      const t = performance.now() / 300;
-      if (IMG.boss.ok) {
-        ctx.drawImage(IMG.boss, bx + shakeX, by, 90, 140);
+      const shakeX = bossFlash > 0 ? (bossFlash % 4 < 2 ? -5 : 5) : 0;
+      const floatY = Math.sin(animTick * 0.06) * 8;
+
+      ctx.save();
+      ctx.translate(bx + shakeX, by + floatY);
+
+      ctx.beginPath();
+      ctx.moveTo(35, 10); ctx.lineTo(170, 30); ctx.lineTo(150, 160); ctx.lineTo(15, 140);
+      ctx.closePath();
+
+      if (bossFlash > 0 && bossFlash % 4 < 2) {
+        ctx.fillStyle = "#ffffff";
       } else {
-        const x = bx + shakeX, y = by + Math.sin(t) * 4;       // lơ lửng nhẹ
-        const P = { A: [x + 8, y + 22], B: [x + 92, y + 4], C: [x + 82, y + 132], D: [x - 4, y + 116] };
-        // sừng tam giác ở mỗi đỉnh
-        ctx.fillStyle = "#facc15"; ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
-        [["A", -10, -12], ["B", 12, -12], ["C", 12, 12], ["D", -12, 12]].forEach(([k, dx, dy]) => {
-          const [px, py] = P[k];
-          ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + dx, py + dy * 0.4); ctx.lineTo(px + dx * 0.4, py + dy); ctx.closePath();
-          ctx.fill(); ctx.stroke();
-        });
-        // thân tứ giác
-        ctx.fillStyle = bossFlash > 0 && bossFlash % 4 < 2 ? "#ffffff" : "#7c3aed";
-        ctx.beginPath(); ctx.moveTo(...P.A); ctx.lineTo(...P.B); ctx.lineTo(...P.C); ctx.lineTo(...P.D); ctx.closePath();
-        ctx.fill(); ctx.lineWidth = 3; ctx.stroke();
-        // hai đường chéo mờ
-        ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(...P.A); ctx.lineTo(...P.C); ctx.moveTo(...P.B); ctx.lineTo(...P.D); ctx.stroke();
-        // một mắt to
-        ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(x + 46, y + 52, 17, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.stroke();
-        ctx.fillStyle = "#dc2626"; ctx.beginPath(); ctx.arc(x + 40, y + 54, 8, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(x + 38, y + 54, 4, 0, Math.PI * 2); ctx.fill();
-        // miệng răng cưa
-        ctx.fillStyle = "#1e1b4b"; ctx.fillRect(x + 22, y + 86, 50, 14);
-        ctx.fillStyle = "#fff";
-        for (let i = 0; i < 5; i++) {
-          ctx.beginPath(); ctx.moveTo(x + 22 + i * 10, y + 86); ctx.lineTo(x + 27 + i * 10, y + 94); ctx.lineTo(x + 32 + i * 10, y + 86); ctx.fill();
-        }
-        // nhãn đỉnh A B C D
-        ctx.font = "bold 13px 'Plus Jakarta Sans', sans-serif"; ctx.fillStyle = "#fde047";
-        ctx.fillText("A", P.A[0] - 16, P.A[1] - 4); ctx.fillText("B", P.B[0] + 8, P.B[1] - 2);
-        ctx.fillText("C", P.C[0] + 8, P.C[1] + 12); ctx.fillText("D", P.D[0] - 16, P.D[1] + 14);
+        const monsterGrad = ctx.createLinearGradient(15, 10, 170, 160);
+        monsterGrad.addColorStop(0, "#881337"); monsterGrad.addColorStop(0.5, "#be123c"); monsterGrad.addColorStop(1, "#4c0519");
+        ctx.fillStyle = monsterGrad;
       }
-      ctx.fillStyle = "#000";
-      ctx.fillRect(bx - 10, by - 32, 100, 16);
+      ctx.fill();
+      ctx.strokeStyle = "#fda4af"; ctx.lineWidth = 4; ctx.stroke();
+
+      ctx.fillStyle = "#fef08a"; ctx.font = "bold 13px 'Chakra Petch'";
+      ctx.fillText("A", 28, 5); ctx.fillText("B", 175, 28); ctx.fillText("C", 155, 175); ctx.fillText("D", 0, 155);
+
+      const eyeX = 90, eyeY = 85;
+      ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(eyeX, eyeY, 26, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#e11d48"; ctx.lineWidth = 3; ctx.stroke();
+
+      const eyeAngle = Math.atan2((astronaut.y + astronaut.h / 2) - (by + eyeY), (astronaut.x + astronaut.w / 2) - (bx + eyeX));
+      const pupilX = eyeX + Math.cos(eyeAngle) * 9;
+      const pupilY = eyeY + Math.sin(eyeAngle) * 9;
+      ctx.fillStyle = "#e11d48"; ctx.beginPath(); ctx.arc(pupilX, pupilY, 11, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#000000"; ctx.beginPath(); ctx.arc(pupilX, pupilY, 5, 0, Math.PI * 2); ctx.fill();
+
+      ctx.fillStyle = "#0f172a"; ctx.fillRect(10, -25, 160, 12);
       ctx.fillStyle = "#ef4444";
-      const hpW = (gameState.bossHp / gameState.bossMaxHp) * 96;
-      ctx.fillRect(bx - 8, by - 30, Math.max(0, hpW), 12);
-      ctx.fillStyle = "#fff";
-      ctx.font = "800 13px 'Plus Jakarta Sans', sans-serif";
-      ctx.fillText("QUÁI THÚ TỨ GIÁC", bx - 14, by - 40);
+      const hpW = (gameState.bossHp / gameState.bossMaxHp) * 156;
+      ctx.fillRect(12, -23, Math.max(0, hpW), 8);
+      ctx.strokeStyle = "#fecdd3"; ctx.lineWidth = 1.5; ctx.strokeRect(10, -25, 160, 12);
+
+      ctx.fillStyle = "#ffffff"; ctx.font = "9px 'Chakra Petch'"; ctx.fillText("QUÁI THÚ ABCD", 22, -32);
+      ctx.restore();
     }
 
     function drawWorld() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const currentBg = !gameState.examData ? "#0b1026"
-        : gameState.inBossFight ? "#1a0420"
-        : gameState.examData.stages[Math.min(gameState.currentStageIdx, 4)].bg;
-      ctx.fillStyle = currentBg;
+      const curStage = !gameState.examData ? null : gameState.examData.stages[Math.min(gameState.currentStageIdx, 4)];
+      ctx.fillStyle = gameState.inBossFight ? "#2d0614" : (curStage ? curStage.bg : "#04081c");
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      // sao lấp lánh, trôi chậm hơn mặt đất (hiệu ứng chiều sâu)
-      STARS.forEach(s => {
-        const sx = ((s.x - cameraX * s.depth) % canvas.width + canvas.width) % canvas.width;
-        ctx.globalAlpha = 0.5 + 0.5 * Math.abs(Math.sin(performance.now() / 600 + s.x));
-        ctx.fillStyle = s.c;
-        ctx.fillRect(sx, s.y, s.r, s.r);
-      });
-      ctx.globalAlpha = 1;
-      if (IMG.background.ok && !gameState.inBossFight) {
-        ctx.globalAlpha = 0.85;
-        ctx.drawImage(IMG.background, 0, 0, canvas.width, canvas.height);
-        ctx.globalAlpha = 1;
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
+      for (let i = 0; i < 45; i++) {
+        const sx = (i * 97) % canvas.width;
+        const sy = (i * 61) % 360;
+        const s = (i % 3 === 0) ? 2.2 : 1.2;
+        ctx.fillRect(sx, sy, s, s);
+      }
+
+      drawDetailedMoon(760, 120, 68, curStage ? curStage.moonColor : "#e2e8f0");
+
+      if (endingCutscene.active) {
+        drawEarth(endingCutscene.earthX, endingCutscene.earthY, 48);
       }
 
       ctx.save();
       ctx.translate(-Math.round(cameraX), 0);
 
-      if (!gameState.inBossFight) {
-        // Hành tinh phía xa
-        PLANETS.forEach(([px, py, pr, pc, ring]) => {
-          ctx.fillStyle = pc; ctx.globalAlpha = 0.85;
-          ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = "rgba(0,0,0,0.25)";
-          ctx.beginPath(); ctx.arc(px + pr * 0.35, py + pr * 0.2, pr * 0.8, 0, Math.PI * 2); ctx.fill();
-          if (ring) {
-            ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 3;
-            ctx.beginPath(); ctx.ellipse(px, py, pr * 1.6, pr * 0.35, -0.3, 0, Math.PI * 2); ctx.stroke();
-          }
-          ctx.globalAlpha = 1;
-        });
-
-        // Trạm vũ trụ đích cuối màn (cột ăng-ten + đèn hiệu)
-        ctx.fillStyle = "#94a3b8"; ctx.fillRect(2970, 230, 10, 170);
-        ctx.fillStyle = "#334155"; ctx.fillRect(2950, 380, 50, 20);
-        ctx.fillStyle = Math.floor(performance.now() / 400) % 2 ? "#22d3ee" : "#f0abfc";
-        ctx.beginPath(); ctx.arc(2975, 224, 9, 0, Math.PI * 2); ctx.fill();
-
-        // Vật phẩm nhô lên (vẽ trước ô để trông như chui ra từ trong ô)
+      if (!gameState.inBossFight && !endingCutscene.active) {
         popItems.forEach(drawPopItem);
-
-        // Khối năng lượng toán học (mỗi khối một ký hiệu)
-        mysteryBoxes.forEach((box, i) => {
-          const by = box.y - (box.bump > 0 ? Math.sin((box.bump / 8) * Math.PI) * 10 : 0);
-          if (IMG.box.ok && box.active) {
-            ctx.drawImage(IMG.box, box.x, by, BOX_SIZE, BOX_SIZE);
-          } else {
-            const glow = box.active ? 0.5 + 0.5 * Math.sin(performance.now() / 250 + i) : 0;
-            if (box.active) { ctx.shadowColor = "#22d3ee"; ctx.shadowBlur = 8 + glow * 10; }
-            const g = ctx.createLinearGradient(box.x, by, box.x + BOX_SIZE, by + BOX_SIZE);
-            if (box.active) { g.addColorStop(0, "#6366f1"); g.addColorStop(1, "#06b6d4"); }
-            else { g.addColorStop(0, "#334155"); g.addColorStop(1, "#1e293b"); }
-            ctx.fillStyle = g;
-            ctx.fillRect(box.x, by, BOX_SIZE, BOX_SIZE);
-            ctx.shadowBlur = 0;
-            ctx.strokeStyle = box.active ? "#a5f3fc" : "#475569"; ctx.lineWidth = 3;
-            ctx.strokeRect(box.x, by, BOX_SIZE, BOX_SIZE);
-            // mặt trên khối lập phương (giả 3D)
-            ctx.fillStyle = box.active ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.06)";
-            ctx.beginPath(); ctx.moveTo(box.x, by); ctx.lineTo(box.x + 8, by - 8); ctx.lineTo(box.x + BOX_SIZE + 8, by - 8); ctx.lineTo(box.x + BOX_SIZE, by); ctx.fill();
-            ctx.fillStyle = box.active ? "#fff" : "#4ade80";
-            ctx.font = "bold 22px 'Plus Jakarta Sans', sans-serif";
-            ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText(box.active ? CUBE_SYMBOLS[i % CUBE_SYMBOLS.length] : "✓", box.x + BOX_SIZE / 2, by + BOX_SIZE / 2 + 1);
-            ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-          }
-        });
-
-        // Chữ thông báo (+1 MẠNG / -1 MẠNG) vẽ trên cùng
+        ufoFleet.forEach(ufo => drawUFOBlock(ufo));
         popItems.forEach(drawPopLabel);
-
-        floatingCoins.forEach(fc => {       // tinh thể năng lượng bay lên
-          const cx = fc.x + 12;
-          ctx.fillStyle = "#e879f9";
-          ctx.beginPath(); ctx.moveTo(cx, fc.y - 13); ctx.lineTo(cx + 10, fc.y); ctx.lineTo(cx, fc.y + 13); ctx.lineTo(cx - 10, fc.y); ctx.closePath();
-          ctx.fill();
-          ctx.strokeStyle = "#701a75"; ctx.lineWidth = 2; ctx.stroke();
-          ctx.fillStyle = "rgba(255,255,255,0.6)"; ctx.fillRect(cx - 3, fc.y - 6, 3, 6);
-        });
       }
 
-      drawGround();
-      drawHero();
+      drawGroundAndPits(curStage);
 
-      if (gameState.inBossFight && !gameState.defeatedBoss) drawBoss();
+      if (endingCutscene.active) {
+        if (endingCutscene.flagPlanted) {
+          drawVietnamFlag(360, GROUND_TOP);
+        }
+        drawSpaceship(endingCutscene.shipX, endingCutscene.shipY, endingCutscene.shipVy);
+      }
 
-      if (laser.active) {
-        ctx.fillStyle = "rgba(34,211,238,0.45)";
-        ctx.fillRect(laser.x - 40, laser.y - 7, 50, 14);
-        ctx.fillStyle = "#a5f3fc";
-        ctx.fillRect(laser.x - 30, laser.y - 3, 40, 6);
-        ctx.fillStyle = "#fff";
-        ctx.beginPath(); ctx.arc(laser.x + 10, laser.y, 6, 0, Math.PI * 2); ctx.fill();
+      drawPixelAstronaut();
+
+      if (gameState.inBossFight && !gameState.defeatedBoss && !endingCutscene.active) {
+        drawBossQuadrilateral();
+      }
+
+      if (laserShot.active) {
+        ctx.fillStyle = "#38bdf8";
+        ctx.beginPath(); ctx.arc(laserShot.x, laserShot.y, 10, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath(); ctx.arc(laserShot.x, laserShot.y, 5, 0, Math.PI * 2); ctx.fill();
       }
 
       ctx.restore();
     }
 
-    // Vòng lặp bước cố định 60 lần/giây -> tốc độ như nhau trên màn 60Hz hay 144Hz
     const STEP_MS = 1000 / 60;
     let lastTime = performance.now();
     let accumulator = 0;
@@ -1721,7 +1944,7 @@ SPACE_GAME_HTML = """
     }
     requestAnimationFrame(gameLoop);
 
-    // ===== BẮT ĐẦU =====
+    // ===== BẮT ĐẦU GAME =====
     function startGame() {
       const name = document.getElementById("input-name").value.trim();
       const sClass = document.getElementById("input-class").value.trim();
@@ -1731,7 +1954,7 @@ SPACE_GAME_HTML = """
       gameState.studentClass = sClass;
       gameState.examData = buildExam();
       initLevelBoxes();
-      resetHero(100);
+      resetAstronaut(100);
       cameraX = 0;
 
       document.getElementById("login-modal").classList.add("hidden");
@@ -1749,7 +1972,7 @@ SPACE_GAME_HTML = """
       document.getElementById(id).addEventListener("keydown", (e) => { if (e.key === "Enter") startGame(); });
     });
 
-    // ===== CÂU HỎI =====
+    // ===== MODAL CÂU HỎI =====
     const quizModal = document.getElementById("quiz-modal");
     const badgeEl = document.getElementById("quiz-level-badge");
     const timerTextEl = document.getElementById("quiz-timer-text");
@@ -1769,21 +1992,22 @@ SPACE_GAME_HTML = """
     }
 
     function openNextQuestion() {
-      if (gameState.isGameOver) return;
+      if (gameState.isGameOver || endingCutscene.active) return;
       gameState.isPaused = true;
       keys.left = keys.right = false;
       feedbackEl.innerHTML = "";
 
       if (!gameState.inBossFight) {
         const curStage = gameState.examData.stages[gameState.currentStageIdx];
-        currentQ = curStage.questions[gameState.currentQuestionIdx];
-        badgeEl.textContent = `Màn ${gameState.currentStageIdx + 1} • Câu ${gameState.currentQuestionIdx + 1}/5 • ${currentQ.level}`;
+        const qIndex = gameState.currentQuestionIdx % curStage.questions.length;
+        currentQ = curStage.questions[qIndex];
+        badgeEl.textContent = `ẢI ${gameState.currentStageIdx + 1} • CÂU ${gameState.currentQuestionIdx + 1}/5 • ${currentQ.level}`;
       } else {
         const list = gameState.examData.bossQuestions;
         currentQ = list[gameState.bossQIdx % list.length];
         gameState.bossQIdx++;
-        sndRoar();
-        badgeEl.textContent = `⚔️ ĐẠI CHIẾN QUÁI THÚ TỨ GIÁC (HP: ${gameState.bossHp}/${gameState.bossMaxHp})`;
+        sndBossRoar();
+        badgeEl.textContent = `⚔️ QUÁI THÚ TỨ GIÁC ABCD (HP: ${gameState.bossHp}/${gameState.bossMaxHp})`;
       }
 
       questionTextEl.textContent = currentQ.q;
@@ -1800,7 +2024,7 @@ SPACE_GAME_HTML = """
         gameState.timerSec--;
         timerTextEl.textContent = Math.max(0, gameState.timerSec) + "s";
         timerBarEl.style.width = Math.max(0, (gameState.timerSec / gameState.timerMax) * 100) + "%";
-        if (gameState.timerSec <= 0) handleAnswer(false, "Đã hết thời gian!");
+        if (gameState.timerSec <= 0) handleAnswer(false, "Đã hết thời gian phản xạ!");
       }, 1000);
 
       if (currentQ.type === "mcq") {
@@ -1811,7 +2035,7 @@ SPACE_GAME_HTML = """
           const btn = document.createElement("button");
           btn.className = "w-full text-left bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl p-3 text-xs font-semibold disabled:opacity-60";
           const num = document.createElement("span");
-          num.className = "text-amber-400 font-bold";
+          num.className = "text-cyan-400 font-bold";
           num.textContent = (idx + 1) + ". ";
           btn.appendChild(num);
           btn.appendChild(document.createTextNode(ans));
@@ -1838,11 +2062,10 @@ SPACE_GAME_HTML = """
     shortInput.addEventListener("keydown", (e) => { if (e.key === "Enter") submitShortAnswer(); });
 
     function handleAnswer(isCorrect, customReason = null, pickedIdx = null) {
-      if (gameState.answerLocked) return;          // chống bấm 2 lần / trùng với hết giờ
+      if (gameState.answerLocked) return;
       gameState.answerLocked = true;
       clearInterval(gameState.timerInterval);
 
-      // Khóa giao diện, tô màu đáp án
       shortInput.disabled = true;
       shortSubmit.disabled = true;
       [...optionsBox.children].forEach((btn, i) => {
@@ -1852,20 +2075,20 @@ SPACE_GAME_HTML = """
       });
 
       if (isCorrect) {
-        sndCoin();
+        sndCrystal();
         gameState.score += gameState.inBossFight ? 300 : 100;
         updateHud();
-        feedbackEl.innerHTML = '<span class="text-emerald-400 font-bold">🎉 CHÍNH XÁC!</span>';
+        feedbackEl.innerHTML = '<span class="text-emerald-400 font-bold">🎉 CHÍNH XÁC TUYỆT ĐỐI!</span>';
 
         if (gameState.inBossFight) {
           gameState.bossHp--;
-          laser.active = true;
-          laser.x = hero.x + 30;
-          laser.y = hero.y + hero.h * 0.4;
-          laser.vx = 9;
-        } else if (!hero.isJumping && !hero.falling) {
-          hero.isJumping = true;
-          hero.vy = -10;
+          laserShot.active = true;
+          laserShot.x = astronaut.x + 30;
+          laserShot.y = astronaut.y + astronaut.h * 0.4;
+          laserShot.vx = 9;
+        } else if (!astronaut.isJumping && !astronaut.falling) {
+          astronaut.isJumping = true;
+          astronaut.vy = -10;
         }
 
         setTimeout(() => { closeQuizModal(); advanceProgress(); }, 1100);
@@ -1877,7 +2100,7 @@ SPACE_GAME_HTML = """
         feedbackEl.innerHTML = "";
         const line1 = document.createElement("div");
         line1.className = "text-rose-400 font-bold";
-        line1.textContent = "❌ " + (customReason || "Chưa chính xác!") + " Đáp án: " + correctText;
+        line1.textContent = "❌ " + (customReason || "Chưa chính xác!") + " Đáp án đúng: " + correctText;
         const line2 = document.createElement("div");
         line2.className = "text-[11px] text-slate-300 mt-1";
         line2.textContent = "Ghi nhớ: " + currentQ.explain;
@@ -1887,17 +2110,17 @@ SPACE_GAME_HTML = """
           closeQuizModal();
           if (gameState.lives <= 0) finishGameSession(false);
           else advanceProgress();
-        }, 3000);
+        }, 2800);
       }
     }
 
     const stageClearModal = document.getElementById("stage-clear-modal");
     const teacherNotes = [
-      "Cô Mai Phương rất vui khi em nắm vững tính chất góc tứ giác lồi! Sang Ải 2 nhé!",
-      "Làm tốt lắm! Em đã thuộc lòng tính chất hai đường chéo của hình thang cân. Sang Ải 3 nào!",
-      "Xuất sắc! Tính chất hai đường chéo cắt nhau tại trung điểm là chìa khóa vàng. Tiến lên Ải 4!",
-      "Tuyệt vời! Em đã vận dụng thành thạo tính chất hình chữ nhật. Ải 5 đang chờ đón!",
-      "Hoàn thành 5 Ải! Hãy tập trung cao độ đánh bại Quái Thú Tứ Giác để nhận +5 Điểm cộng nhé!"
+      "Cô Mai Phương rất vui khi em nắm vững định lý góc tứ giác lồi! Tiến vào Ải 2 nhé!",
+      "Làm tốt lắm! Em đã thuộc lòng tính chất hai đường chéo bằng nhau của hình thang cân.",
+      "Xuất sắc! Tính chất hai đường chéo cắt nhau tại trung điểm là chìa khóa vàng của hình bình hành.",
+      "Tuyệt vời! Em đã vận dụng thành thạo định lý và tính chất hình chữ nhật. Ải 5 đang chờ đón!",
+      "Hoàn thành xuất sắc 5 Ải! Hãy tập trung phản xạ để bắn hạ Quái Thú Tứ Giác ABCD nhé!"
     ];
 
     function advanceProgress() {
@@ -1906,7 +2129,13 @@ SPACE_GAME_HTML = """
       if (gameState.inBossFight) {
         if (gameState.bossHp <= 0) {
           gameState.defeatedBoss = true;
-          setTimeout(() => finishGameSession(true), 500);
+          setTimeout(() => {
+            endingCutscene.active = true;
+            endingCutscene.step = 0;
+            endingCutscene.timer = 0;
+            resetAstronaut(120);
+            cameraX = 0;
+          }, 600);
         } else {
           setTimeout(() => openNextQuestion(), 700);
         }
@@ -1931,21 +2160,19 @@ SPACE_GAME_HTML = """
       stageClearModal.classList.add("hidden");
       gameState.currentStageIdx++;
       gameState.currentQuestionIdx = 0;
-      resetHero(100);
+      resetAstronaut(100);
       cameraX = 0;
       document.getElementById("hud-quest").textContent = "0/5";
 
       if (gameState.currentStageIdx >= gameState.examData.stages.length) {
-        // Đấu trùm: không có hố, không có khối năng lượng
         gameState.inBossFight = true;
         groundPits = [];
-        mysteryBoxes = [];
-        floatingCoins = [];
-        resetHero(1000);
+        ufoFleet = [];
+        resetAstronaut(1000);
         cameraX = 900;
         document.getElementById("hud-world").textContent = "BOSS";
         document.getElementById("hud-quest").textContent = "BOSS";
-        sndRoar();
+        sndBossRoar();
         setTimeout(() => openNextQuestion(), 800);
       } else {
         document.getElementById("hud-world").textContent = `P-${gameState.currentStageIdx + 1}`;
@@ -1954,40 +2181,29 @@ SPACE_GAME_HTML = """
       }
     };
 
-    // ===== KẾT THÚC & GỬI KẾT QUẢ =====
-    function finishGameSession(isVictory) {
+    function finishGameSession(isWin) {
       if (gameState.isGameOver) return;           // chỉ chạy 1 lần
       gameState.isGameOver = true;
       gameState.isPaused = true;
       clearInterval(gameState.timerInterval);
       stopBgm();
-      quizModal.classList.add("hidden");
-      stageClearModal.classList.add("hidden");
-
+      const modal = document.getElementById("summary-modal");
       document.getElementById("sum-name").textContent = gameState.studentName;
       document.getElementById("sum-class").textContent = gameState.studentClass;
       document.getElementById("sum-examcode").textContent = gameState.examData.code;
       document.getElementById("sum-score").textContent = gameState.score;
 
-      const subtitle = document.getElementById("summary-subtitle");
-      if (isVictory) {
-        document.getElementById("summary-badge-icon").textContent = "👑";
-        document.getElementById("summary-title").textContent = "CHIẾN THẮNG TUYỆT ĐỐI!";
-        subtitle.textContent = "Đã xuất sắc vượt qua 5 Ải & Hạ gục Quái Thú Tứ Giác";
-        subtitle.className = "text-[11px] text-emerald-400 font-semibold";
-        document.getElementById("sum-bonus").textContent = "+5 ĐIỂM CỘNG";
-        document.getElementById("summary-teacher-note").innerHTML = '🎉 <b>Lời khen từ Cô Mai Phương:</b> Em đã xuất sắc hạ gục Quái Thú Tứ Giác! Cô cộng <b>+5 điểm thực tế</b> vào sổ điểm cho em!';
+      const noteEl = document.getElementById("summary-teacher-note");
+      if (isWin) {
+        noteEl.textContent = `Lời khen từ Cô Mai Phương: Xuất sắc lắm phi hành gia ${gameState.studentName}! Em đã hoàn thành sứ mệnh lịch sử: cắm cờ Việt Nam lên Mặt Trăng và trở về Trái Đất an toàn!`;
       } else {
-        const reached = gameState.inBossFight ? "trận đấu Quái Thú Tứ Giác" : "Màn " + (gameState.currentStageIdx + 1);
-        document.getElementById("summary-badge-icon").textContent = "🛡️";
-        document.getElementById("summary-title").textContent = "DỪNG BƯỚC THỬ THÁCH";
-        subtitle.textContent = "Em đã dừng lại ở " + reached;
-        subtitle.className = "text-[11px] text-rose-400 font-semibold";
-        document.getElementById("sum-bonus").textContent = "0 ĐIỂM CỘNG";
-        document.getElementById("summary-teacher-note").innerHTML = '💡 <b>Lời dặn từ Cô Mai Phương:</b> Em đã nỗ lực đạt <b>' + gameState.score + ' điểm</b>. Hãy xem lại bài và bấm Chơi lại để phục thù nhé!';
+        document.getElementById("summary-title").textContent = "HẢI TRÌNH TẠM DỪNG";
+        document.getElementById("summary-subtitle").textContent = "Oxy đã cạn kiệt trước khi đánh bại Quái Thú!";
+        document.getElementById("sum-bonus").textContent = "CỐ GẮNG LẦN SAU";
+        noteEl.textContent = "Đừng nản lòng nhé! Em hãy ôn lại các định lý và dấu hiệu nhận biết tứ giác rồi thử sức lại!";
       }
 
-      document.getElementById("summary-modal").classList.remove("hidden");
+      modal.classList.remove("hidden");
 
       const payload = {
         time: new Date().toLocaleString("vi-VN"),
@@ -1996,7 +2212,7 @@ SPACE_GAME_HTML = """
         student_class: gameState.studentClass,
         score: gameState.score,
         topic: "Minigame Tứ Giác (Vượt Ải Không Gian)",
-        feedback: isVictory ? "Hạ gục Quái Thú Tứ Giác (+5đ)" : ("Chưa hạ Quái Thú - dừng ở " + (gameState.inBossFight ? "BOSS" : "Màn " + (gameState.currentStageIdx + 1)))
+        feedback: isWin ? "Hạ gục Quái Thú Tứ Giác, cắm cờ trên Mặt Trăng (+5đ)" : ("Chưa hạ Quái Thú - dừng ở " + (gameState.inBossFight ? "BOSS" : "Ải " + (gameState.currentStageIdx + 1)))
       };
 
       gameState.lastPayload = payload;
@@ -2045,11 +2261,11 @@ SPACE_GAME_HTML = """
 
 with tab3:
     st.subheader("🚀 Phi Hành Gia Toán Học: Vượt Ải Không Gian")
-    st.caption("Cùng cô Mai Phương chinh phục Quái Thú Tứ Giác! Cẩn thận với khối năng lượng bí ẩn và hố đen vũ trụ nha!")
+    st.caption("Cùng cô Mai Phương giải mã hạm đội UFO, hạ Quái Thú Tứ Giác và cắm cờ Việt Nam lên Mặt Trăng! Cẩn thận các hố sâu có cột laser cảnh báo nha!")
 
     sheet_webhook = get_secret("GOOGLE_SHEET_WEBHOOK_URL", DEFAULT_WEBHOOK) or DEFAULT_WEBHOOK
     game_html = SPACE_GAME_HTML.replace('"WEBHOOK_URL_PLACEHOLDER"', json.dumps(sheet_webhook))
-    components.html(game_html, height=780, scrolling=True)
+    components.html(game_html, height=820, scrolling=True)
 
 # ================= TAB 4: BẢNG ĐIỂM LỚP =================
 with tab4:
