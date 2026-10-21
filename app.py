@@ -820,7 +820,7 @@ MARIO_GAME_HTML = """
 
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 text-xs text-slate-300 text-left mb-5 space-y-1.5">
         <p>🎮 <b>Máy tính:</b> <b>← / →</b> để chạy, <b>Space / ↑</b> để nhảy.</p>
-        <p>📱 <b>Điện thoại:</b> giữ nút <b>◀ / ▶</b> để chạy, bấm nút <b>NHẢY</b> (hoặc chạm vào màn hình game) để nhảy.</p>
+        <p>📱 <b>Điện thoại:</b> giữ nút <b>◀</b> (bên trái) để lùi, <b>▶</b> (bên phải) để tiến; bấm nút <b>NHẢY</b> bên trái hoặc chạm vào màn hình game để nhảy.</p>
         <p>📦 Nhảy húc đầu vào các ô <b>[?]</b>: 5 Câu hỏi, 🍄 Nấm (+1 mạng), 🪙 Xu, 💣 Bom (-1 mạng).</p>
         <p>⚠️ Nhảy qua <b>hố</b> trên đường đi! Trả lời đủ 5 câu hỏi để qua ải.</p>
       </div>
@@ -846,7 +846,7 @@ MARIO_GAME_HTML = """
       <div id="hud-world" class="text-cyan-400">1-1</div>
     </div>
     <div class="text-center">
-      <div class="text-red-500 mb-0.5 text-[8px] sm:text-[9px]">CÂU HỎI</div>
+      <div class="text-red-500 mb-0.5 text-[8px] sm:text-[9px]">QUESTIONS</div>
       <div id="hud-quest" class="text-amber-300">0/5</div>
     </div>
     <div class="text-center">
@@ -861,13 +861,13 @@ MARIO_GAME_HTML = """
     <canvas id="gameCanvas" width="900" height="506" class="w-full h-full block"></canvas>
   </main>
 
-  <!-- NÚT ĐIỀU KHIỂN CẢM ỨNG (điện thoại / máy tính bảng) -->
+  <!-- NÚT ĐIỀU KHIỂN CẢM ỨNG: tay trái = lùi + nhảy, tay phải = tiến -->
   <div id="touch-pad" class="w-full max-w-3xl flex items-center justify-between mt-3 px-1">
-    <div class="flex gap-3">
-      <button id="pad-left" class="pad-btn w-16 h-16 sm:w-14 sm:h-14 rounded-full bg-slate-800 border-2 border-sky-400/70 text-2xl text-white shadow-lg transition-transform">◀</button>
-      <button id="pad-right" class="pad-btn w-16 h-16 sm:w-14 sm:h-14 rounded-full bg-slate-800 border-2 border-sky-400/70 text-2xl text-white shadow-lg transition-transform">▶</button>
+    <div class="flex items-center gap-3">
+      <button id="pad-left" class="pad-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-slate-800 border-4 border-sky-400/80 text-4xl text-white shadow-lg transition-transform">◀</button>
+      <button id="pad-jump" class="pad-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-red-600 to-amber-500 border-4 border-amber-300 font-extrabold text-base sm:text-lg leading-tight text-white shadow-lg transition-transform">NHẢY<br>⤴</button>
     </div>
-    <button id="pad-jump" class="pad-btn w-24 h-16 sm:w-20 sm:h-14 rounded-full bg-gradient-to-r from-red-600 to-amber-500 border-2 border-amber-300 font-extrabold text-sm text-white shadow-lg transition-transform">NHẢY ⤴</button>
+    <button id="pad-right" class="pad-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-slate-800 border-4 border-sky-400/80 text-4xl text-white shadow-lg transition-transform">▶</button>
   </div>
 
   <!-- MODAL CÂU HỎI -->
