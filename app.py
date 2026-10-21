@@ -449,12 +449,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 if client is None:
-    st.error("Chưa cấu hình biến GEMINI_API_KEY trong Secrets của Streamlit! Tab 1 và Tab 2 tạm thời không dùng được; game Bowser vẫn chơi bình thường.")
+    st.error("Chưa cấu hình biến GEMINI_API_KEY trong Secrets của Streamlit! Tab 1 và Tab 2 tạm thời không dùng được; game Vượt Ải Không Gian vẫn chơi bình thường.")
 
 tab1, tab2, tab3, tab4 = st.tabs([
     "🪐 Thử Thách Tương Tác",
     "📝 Nộp Bài Tập",
-    "👾 Đại Chiến Bowser",
+    "👾 Vượt Ải Không Gian",
     "📊 Bảng Điểm Lớp"
 ])
 
@@ -750,7 +750,7 @@ KHÔNG dùng LaTeX, viết ký hiệu Unicode.
                             "feedback": sub_record["Nhận xét của AI"]
                         }
                         try:
-                            # Gửi dạng text/plain giống game Bowser; Apps Script đọc bằng e.postData.contents
+                            # Gửi dạng text/plain giống game Vượt Ải Không Gian; Apps Script đọc bằng e.postData.contents
                             resp = requests.post(webhook_url, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
                                                  headers={"Content-Type": "text/plain;charset=utf-8"}, timeout=15)
                             # Apps Script trả mã 200 cả khi lỗi hoặc bắt đăng nhập, nên phải đọc nội dung trả về
@@ -772,8 +772,8 @@ KHÔNG dùng LaTeX, viết ký hiệu Unicode.
                     st.error(f"Lỗi truyền tín hiệu: {err}")
 
 
-# ================= TAB 3: MINIGAME ĐẠI CHIẾN BOWSER (TỨ GIÁC) =================
-MARIO_GAME_HTML = """
+# ================= TAB 3: MINIGAME VƯỢT ẢI KHÔNG GIAN (TỨ GIÁC) =================
+SPACE_GAME_HTML = """
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -801,11 +801,11 @@ MARIO_GAME_HTML = """
   <!-- ĐĂNG NHẬP -->
   <div id="login-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto">
     <div class="bg-slate-900 border-2 border-amber-400/80 rounded-2xl max-w-md w-full p-6 shadow-2xl text-center">
-      <div class="inline-block p-3 bg-red-600 rounded-2xl shadow-lg mb-3">
-        <span class="font-pixel text-2xl text-white">M</span>
+      <div class="inline-block p-3 bg-indigo-600 rounded-2xl shadow-lg mb-3">
+        <span class="text-3xl">🚀</span>
       </div>
       <h1 class="text-xl font-extrabold text-amber-400 mb-1">LỚP TOÁN CÔ MAI PHƯƠNG</h1>
-      <p class="text-xs text-slate-400 mb-5">Super Mario Math: Cuộn Màn Hình & Hố Sâu Tử Thần</p>
+      <p class="text-xs text-slate-400 mb-5">Phi Hành Gia Toán Học: Vượt Ải Không Gian & Chinh Phục Quái Thú Tứ Giác</p>
 
       <div class="space-y-3.5 text-left mb-6">
         <div>
@@ -821,43 +821,43 @@ MARIO_GAME_HTML = """
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 text-xs text-slate-300 text-left mb-5 space-y-1.5">
         <p>🎮 <b>Máy tính:</b> <b>← / →</b> để chạy, <b>Space / ↑</b> để nhảy.</p>
         <p>📱 <b>Điện thoại:</b> giữ nút <b>◀</b> (bên trái) để lùi, <b>▶</b> (bên phải) để tiến; bấm nút <b>NHẢY</b> bên trái hoặc chạm vào màn hình game để nhảy.</p>
-        <p>📦 Nhảy húc đầu vào các ô <b>[?]</b>: 5 Câu hỏi, 🍄 Nấm (+1 mạng), 🪙 Xu, 💣 Bom (-1 mạng).</p>
-        <p>⚠️ Nhảy qua <b>hố</b> trên đường đi! Trả lời đủ 5 câu hỏi để qua ải.</p>
+        <p>🧊 Nhảy húc đầu vào các <b>khối năng lượng</b> (Δ, π, √x...): 5 Câu hỏi, 🧪 Bình oxy (+1 mạng), 💎 Tinh thể, ☄️ Thiên thạch (-1 mạng).</p>
+        <p>⚠️ Nhảy qua <b>hố đen</b> trên đường đi! Trả lời đủ 5 câu hỏi để qua ải, rồi hạ <b>Quái Thú Tứ Giác</b>.</p>
       </div>
 
-      <button id="btn-start-game" class="w-full py-3.5 bg-gradient-to-r from-red-600 to-amber-500 hover:from-red-500 hover:to-amber-400 text-white font-extrabold text-sm rounded-xl shadow-lg transition transform active:scale-95">
+      <button id="btn-start-game" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white font-extrabold text-sm rounded-xl shadow-lg transition transform active:scale-95">
         BẮT ĐẦU VƯỢT ẢI NGAY
       </button>
     </div>
   </div>
 
-  <!-- HUD THÔNG TIN NES MARIO -->
+  <!-- HUD THÔNG TIN PHI HÀNH GIA -->
   <header class="w-full max-w-3xl flex flex-wrap items-center justify-between gap-x-2 gap-y-1 bg-black border-2 border-slate-800 px-2 sm:px-4 py-2 mb-2 font-pixel text-[9px] sm:text-[11px] text-white rounded-xl shadow-lg">
     <div class="text-center">
-      <div class="text-red-500 mb-0.5 text-[8px] sm:text-[9px]">SCORE</div>
+      <div class="text-cyan-400 mb-0.5 text-[8px] sm:text-[9px]">SCORE</div>
       <div id="hud-score" class="text-white">000000</div>
     </div>
     <div class="text-center">
-      <div class="text-red-500 mb-0.5 text-[8px] sm:text-[9px]">COINS</div>
-      <div id="hud-coins" class="text-amber-400">🪙 x0</div>
+      <div class="text-cyan-400 mb-0.5 text-[8px] sm:text-[9px]">GEMS</div>
+      <div id="hud-coins" class="text-fuchsia-300">💎 x0</div>
     </div>
     <div class="text-center">
-      <div class="text-red-500 mb-0.5 text-[8px] sm:text-[9px]">WORLD</div>
-      <div id="hud-world" class="text-cyan-400">1-1</div>
+      <div class="text-cyan-400 mb-0.5 text-[8px] sm:text-[9px]">PLANET</div>
+      <div id="hud-world" class="text-amber-300">P-1</div>
     </div>
     <div class="text-center">
-      <div class="text-red-500 mb-0.5 text-[8px] sm:text-[9px]">QUESTIONS</div>
+      <div class="text-cyan-400 mb-0.5 text-[8px] sm:text-[9px]">QUESTIONS</div>
       <div id="hud-quest" class="text-amber-300">0/5</div>
     </div>
     <div class="text-center">
-      <div class="text-red-500 mb-0.5 text-[8px] sm:text-[9px]">LIVES</div>
+      <div class="text-cyan-400 mb-0.5 text-[8px] sm:text-[9px]">OXYGEN</div>
       <div id="hud-lives" class="text-rose-500 text-xs">❤️❤️❤️❤️❤️</div>
     </div>
     <button id="btn-toggle-sound" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 text-xs font-body">🔊</button>
   </header>
 
   <!-- MÀN HÌNH GAME CANVAS -->
-  <main id="game-arena" class="relative w-full max-w-3xl aspect-[16/9] bg-[#5c94fc] rounded-2xl border-4 border-slate-800 shadow-2xl overflow-hidden">
+  <main id="game-arena" class="relative w-full max-w-3xl aspect-[16/9] bg-[#0b1026] rounded-2xl border-4 border-slate-800 shadow-2xl overflow-hidden">
     <canvas id="gameCanvas" width="900" height="506" class="w-full h-full block"></canvas>
   </main>
 
@@ -865,7 +865,7 @@ MARIO_GAME_HTML = """
   <div id="touch-pad" class="w-full max-w-3xl flex items-center justify-between mt-3 px-1">
     <div class="flex items-center gap-3">
       <button id="pad-left" class="pad-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-slate-800 border-4 border-sky-400/80 text-4xl text-white shadow-lg transition-transform">◀</button>
-      <button id="pad-jump" class="pad-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-red-600 to-amber-500 border-4 border-amber-300 font-extrabold text-base sm:text-lg leading-tight text-white shadow-lg transition-transform">NHẢY<br>⤴</button>
+      <button id="pad-jump" class="pad-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-indigo-600 to-cyan-500 border-4 border-cyan-300 font-extrabold text-base sm:text-lg leading-tight text-white shadow-lg transition-transform">NHẢY<br>⤴</button>
     </div>
     <button id="pad-right" class="pad-btn w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-slate-800 border-4 border-sky-400/80 text-4xl text-white shadow-lg transition-transform">▶</button>
   </div>
@@ -914,7 +914,7 @@ MARIO_GAME_HTML = """
       <div class="text-center mb-3">
         <span id="summary-badge-icon" class="text-3xl">🏆</span>
         <h2 id="summary-title" class="text-lg font-extrabold text-amber-400 mt-1">VINH DANH CHIẾN THẮNG!</h2>
-        <p id="summary-subtitle" class="text-[11px] text-emerald-400 font-semibold">Đã xuất sắc vượt qua 5 Ải & Hạ gục Bowser</p>
+        <p id="summary-subtitle" class="text-[11px] text-emerald-400 font-semibold">Đã xuất sắc vượt qua 5 Ải & Hạ gục Quái Thú Tứ Giác</p>
       </div>
 
       <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 mb-3 grid grid-cols-2 gap-2 text-xs">
@@ -945,9 +945,9 @@ MARIO_GAME_HTML = """
     // Dán "data:image/png;base64,..." hoặc mã <svg>...</svg> hoặc đường dẫn ảnh.
     // Để "" thì game tự vẽ hình pixel mặc định.
     const ASSETS = {
-      mario: "",       // gợi ý 64x88 px, nền trong suốt, nhân vật quay mặt sang PHẢI
-      boss: "",        // gợi ý 160x160 px
-      box: "",         // ô [?] 72x72 px
+      hero: "",        // phi hành gia, gợi ý 64x88 px, nền trong suốt, quay mặt sang PHẢI
+      boss: "",        // Quái Thú Tứ Giác, gợi ý 160x160 px
+      box: "",         // khối năng lượng 72x72 px
       background: ""   // hình nền 1280x720 px
     };
 
@@ -966,7 +966,7 @@ MARIO_GAME_HTML = """
       return img;
     }
     const IMG = {
-      mario: loadImage(toSrc(ASSETS.mario)),
+      hero: loadImage(toSrc(ASSETS.hero)),
       boss: loadImage(toSrc(ASSETS.boss)),
       box: loadImage(toSrc(ASSETS.box)),
       background: loadImage(toSrc(ASSETS.background))
@@ -993,22 +993,22 @@ MARIO_GAME_HTML = """
       } catch(e) {}
     }
 
-    function sndJump() { playTone(180, 'square', 0.15, 0.12); setTimeout(() => playTone(450, 'square', 0.15, 0.12), 60); }
-    function sndCoin() { playTone(988, 'square', 0.08, 0.15); setTimeout(() => playTone(1318, 'square', 0.22, 0.15), 70); }
-    function sndPowerup() { playTone(523, 'square', 0.1, 0.15); setTimeout(() => playTone(659, 'square', 0.1, 0.15), 80); setTimeout(() => playTone(784, 'square', 0.2, 0.15), 160); }
+    function sndJump() { playTone(330, 'triangle', 0.12, 0.14); setTimeout(() => playTone(620, 'triangle', 0.14, 0.12), 50); }
+    function sndCoin() { playTone(880, 'sine', 0.08, 0.16); setTimeout(() => playTone(1175, 'sine', 0.08, 0.16), 60); setTimeout(() => playTone(1760, 'sine', 0.18, 0.12), 120); }
+    function sndPowerup() { playTone(392, 'triangle', 0.12, 0.16); setTimeout(() => playTone(587, 'triangle', 0.12, 0.16), 90); setTimeout(() => playTone(880, 'sine', 0.25, 0.14), 180); }
     function sndTrap() { playTone(150, 'sawtooth', 0.25, 0.25); setTimeout(() => playTone(80, 'sawtooth', 0.3, 0.25), 120); }
     function sndWrong() { playTone(200, 'sawtooth', 0.2, 0.2); setTimeout(() => playTone(120, 'sawtooth', 0.3, 0.2), 150); }
     function sndRoar() { playTone(85, 'sawtooth', 0.45, 0.3); setTimeout(() => playTone(60, 'sawtooth', 0.5, 0.3), 180); }
     function sndBump() { playTone(110, 'square', 0.08, 0.15); }
 
     let bgmInterval = null;
-    const bgmNotes = [261.6, 261.6, 0, 261.6, 0, 207.6, 233.1, 261.6];
+    const bgmNotes = [220, 0, 329.6, 0, 293.7, 0, 392, 0, 349.2, 0, 293.7, 0, 261.6, 0, 329.6, 0];   // giai điệu vũ trụ tự sáng tác
     let noteIdx = 0;
     function startBgm() {
       if (bgmInterval || isSoundMuted) return;
       bgmInterval = setInterval(() => {
         if (gameState.started && !gameState.isPaused && !gameState.isGameOver && bgmNotes[noteIdx] > 0) {
-          playTone(bgmNotes[noteIdx], 'square', 0.1, 0.03);
+          playTone(bgmNotes[noteIdx], 'triangle', 0.18, 0.035);
         }
         noteIdx = (noteIdx + 1) % bgmNotes.length;
       }, 220);
@@ -1142,11 +1142,11 @@ MARIO_GAME_HTML = """
       return {
         code: "CMP-8A-" + Math.floor(1000 + Math.random() * 9000),
         stages: [
-          { name: "Màn 1: Tứ giác lồi", questions: pickStageQuestions(rawQuestionPool.stage1), bg: "#5c94fc" },
-          { name: "Màn 2: Hình thang cân", questions: pickStageQuestions(rawQuestionPool.stage2), bg: "#d97706" },
-          { name: "Màn 3: Hình bình hành", questions: pickStageQuestions(rawQuestionPool.stage3), bg: "#0d9488" },
-          { name: "Màn 4: Hình chữ nhật", questions: pickStageQuestions(rawQuestionPool.stage4), bg: "#0284c7" },
-          { name: "Màn 5: Hình thoi và Hình vuông", questions: pickStageQuestions(rawQuestionPool.stage5), bg: "#7c3aed" }
+          { name: "Màn 1: Tứ giác lồi", questions: pickStageQuestions(rawQuestionPool.stage1), bg: "#0b1026" },
+          { name: "Màn 2: Hình thang cân", questions: pickStageQuestions(rawQuestionPool.stage2), bg: "#1e1035" },
+          { name: "Màn 3: Hình bình hành", questions: pickStageQuestions(rawQuestionPool.stage3), bg: "#062a33" },
+          { name: "Màn 4: Hình chữ nhật", questions: pickStageQuestions(rawQuestionPool.stage4), bg: "#101d42" },
+          { name: "Màn 5: Hình thoi và Hình vuông", questions: pickStageQuestions(rawQuestionPool.stage5), bg: "#2a0f3d" }
         ],
         // Trùm: trộn toàn bộ câu, trả lời sai thì gặp câu khác
         bossQuestions: shuffle(rawQuestionPool.boss).map(prepareQuestion)
@@ -1177,59 +1177,59 @@ MARIO_GAME_HTML = """
     // ===== CẤU HÌNH ĐỘ KHÓ (chỉnh ở đây) =====
     const WORLD_W = 3000;
     const GROUND_TOP = 400;
-    const MARIO_SCALE = 1.5;         // phóng to nhân vật (hình gốc 32x44)
-    const MARIO_W = 32 * MARIO_SCALE, MARIO_H = 44 * MARIO_SCALE;
-    const GROUND_Y = GROUND_TOP - MARIO_H;   // y của Mario khi đứng trên mặt đất
-    const BOX_SIZE = 52;             // ô [?] to hơn
-    const BOX_Y = 198;               // độ cao ô [?] (nhảy là húc tới)
+    const HERO_SCALE = 1.5;          // phóng to nhân vật (hình gốc 32x44)
+    const HERO_W = 32 * HERO_SCALE, HERO_H = 44 * HERO_SCALE;
+    const GROUND_Y = GROUND_TOP - HERO_H;    // y của phi hành gia khi đứng trên mặt đất
+    const BOX_SIZE = 52;             // khối năng lượng to hơn
+    const BOX_Y = 198;               // độ cao khối năng lượng (nhảy là húc tới)
     const MAX_LIVES = 9;             // số mạng tối đa có thể tích lũy
-    const TRAP_PENALTY = 200;        // điểm bị trừ khi mở trúng bom
+    const TRAP_PENALTY = 200;        // điểm bị trừ khi mở trúng thiên thạch
     const BOSS_X = 1200, BOSS_Y = 260;
-    const STAGE_PITS = [ { start: 1160, width: 70 }, { start: 2220, width: 80 } ];  // hố hẹp, dễ nhảy
+    const STAGE_PITS = [ { start: 1160, width: 70 }, { start: 2220, width: 80 } ];  // hố đen hẹp, dễ nhảy
 
-    const mario = { x: 100, y: GROUND_Y, w: MARIO_W, h: MARIO_H, vx: 0, vy: 0, isJumping: false, falling: false, fallPit: null, facing: 1, legSwing: 0, speed: 4 };
+    const hero = { x: 100, y: GROUND_Y, w: HERO_W, h: HERO_H, vx: 0, vy: 0, isJumping: false, falling: false, fallPit: null, facing: 1, legSwing: 0, speed: 4 };
     let cameraX = 0;
     const keys = { left: false, right: false };
 
     let mysteryBoxes = [];
     let groundPits = [];
     let floatingCoins = [];
-    let popItems = [];               // nấm / bom / xu nhô lên khi mở ô
-    const fireball = { active: false, x: 0, y: 0, vx: 0 };
+    let popItems = [];               // bình oxy / thiên thạch / tinh thể nhô lên khi mở khối
+    const laser = { active: false, x: 0, y: 0, vx: 0 };   // tia năng lượng bắn Quái Thú
     let bossFlash = 0;
 
     function initLevelBoxes() {
       mysteryBoxes = [
         { x: 300,  type: 'quiz' },
-        { x: 460,  type: 'mushroom' },
+        { x: 460,  type: 'oxygen' },
         { x: 620,  type: 'coin' },
         { x: 790,  type: 'quiz' },
-        { x: 960,  type: 'mushroom' },
+        { x: 960,  type: 'oxygen' },
         { x: 1350, type: 'quiz' },
         { x: 1520, type: 'trap' },
-        { x: 1690, type: 'mushroom' },
+        { x: 1690, type: 'oxygen' },
         { x: 1870, type: 'quiz' },
         { x: 2040, type: 'coin' },
-        { x: 2420, type: 'mushroom' },
+        { x: 2420, type: 'oxygen' },
         { x: 2580, type: 'trap' },
         { x: 2740, type: 'quiz' },
-        { x: 2880, type: 'mushroom' }
+        { x: 2880, type: 'oxygen' }
       ].map(b => ({ ...b, y: BOX_Y, active: true, bump: 0 }));
       groundPits = STAGE_PITS.map(p => ({ ...p }));
       floatingCoins = [];
       popItems = [];
     }
 
-    function resetMario(x) {
-      mario.x = x; mario.y = GROUND_Y; mario.vy = 0;
-      mario.isJumping = false; mario.falling = false; mario.fallPit = null; mario.facing = 1;
+    function resetHero(x) {
+      hero.x = x; hero.y = GROUND_Y; hero.vy = 0;
+      hero.isJumping = false; hero.falling = false; hero.fallPit = null; hero.facing = 1;
       keys.left = keys.right = false;
     }
 
     // ===== HUD =====
     function updateHud() {
       document.getElementById("hud-score").textContent = String(gameState.score).padStart(6, '0');
-      document.getElementById("hud-coins").textContent = "🪙 x" + gameState.coins;
+      document.getElementById("hud-coins").textContent = "💎 x" + gameState.coins;
       document.getElementById("hud-lives").textContent = gameState.lives > 0 ? "❤️x" + gameState.lives : "💀";
     }
 
@@ -1250,9 +1250,9 @@ MARIO_GAME_HTML = """
     });
 
     function doJump() {
-      if (!mario.isJumping && !mario.falling && !gameState.isPaused && !gameState.isGameOver) {
-        mario.isJumping = true;
-        mario.vy = -14;
+      if (!hero.isJumping && !hero.falling && !gameState.isPaused && !gameState.isGameOver) {
+        hero.isJumping = true;
+        hero.vy = -14;
         sndJump();
       }
     }
@@ -1317,8 +1317,8 @@ MARIO_GAME_HTML = """
     }
 
     // ===== CẬP NHẬT THẾ GIỚI =====
-    function findPitUnderMario() {
-      const cx = mario.x + mario.w / 2;
+    function findPitUnderHero() {
+      const cx = hero.x + hero.w / 2;
       return groundPits.find(p => cx > p.start + 4 && cx < p.start + p.width - 4) || null;
     }
 
@@ -1337,17 +1337,17 @@ MARIO_GAME_HTML = """
         floatingCoins.push({ x: box.x + BOX_SIZE / 2 - 12, y: box.y - 10, vy: -9 });
         spawnPopItem(box, 'text', "+200", "#facc15");
         updateHud();
-      } else if (box.type === 'mushroom') {
+      } else if (box.type === 'oxygen') {
         sndPowerup();
         const full = gameState.lives >= MAX_LIVES;
         gameState.lives = Math.min(MAX_LIVES, gameState.lives + 1);
-        spawnPopItem(box, 'mushroom', full ? "ĐẦY MẠNG" : "+1 MẠNG", "#4ade80");
+        spawnPopItem(box, 'oxygen', full ? "ĐẦY MẠNG" : "+1 MẠNG", "#4ade80");
         updateHud();
       } else if (box.type === 'trap') {
         sndTrap();
         triggerShake();
         gameState.score = Math.max(0, gameState.score - TRAP_PENALTY);
-        spawnPopItem(box, 'bomb', "-1 MẠNG", "#f87171");
+        spawnPopItem(box, 'meteor', "-1 MẠNG", "#f87171");
         loseLife();
       } else {
         openNextQuestion();
@@ -1356,11 +1356,11 @@ MARIO_GAME_HTML = """
 
     function checkBoxBump() {
       for (const box of mysteryBoxes) {
-        const overlapX = mario.x + mario.w - 4 > box.x && mario.x + 4 < box.x + BOX_SIZE;
-        const headHit = mario.y <= box.y + BOX_SIZE && mario.y > box.y + BOX_SIZE - 18;
+        const overlapX = hero.x + hero.w - 4 > box.x && hero.x + 4 < box.x + BOX_SIZE;
+        const headHit = hero.y <= box.y + BOX_SIZE && hero.y > box.y + BOX_SIZE - 18;
         if (overlapX && headHit) {
-          mario.y = box.y + BOX_SIZE;
-          mario.vy = 1;
+          hero.y = box.y + BOX_SIZE;
+          hero.vy = 1;
           if (box.active) hitBox(box); else sndBump();
           return;
         }
@@ -1372,121 +1372,142 @@ MARIO_GAME_HTML = """
       const active = !gameState.isPaused;
 
       // Di chuyển ngang (khóa khi đang rơi hố)
-      if (active && !mario.falling) {
-        if (keys.left)  { mario.x = Math.max(30, mario.x - mario.speed); mario.facing = -1; mario.legSwing += 0.3; }
-        if (keys.right) { mario.x = Math.min(WORLD_W - 60, mario.x + mario.speed); mario.facing = 1; mario.legSwing += 0.3; }
-        cameraX = Math.max(0, Math.min(WORLD_W - canvas.width, mario.x - 300));
+      if (active && !hero.falling) {
+        if (keys.left)  { hero.x = Math.max(30, hero.x - hero.speed); hero.facing = -1; hero.legSwing += 0.3; }
+        if (keys.right) { hero.x = Math.min(WORLD_W - 60, hero.x + hero.speed); hero.facing = 1; hero.legSwing += 0.3; }
+        cameraX = Math.max(0, Math.min(WORLD_W - canvas.width, hero.x - 300));
       }
 
       // Rơi xuống hố
-      if (mario.falling) {
-        mario.y += 7;
-        if (mario.y > canvas.height + 20) {
+      if (hero.falling) {
+        hero.y += 7;
+        if (hero.y > canvas.height + 20) {
           sndTrap();
           triggerShake();
-          const pit = mario.fallPit;
+          const pit = hero.fallPit;
           loseLife();
-          if (!gameState.isGameOver) resetMario(Math.max(60, pit.start - 90));
+          if (!gameState.isGameOver) resetHero(Math.max(60, pit.start - 90));
         }
-      } else if (mario.isJumping) {
-        mario.y += mario.vy;
-        mario.vy += 0.8;
-        if (active && mario.vy < 0 && !gameState.inBossFight) checkBoxBump();
-        if (mario.y >= GROUND_Y) { mario.y = GROUND_Y; mario.vy = 0; mario.isJumping = false; }
+      } else if (hero.isJumping) {
+        hero.y += hero.vy;
+        hero.vy += 0.8;
+        if (active && hero.vy < 0 && !gameState.inBossFight) checkBoxBump();
+        if (hero.y >= GROUND_Y) { hero.y = GROUND_Y; hero.vy = 0; hero.isJumping = false; }
       }
 
       // Đứng trên miệng hố -> rơi
-      if (active && !mario.isJumping && !mario.falling) {
-        const pit = findPitUnderMario();
-        if (pit) { mario.falling = true; mario.fallPit = pit; }
+      if (active && !hero.isJumping && !hero.falling) {
+        const pit = findPitUnderHero();
+        if (pit) { hero.falling = true; hero.fallPit = pit; }
       }
 
-      // Hiệu ứng: xu bay, ô nảy, cầu lửa
+      // Hiệu ứng: tinh thể bay, khối nảy, tia năng lượng
       floatingCoins.forEach(fc => { fc.y += fc.vy; fc.vy += 0.6; });
       floatingCoins = floatingCoins.filter(fc => fc.vy < 9);
       mysteryBoxes.forEach(b => { if (b.bump > 0) b.bump--; });
       popItems.forEach(p => { if (p.rise < 46) p.rise += 2.5; p.life--; });
       popItems = popItems.filter(p => p.life > 0);
 
-      if (fireball.active) {
-        fireball.x += fireball.vx;
-        if (fireball.x >= BOSS_X + 20) { fireball.active = false; bossFlash = 18; sndTrap(); triggerShake(); }
+      if (laser.active) {
+        laser.x += laser.vx;
+        if (laser.x >= BOSS_X + 20) { laser.active = false; bossFlash = 18; sndTrap(); triggerShake(); }
       }
       if (bossFlash > 0) bossFlash--;
     }
 
     // ===== VẼ =====
-    function drawMario() {
+    const STARS = Array.from({ length: 90 }, (_, i) => ({
+      x: (i * 137.5) % 900, y: (i * 61.3) % 380, r: i % 7 === 0 ? 3 : (i % 3 === 0 ? 2 : 1),
+      depth: i % 2 === 0 ? 0.15 : 0.3, c: i % 5 === 0 ? "#a5f3fc" : (i % 4 === 0 ? "#fde68a" : "#ffffff")
+    }));
+    // các hành tinh xa: [x, y, bán kính, màu, có vành đai?]
+    const CUBE_SYMBOLS = ["Δ", "π", "√x", "∑", "∠", "x²", "≅", "∞"];
+    const PLANETS = [[260, 120, 46, "#f472b6", true], [1050, 80, 30, "#34d399", false], [1750, 140, 58, "#60a5fa", true], [2550, 90, 38, "#fbbf24", false]];
+    // Phi hành gia pixel (nhân vật gốc của dự án): đồ trắng, mũ tròn kính xanh neon, ba lô oxy cam
+    function drawHero() {
       ctx.save();
-      ctx.translate(mario.x, mario.y);
-      if (mario.facing < 0) { ctx.translate(mario.w, 0); ctx.scale(-1, 1); }
+      ctx.translate(hero.x, hero.y);
+      if (hero.facing < 0) { ctx.translate(hero.w, 0); ctx.scale(-1, 1); }
 
-      if (IMG.mario.ok) {
-        ctx.drawImage(IMG.mario, 0, 0, mario.w, mario.h);
+      if (IMG.hero.ok) {
+        ctx.drawImage(IMG.hero, 0, 0, hero.w, hero.h);
       } else {
-        ctx.scale(MARIO_SCALE, MARIO_SCALE);   // vẽ hình pixel gốc 32x44 rồi phóng to
-        const mx = 0, my = 0;
-        const legOffset = (keys.left || keys.right) && !mario.isJumping ? Math.round(Math.sin(mario.legSwing) * 2) : 0;
-        ctx.fillStyle = "#8b4513";
-        ctx.fillRect(mx + 4, my + 38 + legOffset, 10, 6);
-        ctx.fillRect(mx + 18, my + 38 - legOffset, 10, 6);
-        ctx.fillStyle = "#0000ff";
-        ctx.fillRect(mx + 6, my + 26, 20, 14);
-        ctx.fillStyle = "#f8b800";
-        ctx.fillRect(mx + 7, my + 28, 4, 4);
-        ctx.fillRect(mx + 21, my + 28, 4, 4);
-        ctx.fillStyle = "#e52521";
-        ctx.fillRect(mx + 4, my + 14, 24, 14);
-        ctx.fillStyle = "#f8b4a2";
-        ctx.fillRect(mx + 10, my + 8, 18, 10);
-        ctx.fillStyle = "#000000";
-        ctx.fillRect(mx + 20, my + 10, 4, 4);
-        ctx.fillStyle = "#8b4513";
-        ctx.fillRect(mx + 16, my + 14, 12, 4);
-        ctx.fillStyle = "#e52521";
-        ctx.fillRect(mx + 6, my + 2, 22, 8);
-        ctx.fillRect(mx + 12, my - 2, 16, 4);
+        ctx.scale(HERO_SCALE, HERO_SCALE);   // vẽ hình pixel gốc 32x44 rồi phóng to
+        const legOffset = (keys.left || keys.right) && !hero.isJumping ? Math.round(Math.sin(hero.legSwing) * 2) : 0;
+        // ba lô oxy (sau lưng)
+        ctx.fillStyle = "#f97316"; ctx.fillRect(1, 17, 7, 15);
+        ctx.fillStyle = "#c2410c"; ctx.fillRect(1, 17, 7, 3);
+        // chân + ủng xám
+        ctx.fillStyle = "#e2e8f0";
+        ctx.fillRect(8, 33 + legOffset, 7, 7);
+        ctx.fillRect(18, 33 - legOffset, 7, 7);
+        ctx.fillStyle = "#64748b";
+        ctx.fillRect(7, 39 + legOffset, 9, 5);
+        ctx.fillRect(17, 39 - legOffset, 9, 5);
+        // thân áo trắng
+        ctx.fillStyle = "#f8fafc"; ctx.fillRect(7, 17, 20, 17);
+        ctx.fillStyle = "#cbd5e1"; ctx.fillRect(7, 31, 20, 3);
+        // bảng điều khiển trước ngực
+        ctx.fillStyle = "#1e293b"; ctx.fillRect(13, 21, 9, 6);
+        ctx.fillStyle = "#22d3ee"; ctx.fillRect(14, 22, 2, 2);
+        ctx.fillStyle = "#facc15"; ctx.fillRect(17, 22, 2, 2);
+        ctx.fillStyle = "#4ade80"; ctx.fillRect(20, 22, 1, 2);
+        // tay
+        ctx.fillStyle = "#e2e8f0"; ctx.fillRect(25, 19, 5, 9);
+        ctx.fillStyle = "#64748b"; ctx.fillRect(25, 27, 5, 3);
+        // mũ bảo hiểm tròn
+        ctx.fillStyle = "#f8fafc";
+        ctx.beginPath(); ctx.arc(17, 10, 11, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1.5; ctx.stroke();
+        // kính mũ xanh neon + vệt sáng
+        ctx.fillStyle = "#06b6d4"; ctx.fillRect(15, 5, 12, 9);
+        ctx.fillStyle = "#67e8f9"; ctx.fillRect(16, 6, 4, 3);
+        ctx.strokeStyle = "#0e7490"; ctx.strokeRect(15, 5, 12, 9);
+        // ăng-ten nhỏ
+        ctx.fillStyle = "#94a3b8"; ctx.fillRect(10, -3, 2, 4);
+        ctx.fillStyle = "#facc15"; ctx.fillRect(9, -5, 4, 3);
       }
       ctx.restore();
     }
 
-    function drawMushroom(cx, bottom) {
-      // thân
-      ctx.fillStyle = "#fde7c8";
-      ctx.fillRect(cx - 11, bottom - 20, 22, 20);
-      ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.strokeRect(cx - 11, bottom - 20, 22, 20);
-      ctx.fillStyle = "#000";
-      ctx.fillRect(cx - 6, bottom - 15, 3, 7);
-      ctx.fillRect(cx + 3, bottom - 15, 3, 7);
-      // mũ đỏ chấm trắng
-      ctx.fillStyle = "#e52521";
-      ctx.beginPath(); ctx.arc(cx, bottom - 20, 22, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+    // Bình oxy: +1 mạng
+    function drawOxygen(cx, bottom) {
+      ctx.fillStyle = "#38bdf8";
+      ctx.fillRect(cx - 13, bottom - 34, 26, 34);
+      ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.strokeRect(cx - 13, bottom - 34, 26, 34);
+      ctx.fillStyle = "#e0f2fe"; ctx.fillRect(cx - 10, bottom - 30, 3, 24);
+      ctx.fillStyle = "#475569"; ctx.fillRect(cx - 5, bottom - 41, 10, 7);
+      ctx.strokeRect(cx - 5, bottom - 41, 10, 7);
       ctx.fillStyle = "#fff";
-      [[-11, -30, 5], [10, -31, 5], [0, -37, 4]].forEach(([dx, dy, r]) => {
-        ctx.beginPath(); ctx.arc(cx + dx, bottom + dy, r, 0, Math.PI * 2); ctx.fill();
-      });
+      ctx.font = "bold 11px 'Plus Jakarta Sans', sans-serif";
+      ctx.textAlign = "center"; ctx.fillText("O₂", cx + 2, bottom - 13); ctx.textAlign = "left";
     }
 
-    function drawBomb(cx, bottom, t) {
+    // Thiên thạch: -1 mạng
+    function drawMeteor(cx, bottom, t) {
       const cy = bottom - 20;
-      ctx.fillStyle = "#111827";
-      ctx.beginPath(); ctx.arc(cx, cy, 20, 0, Math.PI * 2); ctx.fill();
+      // đuôi lửa
+      ctx.fillStyle = t % 8 < 4 ? "rgba(250,204,21,0.8)" : "rgba(249,115,22,0.8)";
+      ctx.beginPath(); ctx.moveTo(cx + 10, cy - 14); ctx.lineTo(cx + 34, cy - 34); ctx.lineTo(cx + 18, cy + 4); ctx.closePath(); ctx.fill();
+      // khối đá
+      ctx.fillStyle = "#57534e";
+      ctx.beginPath();
+      ctx.moveTo(cx - 18, cy - 4); ctx.lineTo(cx - 8, cy - 19); ctx.lineTo(cx + 12, cy - 16);
+      ctx.lineTo(cx + 19, cy + 2); ctx.lineTo(cx + 6, cy + 18); ctx.lineTo(cx - 13, cy + 14);
+      ctx.closePath(); ctx.fill();
       ctx.strokeStyle = "#f87171"; ctx.lineWidth = 2; ctx.stroke();
-      ctx.fillStyle = "rgba(255,255,255,0.35)";
-      ctx.beginPath(); ctx.arc(cx - 7, cy - 7, 6, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#6b7280"; ctx.fillRect(cx - 5, cy - 26, 10, 7);
-      ctx.strokeStyle = "#a16207"; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(cx, cy - 26); ctx.quadraticCurveTo(cx + 8, cy - 36, cx + 14, cy - 32); ctx.stroke();
-      ctx.fillStyle = t % 8 < 4 ? "#facc15" : "#f97316";   // tia lửa nhấp nháy
-      ctx.beginPath(); ctx.arc(cx + 15, cy - 33, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#292524";
+      [[-6, -4, 5], [7, 6, 4], [5, -9, 3]].forEach(([dx, dy, r]) => {
+        ctx.beginPath(); ctx.arc(cx + dx, cy + dy, r, 0, Math.PI * 2); ctx.fill();
+      });
     }
 
     function drawPopItem(p) {
       const bottom = p.baseY - p.rise + BOX_SIZE * 0.2;
       ctx.save();
       ctx.globalAlpha = Math.min(1, p.life / 20);
-      if (p.kind === 'mushroom') drawMushroom(p.x, bottom);
-      else if (p.kind === 'bomb') drawBomb(p.x, bottom, p.life);
+      if (p.kind === 'oxygen') drawOxygen(p.x, bottom);
+      else if (p.kind === 'meteor') drawMeteor(p.x, bottom, p.life);
       ctx.restore();
     }
 
@@ -1503,39 +1524,74 @@ MARIO_GAME_HTML = """
       ctx.restore();
     }
 
+    // Bề mặt hành tinh: đá tím xám có miệng hố nhỏ, hố đen là khoảng trống
     function drawGround() {
-      ctx.fillStyle = "#c84c0c";
-      ctx.strokeStyle = "#000"; ctx.lineWidth = 3;
       const segments = [];
       let lastX = 0;
       groundPits.forEach(pit => { segments.push([lastX, pit.start]); lastX = pit.start + pit.width; });
       segments.push([lastX, WORLD_W]);
       segments.forEach(([a, b]) => {
+        ctx.fillStyle = "#4c4566";
         ctx.fillRect(a, GROUND_TOP, b - a, canvas.height - GROUND_TOP);
-        for (let gx = a; gx < b; gx += 32) ctx.strokeRect(gx, GROUND_TOP, Math.min(32, b - gx), canvas.height - GROUND_TOP);
+        ctx.fillStyle = "#a78bfa";
+        ctx.fillRect(a, GROUND_TOP, b - a, 5);          // viền sáng trên mặt đất
+        ctx.fillStyle = "#3b3552";
+        for (let gx = a + 30; gx < b - 30; gx += 140) {   // miệng hố thiên thạch
+          ctx.beginPath(); ctx.ellipse(gx, GROUND_TOP + 34, 22, 7, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(gx + 70, GROUND_TOP + 72, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
+        }
+      });
+      // hố đen: viền phát sáng tím
+      groundPits.forEach(pit => {
+        const g = ctx.createLinearGradient(0, GROUND_TOP, 0, canvas.height);
+        g.addColorStop(0, "#000"); g.addColorStop(1, "#1e0b3a");
+        ctx.fillStyle = g;
+        ctx.fillRect(pit.start, GROUND_TOP, pit.width, canvas.height - GROUND_TOP);
+        ctx.fillStyle = "#d946ef";
+        ctx.fillRect(pit.start - 3, GROUND_TOP, 3, canvas.height - GROUND_TOP);
+        ctx.fillRect(pit.start + pit.width, GROUND_TOP, 3, canvas.height - GROUND_TOP);
       });
     }
 
+    // Quái Thú Tứ Giác (nhân vật gốc): thân là tứ giác ABCD không đều, một mắt to, sừng ở các đỉnh
     function drawBoss() {
       const bx = BOSS_X, by = BOSS_Y;
       const shakeX = bossFlash > 0 ? (bossFlash % 4 < 2 ? -4 : 4) : 0;
+      const t = performance.now() / 300;
       if (IMG.boss.ok) {
         ctx.drawImage(IMG.boss, bx + shakeX, by, 90, 140);
       } else {
-        ctx.fillStyle = bossFlash > 0 && bossFlash % 4 < 2 ? "#ffffff" : "#15803d";
-        ctx.fillRect(bx + shakeX, by, 80, 80);
-        ctx.strokeStyle = "#000"; ctx.lineWidth = 3; ctx.strokeRect(bx + shakeX, by, 80, 80);
-        ctx.fillStyle = "#064e3b";
-        ctx.beginPath();
-        ctx.arc(bx + 45 + shakeX, by + 40, 40, 0, Math.PI * 2);
-        ctx.fill(); ctx.stroke();
-        ctx.fillStyle = "#facc15";
-        ctx.fillRect(bx + 10 + shakeX, by + 85, 60, 55);
-        ctx.strokeRect(bx + 10 + shakeX, by + 85, 60, 55);
+        const x = bx + shakeX, y = by + Math.sin(t) * 4;       // lơ lửng nhẹ
+        const P = { A: [x + 8, y + 22], B: [x + 92, y + 4], C: [x + 82, y + 132], D: [x - 4, y + 116] };
+        // sừng tam giác ở mỗi đỉnh
+        ctx.fillStyle = "#facc15"; ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
+        [["A", -10, -12], ["B", 12, -12], ["C", 12, 12], ["D", -12, 12]].forEach(([k, dx, dy]) => {
+          const [px, py] = P[k];
+          ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + dx, py + dy * 0.4); ctx.lineTo(px + dx * 0.4, py + dy); ctx.closePath();
+          ctx.fill(); ctx.stroke();
+        });
+        // thân tứ giác
+        ctx.fillStyle = bossFlash > 0 && bossFlash % 4 < 2 ? "#ffffff" : "#7c3aed";
+        ctx.beginPath(); ctx.moveTo(...P.A); ctx.lineTo(...P.B); ctx.lineTo(...P.C); ctx.lineTo(...P.D); ctx.closePath();
+        ctx.fill(); ctx.lineWidth = 3; ctx.stroke();
+        // hai đường chéo mờ
+        ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(...P.A); ctx.lineTo(...P.C); ctx.moveTo(...P.B); ctx.lineTo(...P.D); ctx.stroke();
+        // một mắt to
+        ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(x + 46, y + 52, 17, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = "#dc2626"; ctx.beginPath(); ctx.arc(x + 40, y + 54, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(x + 38, y + 54, 4, 0, Math.PI * 2); ctx.fill();
+        // miệng răng cưa
+        ctx.fillStyle = "#1e1b4b"; ctx.fillRect(x + 22, y + 86, 50, 14);
         ctx.fillStyle = "#fff";
-        ctx.fillRect(bx + 14 + shakeX, by + 22, 12, 12);
-        ctx.fillStyle = "#b91c1c";
-        ctx.fillRect(bx + 18 + shakeX, by + 26, 5, 5);
+        for (let i = 0; i < 5; i++) {
+          ctx.beginPath(); ctx.moveTo(x + 22 + i * 10, y + 86); ctx.lineTo(x + 27 + i * 10, y + 94); ctx.lineTo(x + 32 + i * 10, y + 86); ctx.fill();
+        }
+        // nhãn đỉnh A B C D
+        ctx.font = "bold 13px 'Plus Jakarta Sans', sans-serif"; ctx.fillStyle = "#fde047";
+        ctx.fillText("A", P.A[0] - 16, P.A[1] - 4); ctx.fillText("B", P.B[0] + 8, P.B[1] - 2);
+        ctx.fillText("C", P.C[0] + 8, P.C[1] + 12); ctx.fillText("D", P.D[0] - 16, P.D[1] + 14);
       }
       ctx.fillStyle = "#000";
       ctx.fillRect(bx - 10, by - 32, 100, 16);
@@ -1543,18 +1599,26 @@ MARIO_GAME_HTML = """
       const hpW = (gameState.bossHp / gameState.bossMaxHp) * 96;
       ctx.fillRect(bx - 8, by - 30, Math.max(0, hpW), 12);
       ctx.fillStyle = "#fff";
-      ctx.font = "8px 'Press Start 2P', monospace";
-      ctx.fillText("BOWSER", bx + 14, by - 38);
+      ctx.font = "800 13px 'Plus Jakarta Sans', sans-serif";
+      ctx.fillText("QUÁI THÚ TỨ GIÁC", bx - 14, by - 40);
     }
 
     function drawWorld() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const currentBg = !gameState.examData ? "#5c94fc"
-        : gameState.inBossFight ? "#2d0a1e"
+      const currentBg = !gameState.examData ? "#0b1026"
+        : gameState.inBossFight ? "#1a0420"
         : gameState.examData.stages[Math.min(gameState.currentStageIdx, 4)].bg;
       ctx.fillStyle = currentBg;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // sao lấp lánh, trôi chậm hơn mặt đất (hiệu ứng chiều sâu)
+      STARS.forEach(s => {
+        const sx = ((s.x - cameraX * s.depth) % canvas.width + canvas.width) % canvas.width;
+        ctx.globalAlpha = 0.5 + 0.5 * Math.abs(Math.sin(performance.now() / 600 + s.x));
+        ctx.fillStyle = s.c;
+        ctx.fillRect(sx, s.y, s.r, s.r);
+      });
+      ctx.globalAlpha = 1;
       if (IMG.background.ok && !gameState.inBossFight) {
         ctx.globalAlpha = 0.85;
         ctx.drawImage(IMG.background, 0, 0, canvas.width, canvas.height);
@@ -1565,47 +1629,51 @@ MARIO_GAME_HTML = """
       ctx.translate(-Math.round(cameraX), 0);
 
       if (!gameState.inBossFight) {
-        ctx.fillStyle = "rgba(0, 168, 0, 0.75)";
-        [ [200, 400, 90], [800, 400, 110], [1550, 400, 100], [2500, 400, 120] ].forEach(([hx, hy, hr]) => {
-          ctx.beginPath();
-          ctx.arc(hx, hy, hr, Math.PI, 0, false);
-          ctx.fill();
-          ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.stroke();
+        // Hành tinh phía xa
+        PLANETS.forEach(([px, py, pr, pc, ring]) => {
+          ctx.fillStyle = pc; ctx.globalAlpha = 0.85;
+          ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "rgba(0,0,0,0.25)";
+          ctx.beginPath(); ctx.arc(px + pr * 0.35, py + pr * 0.2, pr * 0.8, 0, Math.PI * 2); ctx.fill();
+          if (ring) {
+            ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.ellipse(px, py, pr * 1.6, pr * 0.35, -0.3, 0, Math.PI * 2); ctx.stroke();
+          }
+          ctx.globalAlpha = 1;
         });
 
-        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-        [ [300, 60, 1.2], [900, 45, 1.0], [1600, 70, 1.3], [2400, 50, 1.1] ].forEach(([cx, cy, sc]) => {
-          ctx.beginPath();
-          ctx.arc(cx, cy, 18 * sc, 0, Math.PI * 2);
-          ctx.arc(cx + 16, cy - 6, 22 * sc, 0, Math.PI * 2);
-          ctx.arc(cx + 36, cy, 18 * sc, 0, Math.PI * 2);
-          ctx.fill();
-        });
-
-        // Cờ đích cuối màn
-        ctx.fillStyle = "#e5e7eb"; ctx.fillRect(2975, 150, 6, 250);
-        ctx.fillStyle = "#22c55e";
-        ctx.beginPath(); ctx.moveTo(2981, 155); ctx.lineTo(3000, 170); ctx.lineTo(2981, 185); ctx.fill();
+        // Trạm vũ trụ đích cuối màn (cột ăng-ten + đèn hiệu)
+        ctx.fillStyle = "#94a3b8"; ctx.fillRect(2970, 230, 10, 170);
+        ctx.fillStyle = "#334155"; ctx.fillRect(2950, 380, 50, 20);
+        ctx.fillStyle = Math.floor(performance.now() / 400) % 2 ? "#22d3ee" : "#f0abfc";
+        ctx.beginPath(); ctx.arc(2975, 224, 9, 0, Math.PI * 2); ctx.fill();
 
         // Vật phẩm nhô lên (vẽ trước ô để trông như chui ra từ trong ô)
         popItems.forEach(drawPopItem);
 
-        mysteryBoxes.forEach(box => {
+        // Khối năng lượng toán học (mỗi khối một ký hiệu)
+        mysteryBoxes.forEach((box, i) => {
           const by = box.y - (box.bump > 0 ? Math.sin((box.bump / 8) * Math.PI) * 10 : 0);
           if (IMG.box.ok && box.active) {
             ctx.drawImage(IMG.box, box.x, by, BOX_SIZE, BOX_SIZE);
           } else {
-            ctx.fillStyle = box.active ? "#f8b800" : "#7c3f00";
+            const glow = box.active ? 0.5 + 0.5 * Math.sin(performance.now() / 250 + i) : 0;
+            if (box.active) { ctx.shadowColor = "#22d3ee"; ctx.shadowBlur = 8 + glow * 10; }
+            const g = ctx.createLinearGradient(box.x, by, box.x + BOX_SIZE, by + BOX_SIZE);
+            if (box.active) { g.addColorStop(0, "#6366f1"); g.addColorStop(1, "#06b6d4"); }
+            else { g.addColorStop(0, "#334155"); g.addColorStop(1, "#1e293b"); }
+            ctx.fillStyle = g;
             ctx.fillRect(box.x, by, BOX_SIZE, BOX_SIZE);
-            ctx.strokeStyle = "#000"; ctx.lineWidth = 3; ctx.strokeRect(box.x, by, BOX_SIZE, BOX_SIZE);
-            if (box.active) {
-              ctx.fillStyle = "#000";
-              [[5,5],[BOX_SIZE-9,5],[5,BOX_SIZE-9],[BOX_SIZE-9,BOX_SIZE-9]].forEach(([dx,dy]) => ctx.fillRect(box.x+dx, by+dy, 4, 4));
-            }
-            ctx.fillStyle = box.active ? "#000" : "#ffcc00";
-            ctx.font = "bold 24px 'Press Start 2P', monospace";
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = box.active ? "#a5f3fc" : "#475569"; ctx.lineWidth = 3;
+            ctx.strokeRect(box.x, by, BOX_SIZE, BOX_SIZE);
+            // mặt trên khối lập phương (giả 3D)
+            ctx.fillStyle = box.active ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.06)";
+            ctx.beginPath(); ctx.moveTo(box.x, by); ctx.lineTo(box.x + 8, by - 8); ctx.lineTo(box.x + BOX_SIZE + 8, by - 8); ctx.lineTo(box.x + BOX_SIZE, by); ctx.fill();
+            ctx.fillStyle = box.active ? "#fff" : "#4ade80";
+            ctx.font = "bold 22px 'Plus Jakarta Sans', sans-serif";
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText(box.active ? "?" : "✓", box.x + BOX_SIZE / 2 + 1, by + BOX_SIZE / 2 + 2);
+            ctx.fillText(box.active ? CUBE_SYMBOLS[i % CUBE_SYMBOLS.length] : "✓", box.x + BOX_SIZE / 2, by + BOX_SIZE / 2 + 1);
             ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
           }
         });
@@ -1613,25 +1681,28 @@ MARIO_GAME_HTML = """
         // Chữ thông báo (+1 MẠNG / -1 MẠNG) vẽ trên cùng
         popItems.forEach(drawPopLabel);
 
-        floatingCoins.forEach(fc => {
-          ctx.fillStyle = "#facc15";
-          ctx.beginPath();
-          ctx.arc(fc.x + 12, fc.y, 10, 0, Math.PI * 2);
+        floatingCoins.forEach(fc => {       // tinh thể năng lượng bay lên
+          const cx = fc.x + 12;
+          ctx.fillStyle = "#e879f9";
+          ctx.beginPath(); ctx.moveTo(cx, fc.y - 13); ctx.lineTo(cx + 10, fc.y); ctx.lineTo(cx, fc.y + 13); ctx.lineTo(cx - 10, fc.y); ctx.closePath();
           ctx.fill();
-          ctx.strokeStyle = "#78350f"; ctx.lineWidth = 2; ctx.stroke();
+          ctx.strokeStyle = "#701a75"; ctx.lineWidth = 2; ctx.stroke();
+          ctx.fillStyle = "rgba(255,255,255,0.6)"; ctx.fillRect(cx - 3, fc.y - 6, 3, 6);
         });
       }
 
       drawGround();
-      drawMario();
+      drawHero();
 
       if (gameState.inBossFight && !gameState.defeatedBoss) drawBoss();
 
-      if (fireball.active) {
-        ctx.fillStyle = "#f97316";
-        ctx.beginPath(); ctx.arc(fireball.x, fireball.y, 10, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#fde047";
-        ctx.beginPath(); ctx.arc(fireball.x, fireball.y, 5, 0, Math.PI * 2); ctx.fill();
+      if (laser.active) {
+        ctx.fillStyle = "rgba(34,211,238,0.45)";
+        ctx.fillRect(laser.x - 40, laser.y - 7, 50, 14);
+        ctx.fillStyle = "#a5f3fc";
+        ctx.fillRect(laser.x - 30, laser.y - 3, 40, 6);
+        ctx.fillStyle = "#fff";
+        ctx.beginPath(); ctx.arc(laser.x + 10, laser.y, 6, 0, Math.PI * 2); ctx.fill();
       }
 
       ctx.restore();
@@ -1660,11 +1731,11 @@ MARIO_GAME_HTML = """
       gameState.studentClass = sClass;
       gameState.examData = buildExam();
       initLevelBoxes();
-      resetMario(100);
+      resetHero(100);
       cameraX = 0;
 
       document.getElementById("login-modal").classList.add("hidden");
-      document.getElementById("hud-world").textContent = "1-1";
+      document.getElementById("hud-world").textContent = "P-1";
       document.getElementById("hud-quest").textContent = "0/5";
       updateHud();
       if (document.activeElement) document.activeElement.blur();
@@ -1712,7 +1783,7 @@ MARIO_GAME_HTML = """
         currentQ = list[gameState.bossQIdx % list.length];
         gameState.bossQIdx++;
         sndRoar();
-        badgeEl.textContent = `⚔️ ĐẠI CHIẾN BOWSER (HP: ${gameState.bossHp}/${gameState.bossMaxHp})`;
+        badgeEl.textContent = `⚔️ ĐẠI CHIẾN QUÁI THÚ TỨ GIÁC (HP: ${gameState.bossHp}/${gameState.bossMaxHp})`;
       }
 
       questionTextEl.textContent = currentQ.q;
@@ -1788,13 +1859,13 @@ MARIO_GAME_HTML = """
 
         if (gameState.inBossFight) {
           gameState.bossHp--;
-          fireball.active = true;
-          fireball.x = mario.x + 30;
-          fireball.y = mario.y + mario.h * 0.4;
-          fireball.vx = 9;
-        } else if (!mario.isJumping && !mario.falling) {
-          mario.isJumping = true;
-          mario.vy = -10;
+          laser.active = true;
+          laser.x = hero.x + 30;
+          laser.y = hero.y + hero.h * 0.4;
+          laser.vx = 9;
+        } else if (!hero.isJumping && !hero.falling) {
+          hero.isJumping = true;
+          hero.vy = -10;
         }
 
         setTimeout(() => { closeQuizModal(); advanceProgress(); }, 1100);
@@ -1826,7 +1897,7 @@ MARIO_GAME_HTML = """
       "Làm tốt lắm! Em đã thuộc lòng tính chất hai đường chéo của hình thang cân. Sang Ải 3 nào!",
       "Xuất sắc! Tính chất hai đường chéo cắt nhau tại trung điểm là chìa khóa vàng. Tiến lên Ải 4!",
       "Tuyệt vời! Em đã vận dụng thành thạo tính chất hình chữ nhật. Ải 5 đang chờ đón!",
-      "Hoàn thành 5 Ải! Hãy tập trung cao độ đánh bại Bowser để nhận +5 Điểm cộng nhé!"
+      "Hoàn thành 5 Ải! Hãy tập trung cao độ đánh bại Quái Thú Tứ Giác để nhận +5 Điểm cộng nhé!"
     ];
 
     function advanceProgress() {
@@ -1860,24 +1931,24 @@ MARIO_GAME_HTML = """
       stageClearModal.classList.add("hidden");
       gameState.currentStageIdx++;
       gameState.currentQuestionIdx = 0;
-      resetMario(100);
+      resetHero(100);
       cameraX = 0;
       document.getElementById("hud-quest").textContent = "0/5";
 
       if (gameState.currentStageIdx >= gameState.examData.stages.length) {
-        // Đấu trùm: không có hố, không có ô [?]
+        // Đấu trùm: không có hố, không có khối năng lượng
         gameState.inBossFight = true;
         groundPits = [];
         mysteryBoxes = [];
         floatingCoins = [];
-        resetMario(1000);
+        resetHero(1000);
         cameraX = 900;
         document.getElementById("hud-world").textContent = "BOSS";
         document.getElementById("hud-quest").textContent = "BOSS";
         sndRoar();
         setTimeout(() => openNextQuestion(), 800);
       } else {
-        document.getElementById("hud-world").textContent = `1-${gameState.currentStageIdx + 1}`;
+        document.getElementById("hud-world").textContent = `P-${gameState.currentStageIdx + 1}`;
         initLevelBoxes();
         gameState.isPaused = false;
       }
@@ -1902,12 +1973,12 @@ MARIO_GAME_HTML = """
       if (isVictory) {
         document.getElementById("summary-badge-icon").textContent = "👑";
         document.getElementById("summary-title").textContent = "CHIẾN THẮNG TUYỆT ĐỐI!";
-        subtitle.textContent = "Đã xuất sắc vượt qua 5 Ải & Hạ gục Bowser";
+        subtitle.textContent = "Đã xuất sắc vượt qua 5 Ải & Hạ gục Quái Thú Tứ Giác";
         subtitle.className = "text-[11px] text-emerald-400 font-semibold";
         document.getElementById("sum-bonus").textContent = "+5 ĐIỂM CỘNG";
-        document.getElementById("summary-teacher-note").innerHTML = '🎉 <b>Lời khen từ Cô Mai Phương:</b> Em đã xuất sắc hạ gục Bowser! Cô cộng <b>+5 điểm thực tế</b> vào sổ điểm cho em!';
+        document.getElementById("summary-teacher-note").innerHTML = '🎉 <b>Lời khen từ Cô Mai Phương:</b> Em đã xuất sắc hạ gục Quái Thú Tứ Giác! Cô cộng <b>+5 điểm thực tế</b> vào sổ điểm cho em!';
       } else {
-        const reached = gameState.inBossFight ? "trận đấu Bowser" : "Màn " + (gameState.currentStageIdx + 1);
+        const reached = gameState.inBossFight ? "trận đấu Quái Thú Tứ Giác" : "Màn " + (gameState.currentStageIdx + 1);
         document.getElementById("summary-badge-icon").textContent = "🛡️";
         document.getElementById("summary-title").textContent = "DỪNG BƯỚC THỬ THÁCH";
         subtitle.textContent = "Em đã dừng lại ở " + reached;
@@ -1924,8 +1995,8 @@ MARIO_GAME_HTML = """
         name: gameState.studentName,
         student_class: gameState.studentClass,
         score: gameState.score,
-        topic: "Minigame Tứ Giác (Bowser)",
-        feedback: isVictory ? "Hạ gục Bowser (+5đ)" : ("Chưa diệt Bowser - dừng ở " + (gameState.inBossFight ? "BOSS" : "Màn " + (gameState.currentStageIdx + 1)))
+        topic: "Minigame Tứ Giác (Vượt Ải Không Gian)",
+        feedback: isVictory ? "Hạ gục Quái Thú Tứ Giác (+5đ)" : ("Chưa hạ Quái Thú - dừng ở " + (gameState.inBossFight ? "BOSS" : "Màn " + (gameState.currentStageIdx + 1)))
       };
 
       gameState.lastPayload = payload;
@@ -1973,11 +2044,11 @@ MARIO_GAME_HTML = """
 
 
 with tab3:
-    st.subheader("🍄 Super Mario Math: Cùng cô Mai Phương diệt Bowser")
-    st.caption("Hãy cẩn thận với những ô bí mật và hố boom nha!")
+    st.subheader("🚀 Phi Hành Gia Toán Học: Vượt Ải Không Gian")
+    st.caption("Cùng cô Mai Phương chinh phục Quái Thú Tứ Giác! Cẩn thận với khối năng lượng bí ẩn và hố đen vũ trụ nha!")
 
     sheet_webhook = get_secret("GOOGLE_SHEET_WEBHOOK_URL", DEFAULT_WEBHOOK) or DEFAULT_WEBHOOK
-    game_html = MARIO_GAME_HTML.replace('"WEBHOOK_URL_PLACEHOLDER"', json.dumps(sheet_webhook))
+    game_html = SPACE_GAME_HTML.replace('"WEBHOOK_URL_PLACEHOLDER"', json.dumps(sheet_webhook))
     components.html(game_html, height=780, scrolling=True)
 
 # ================= TAB 4: BẢNG ĐIỂM LỚP =================
@@ -1992,7 +2063,7 @@ with tab4:
     if teacher_password:
         if hmac.compare_digest(teacher_password.encode(), str(ADMIN_PASS).encode()):
             st.success("🔓 Xác thực trạm thành công! Chào cô Mai Phương.")
-            st.caption("Bảng dưới gồm bài nộp ở Tab 2 kể từ lần khởi động app gần nhất. Điểm game Bowser và bản lưu lâu dài nằm trong Google Sheets.")
+            st.caption("Bảng dưới gồm bài nộp ở Tab 2 kể từ lần khởi động app gần nhất. Điểm game Vượt Ải Không Gian và bản lưu lâu dài nằm trong Google Sheets.")
 
             if len(submission_history) == 0:
                 st.info("Chưa có phi hành gia nào truyền bài nộp kể từ khi app khởi động.")
