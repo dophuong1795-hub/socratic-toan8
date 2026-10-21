@@ -1,9 +1,9 @@
-import streamlit as str_module
 import streamlit as st
 import streamlit.components.v1 as components
 from google import genai
 from google.genai import types
 from PIL import Image
+import hmac
 import json
 import random
 import re
@@ -26,7 +26,7 @@ st.markdown("""
 
     /* NỀN TOÀN TRANG: Đẩy hẳn hình ảnh sang bên trái màn hình */
     .stApp {
-        background: linear-gradient(rgba(11, 15, 25, 0.2), rgba(11, 15, 25, 0.35)), 
+        background: linear-gradient(rgba(11, 15, 25, 0.2), rgba(11, 15, 25, 0.35)),
                     url('https://raw.githubusercontent.com/dophuong1795-hub/socratic-toan8/main/teacher_bg.jpg.jpg');
         background-size: cover;
         background-position: left center; /* Đẩy hẳn hình sang trái */
@@ -34,7 +34,7 @@ st.markdown("""
         font-family: 'Plus Jakarta Sans', sans-serif;
         color: #ffffff;
     }
-    
+
     /* KHUNG NỘI DUNG CHÍNH: Kính mờ cao cấp */
     .block-container {
         padding-top: 1.5rem !important;
@@ -51,14 +51,14 @@ st.markdown("""
     }
 
     /* Ô NHẬP LIỆU VÀ SELECTBOX TỐI MÀU DỄ ĐỌC */
-    input[type="text"], .stSelectbox [data-baseweb="select"] > div {
+    input[type="text"], input[type="password"], .stSelectbox [data-baseweb="select"] > div {
         background-color: rgba(30, 41, 59, 0.95) !important;
         color: #ffffff !important;
         border: 1px solid rgba(56, 189, 248, 0.5) !important;
         border-radius: 12px !important;
     }
-    
-    .stSelectbox span, input[type="text"] {
+
+    .stSelectbox span, input[type="text"], input[type="password"] {
         color: #ffffff !important;
     }
 
@@ -69,7 +69,7 @@ st.markdown("""
         border-radius: 16px;
         padding: 15px;
     }
-    
+
     [data-testid="stFileUploader"] small, [data-testid="stFileUploader"] span {
         color: #cbd5e1 !important;
     }
@@ -132,7 +132,7 @@ st.markdown("""
         margin-bottom: 14px;
         border: 1px solid rgba(56, 189, 248, 0.7);
     }
-    
+
     /* NÚT BẤM CHÍNH */
     div[data-testid="stButton"] button {
         border-radius: 14px !important;
@@ -156,7 +156,7 @@ st.markdown("""
         color: white !important;
         border: 1px solid rgba(255,255,255,0.6) !important;
     }
-    
+
     .reward-box {
         background: rgba(6, 78, 59, 0.85);
         border: 2px solid rgba(52, 211, 153, 0.8);
@@ -164,17 +164,7 @@ st.markdown("""
         padding: 20px;
         margin-top: 18px;
     }
-    .geogebra-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        background: rgba(15, 23, 42, 0.9);
-        border: 2px solid rgba(56, 189, 248, 0.7);
-        border-radius: 16px;
-        padding: 12px;
-        margin: 18px 0;
-    }
-    
+
     /* TAB MENU */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
@@ -197,22 +187,74 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.8) !important;
         box-shadow: 0 0 20px rgba(236, 72, 153, 0.6);
     }
-    
+
     label, .stRadio label, .stTextInput label, .stSelectbox label, p, span {
         color: #f8fafc !important;
         font-weight: 600 !important;
     }
+
+    /* ===== ẨN MENU, FOOTER, THANH CÔNG CỤ VÀ BIỂU TƯỢNG GITHUB ===== */
+    #MainMenu,
+    footer,
+    header[data-testid="stHeader"],
+    [data-testid="stToolbar"],
+    [data-testid="stToolbarActions"],
+    [data-testid="stDecoration"],
+    [data-testid="stStatusWidget"],
+    [data-testid="stAppDeployButton"],
+    [data-testid="manage-app-button"],
+    .stDeployButton,
+    .stAppDeployButton,
+    [class*="viewerBadge"],
+    [class*="profileContainer"],
+    a[href*="github.com"],
+    a[href*="streamlit.io/cloud"] {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
-# Lấy Gemini API Key
-API_KEY = st.secrets.get("GEMINI_API_KEY")
-if not API_KEY:
-    st.error("Chưa cấu hình biến GEMINI_API_KEY trong Secrets của Streamlit!")
-    st.stop()
 
-# Khởi tạo Gemini Client
-client = genai.Client(api_key=API_KEY)
-MODEL_NAME = "gemini-3.8-flash"
+
+# ================= ĐỌC SECRETS AN TOÀN =================
+def get_secret(key, default=None):
+    """Đọc st.secrets; không bị lỗi khi chưa có file secrets.toml."""
+    try:
+        return st.secrets.get(key, default)
+    except Exception:
+        return default
+
+
+def to_int(value, default):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+# Lấy Gemini API Key. Thiếu key thì chỉ tắt phần AI (tab 1, 2); game và sổ điểm vẫn dùng được.
+API_KEY = get_secret("GEMINI_API_KEY")
+MODEL_NAME = get_secret("GEMINI_MODEL", "gemini-3.8-flash")
+
+
+@st.cache_resource
+def get_gemini_client(api_key):
+    return genai.Client(api_key=api_key)
+
+
+client = get_gemini_client(API_KEY) if API_KEY else None
+
+
+# Sổ điểm dùng chung cho mọi học sinh đang mở app (session_state chỉ riêng từng người,
+# nên trước đây cô mở tab Bảng điểm sẽ không thấy bài của học sinh nào).
+# Lưu ý: danh sách này mất khi app khởi động lại; bản lưu lâu dài là Google Sheets.
+@st.cache_resource
+def get_shared_history():
+    return []
+
+
+submission_history = get_shared_history()
 
 # ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC TOÁN 8 =================
 def format_math(text: str) -> str:
@@ -223,26 +265,30 @@ def format_math(text: str) -> str:
     text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
     text = text.replace("$", "")
 
+    # (?![a-zA-Z]) để \left không bị hiểu là \le, \int/\infty không bị hiểu là \in ...
+    text = re.sub(r"\\text\{([^{}]*)\}", r"\1", text)
+    text = re.sub(r"\\(?:left|right)(?![a-zA-Z])", "", text)
     text = re.sub(r"\\(?:widehat|hat)\s*[\{\[]\s*([A-Za-z0-9]{1,3})\s*[\}\]]", r"∠\1", text)
     text = re.sub(r"\\(?:angle)\s+([A-Za-z0-9]{1,3})\b", r"∠\1", text)
     text = re.sub(r"\\(?:Delta|triangle)\s*([A-Za-z]{3})", r"Δ \1", text)
     text = re.sub(r"Δ([A-Za-z]{3})", r"Δ \1", text)
-    
-    text = re.sub(r"\\perp|£", " ⊥ ", text)
-    text = re.sub(r"\\parallel", " // ", text)
-    text = re.sub(r"\\in", " ∈ ", text)
-    text = re.sub(r"\\notin", " ∉ ", text)
+
+    text = re.sub(r"\\perp(?![a-zA-Z])|£", " ⊥ ", text)
+    text = re.sub(r"\\parallel(?![a-zA-Z])", " // ", text)
+    text = re.sub(r"\\notin(?![a-zA-Z])", " ∉ ", text)
+    text = re.sub(r"\\in(?![a-zA-Z])", " ∈ ", text)
     text = re.sub(r"\^?\\circ", "°", text)
     text = re.sub(r"\\degree", "°", text)
     text = text.replace("°°", "°")
 
-    text = re.sub(r"\\(?:Leftrightarrow|iff)|<=>", " ⇔ ", text)
-    text = re.sub(r"\\(?:Rightarrow|implies)|=>", " ⇒ ", text)
-    text = re.sub(r"\\le(?:q)?|<=|≤", " ≤ ", text)
-    text = re.sub(r"\\ge(?:q)?|>=|≥", " ≥ ", text)
-    text = re.sub(r"\\ne(?:q)?|!=|≠", " ≠ ", text)
-    text = re.sub(r"\\pm|±", " ± ", text)
-    text = re.sub(r"\\times|\\cdot|\*", " · ", text)
+    text = re.sub(r"\\(?:Leftrightarrow|iff)(?![a-zA-Z])|<=>", " ⇔ ", text)
+    text = re.sub(r"\\(?:Rightarrow|implies)(?![a-zA-Z])|=>", " ⇒ ", text)
+    text = re.sub(r"\\leq?(?![a-zA-Z])|<=|≤", " ≤ ", text)
+    text = re.sub(r"\\geq?(?![a-zA-Z])|>=|≥", " ≥ ", text)
+    text = re.sub(r"\\neq?(?![a-zA-Z])|!=|≠", " ≠ ", text)
+    text = re.sub(r"\\pm(?![a-zA-Z])|±", " ± ", text)
+    # Chỉ đổi dấu * nằm giữa hai số/chữ (2*3) – không phá chữ in đậm **...** của Markdown
+    text = re.sub(r"\\times|\\cdot|(?<=[\w\)\]])\s*\*\s*(?=[\w\(\[])", " · ", text)
 
     text = re.sub(r"\\sqrt\[3\]\{([^{}]+)\}", r"∛(\1)", text)
     text = re.sub(r"\\sqrt\{([^{}]+)\}", r"√(\1)", text)
@@ -255,7 +301,7 @@ def format_math(text: str) -> str:
 
     text = re.sub(r"\^([0-9n]+)|\^\(([^)]+)\)|\^\{([^}]+)\}", replace_power, text)
     text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1 / \2)", text)
-    
+
     text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
 
@@ -265,7 +311,7 @@ def format_solution_step_by_step(raw_text: str) -> str:
     text = raw_text.replace("Lời giải chi tiết:", "").replace("Bài giải chi tiết:", "").strip()
     text = re.sub(r"(?m)^\s*([a-d]\))\s*", r"\n\n### **\1** ", text)
     text = re.sub(r"(?m)^\s*(Câu\s+\d+[\:\.]?)\s*", r"\n\n### **\1** ", text)
-    
+
     super_digits = {"0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "n": "ⁿ"}
     text = re.sub(r"\^([0-9n]+)|\^\(([^)]+)\)|\^\{([^}]+)\}", lambda m: "".join(super_digits.get(c, c) for c in (m.group(1) or m.group(2) or m.group(3))), text)
 
@@ -275,7 +321,7 @@ def format_solution_step_by_step(raw_text: str) -> str:
     text = re.sub(r"(?<=\.)\s*-\s*", r"\n- ", text)
     text = re.sub(r"\s*(?:=>|⇒|\\Rightarrow)\s*", r"\n  - ⇒ ", text)
     text = re.sub(r"\s*(?:<=>|⇔|\\Leftrightarrow)\s*", r"\n  - ⇔ ", text)
-    
+
     lines = text.split("\n")
     cleaned_lines = []
     for line in lines:
@@ -294,6 +340,7 @@ QUY TẮC BẮT BUỘC TUÂN THỦ VỀ KIẾN THỨC TOÁN 8:
 3. ĐỐI VỚI is_finished = true:
    - full_solution: Bài giải chi tiết chuẩn mực đúng tiến độ SGK 8.
    - ggb_commands: Mảng các chuỗi lệnh GeoGebra (tiếng Anh) để tự động dựng hình chính xác đúng với đề bài trong ảnh (Ví dụ: ["A = (0, 4)", "B = (-3, 0)", "C = (3, 0)", "Polygon(A, B, C)", "H = (0, 1)"]).
+4. KHÔNG dùng LaTeX (không viết \\frac, \\sqrt, $...$). Viết ký hiệu Unicode: ∠A, Δ ABC, √, ², ⊥, //, °.
 
 TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
 {
@@ -315,13 +362,25 @@ TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
 }
 """
 
+# Lệnh LaTeX hay gặp trong JSON của AI. Trong JSON, "\frac" bị hiểu thành ký tự form-feed + "rac",
+# "\times" thành tab + "imes"... nên phải nhân đôi dấu \ trước khi json.loads.
+LATEX_IN_JSON = re.compile(
+    r"(?<!\\)\\(?=(?:dfrac|frac|sqrt|times|cdot|circ|degree|angle|widehat|hat|triangle|Delta|perp|parallel"
+    r"|leq|le|geq|ge|neq|ne|pm|notin|in|Rightarrow|Leftrightarrow|rightarrow|leftrightarrow|implies|iff"
+    r"|left|right|text|alpha|beta|pi|infty)(?![a-zA-Z]))"
+)
+
+
 def execute_gemini_request(inputs, system_prompt=None, is_json=False):
+    if client is None:
+        raise Exception("Chưa cấu hình GEMINI_API_KEY trong Secrets của Streamlit!")
+
     config_params = {}
     if system_prompt:
         config_params["system_instruction"] = system_prompt
     if is_json:
         config_params["response_mime_type"] = "application/json"
-    
+
     config = types.GenerateContentConfig(**config_params) if config_params else None
 
     prepared_contents = []
@@ -350,15 +409,19 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
         clean_text = re.sub(r"^```(?:json)?\s*|```$", "", text_out.strip(), flags=re.MULTILINE)
         match = re.search(r"\{[\s\S]*\}", clean_text)
         target_str = match.group(0) if match else clean_text
+        target_str = LATEX_IN_JSON.sub(r"\\\\", target_str)
         try:
             data = json.loads(target_str, strict=False)
         except Exception:
             fixed_str = re.sub(r'\\(?![/"\\bfnrtu])', r'\\\\', target_str)
             data = json.loads(fixed_str, strict=False)
-        
+
+        if not isinstance(data, dict):
+            raise Exception("AI trả về sai định dạng, vui lòng thử lại!")
+
         if "options" in data and isinstance(data["options"], list) and len(data["options"]) > 1:
             opts = data["options"]
-            corr_idx = data.get("correct_index", 0)
+            corr_idx = to_int(data.get("correct_index", 0), 0)
             if 0 <= corr_idx < len(opts):
                 indexed_opts = list(enumerate(opts))
                 random.shuffle(indexed_opts)
@@ -375,9 +438,6 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
 
     return text_out
 
-if "submission_history" not in st.session_state:
-    st.session_state.submission_history = []
-
 # ================= BANNER VŨ TRỤ =================
 st.markdown("""
 <div class="hero-banner">
@@ -386,9 +446,12 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+if client is None:
+    st.error("Chưa cấu hình biến GEMINI_API_KEY trong Secrets của Streamlit! Tab 1 và Tab 2 tạm thời không dùng được; game Bowser vẫn chơi bình thường.")
+
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🪐 Thử Thách Tương Tác", 
-    "📝 Nộp Bài Tập", 
+    "🪐 Thử Thách Tương Tác",
+    "📝 Nộp Bài Tập",
     "👾 Đại Chiến Bowser",
     "📊 Bảng Điểm Lớp"
 ])
@@ -407,6 +470,8 @@ with tab1:
         st.session_state.selected_idx = None
     if "img_data" not in st.session_state:
         st.session_state.img_data = None
+    if "img_id" not in st.session_state:
+        st.session_state.img_id = None
     if "reward" not in st.session_state:
         st.session_state.reward = None
     if "reward_ggb" not in st.session_state:
@@ -415,8 +480,18 @@ with tab1:
     with st.expander("📸 Trạm quét ảnh bài toán (Số học, Đại số hoặc Hình học)", expanded=(st.session_state.card is None)):
         up_game_img = st.file_uploader("Tải/chụp ảnh bài toán:", type=["jpg", "png", "jpeg"], key="up_game_img")
         math_mode = st.radio("Phân loại hệ thống:", ["Tự động nhận diện", "Toán Số (Đại số)", "Toán Hình (Hình học)"], horizontal=True)
-        
+
         if up_game_img:
+            new_id = getattr(up_game_img, "file_id", f"{up_game_img.name}-{up_game_img.size}")
+            if new_id != st.session_state.img_id:
+                # Học sinh đổi sang ảnh bài khác -> bỏ thử thách của ảnh cũ
+                st.session_state.img_id = new_id
+                st.session_state.card = None
+                st.session_state.step = 1
+                st.session_state.answered = False
+                st.session_state.selected_idx = None
+                st.session_state.reward = None
+                st.session_state.reward_ggb = None
             st.session_state.img_data = Image.open(up_game_img)
             st.image(st.session_state.img_data, caption="Ảnh đề bài đang xử lý", use_container_width=True)
 
@@ -427,7 +502,7 @@ with tab1:
                         p_start = f"Tạo câu hỏi thử thách Bước 1 ngắn gọn. Phân loại yêu cầu: {math_mode}. TUYỆT ĐỐI KHÔNG dùng đường tròn."
                         c_data = execute_gemini_request([st.session_state.img_data, p_start], GAME_PROMPT, is_json=True)
                         st.session_state.card = c_data
-                        st.session_state.total_steps = c_data.get("total_steps", 3)
+                        st.session_state.total_steps = max(1, to_int(c_data.get("total_steps", 3), 3))
                         st.session_state.step = 1
                         st.session_state.answered = False
                         st.session_state.reward = None
@@ -445,7 +520,7 @@ with tab1:
 
         badge_type = "ĐẠI SỐ" if card.get("subject_type") == "algebra" else "HÌNH HỌC"
         st.markdown(f'<span class="step-badge">[{badge_type}] TRẠM KHÔNG GIAN: BƯỚC {curr} / {total}</span>', unsafe_allow_html=True)
-        
+
         fb = format_math(card.get("feedback", ""))
         if fb:
             st.info(f"💡 {fb}")
@@ -454,12 +529,16 @@ with tab1:
         st.write("")
 
         opts = card.get("options", [])
-        correct = card.get("correct_index", 0)
+        if not isinstance(opts, list):
+            opts = []
+        correct = to_int(card.get("correct_index", 0), 0)
+        if not 0 <= correct < max(len(opts), 1):
+            correct = 0
 
         if not st.session_state.answered:
             st.markdown("**👉 Phi hành gia hãy chọn một tọa độ đáp án đúng nhất:**")
             for idx, opt in enumerate(opts):
-                clean_opt = format_math(opt)
+                clean_opt = format_math(str(opt))
                 clean_opt = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", clean_opt)
                 label = f"{chr(65+idx)}. {clean_opt}"
                 if st.button(label, key=f"btn_choice_{idx}", use_container_width=True):
@@ -468,10 +547,10 @@ with tab1:
                     st.rerun()
         else:
             sel = st.session_state.selected_idx
-            sel_text = format_math(opts[sel]) if (sel is not None and sel < len(opts)) else ""
+            sel_text = format_math(str(opts[sel])) if (sel is not None and sel < len(opts)) else ""
             sel_text = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", sel_text)
 
-            correct_text = format_math(opts[correct]) if correct < len(opts) else ""
+            correct_text = format_math(str(opts[correct])) if correct < len(opts) else ""
             correct_text = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", correct_text)
 
             if sel == correct:
@@ -482,29 +561,30 @@ with tab1:
 
             st.markdown(f"**💡 Trạm phân tích:** {format_math(card.get('explanation', ''))}")
 
-            is_finish = card.get("is_finished") or (curr >= total)
+            is_finish = card.get("is_finished") is True or (curr >= total)
 
             if is_finish:
                 st.balloons()
                 st.success("🏆 **HOÀN THÀNH XUẤT SẮC! Chinh phục trọn vẹn hành tinh toán học!**")
 
-                if not st.session_state.reward:
+                # Chỉ gọi AI 1 lần (trước đây lời giải rỗng sẽ gọi lại AI ở mỗi lần trang tải lại)
+                if st.session_state.reward is None:
                     sol = card.get("full_solution", "")
                     ggb_cmds = card.get("ggb_commands", [])
                     if (not sol or not ggb_cmds) and st.session_state.img_data:
                         with st.spinner("Đang mở khóa kho báu lời giải và trạm hình học GeoGebra không gian..."):
-                            p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh đúng chuẩn kiến thức SGK Toán 8 (Kết nối tri thức). 
-                            TUYỆT ĐỐI KHÔNG dùng kiến thức đường tròn.
+                            p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh đúng chuẩn kiến thức SGK Toán 8 (Kết nối tri thức).
+                            TUYỆT ĐỐI KHÔNG dùng kiến thức đường tròn. KHÔNG dùng LaTeX, viết ký hiệu Unicode.
                             Nếu là Toán Hình: BẮT BUỘC sinh mảng ggb_commands chứa các lệnh GeoGebra tiếng Anh để dựng đúng hình của đề bài.
                             Trả về JSON: {"full_solution": "...", "ggb_commands": ["..."]}"""
                             try:
                                 res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
-                                sol = res_final.get("full_solution", "")
-                                ggb_cmds = res_final.get("ggb_commands", [])
-                            except Exception as e:
-                                sol = "Đã xảy ra lỗi khi tạo lời giải chi tiết."
-                    st.session_state.reward = sol
-                    st.session_state.reward_ggb = ggb_cmds
+                                sol = res_final.get("full_solution", "") or sol
+                                ggb_cmds = res_final.get("ggb_commands", []) or ggb_cmds
+                            except Exception:
+                                sol = sol or "Đã xảy ra lỗi khi tạo lời giải chi tiết."
+                    st.session_state.reward = str(sol or "")
+                    st.session_state.reward_ggb = [str(c) for c in ggb_cmds] if isinstance(ggb_cmds, list) else []
 
                 st.markdown("""
                 <div class="reward-box">
@@ -516,15 +596,15 @@ with tab1:
                 if card.get("subject_type") == "geometry":
                     st.markdown("#### 📐 Trạm Hình học không gian động GeoGebra:")
                     cmds = st.session_state.reward_ggb or ["A = (0, 4)", "B = (-3, 0)", "C = (3, 0)", "Polygon(A, B, C)"]
-                    commands_js = "".join([f'try {{ api.evalCommand("{cmd}"); }} catch(e) {{}} \n' for cmd in cmds])
+                    # json.dumps để lệnh có dấu " hoặc \ không làm hỏng mã JavaScript
+                    commands_js = "".join(f"try {{ api.evalCommand({json.dumps(cmd)}); }} catch(e) {{}}\n" for cmd in cmds)
 
                     geogebra_html = f"""
-                    <div class="geogebra-container">
+                    <div style="display:flex;justify-content:center;align-items:center;background:#0f172a;border:2px solid rgba(56,189,248,0.7);border-radius:16px;padding:12px;">
                         <script src="https://www.geogebra.org/apps/deployggb.js"></script>
                         <div id="ggb-element"></div>
                         <script>
                         var ggbApp = new GGBApplet({{
-                            "ui:design": "simple",
                             "showToolBar": false,
                             "showAlgebraInput": false,
                             "showMenuBar": false,
@@ -540,7 +620,7 @@ with tab1:
                         </script>
                     </div>
                     """
-                    components.html(geogebra_html, height=430, scrolling=False)
+                    components.html(geogebra_html, height=440, scrolling=False)
 
                 st.markdown("#### 📝 Lời giải chi tiết:")
                 formatted_solution = format_solution_step_by_step(st.session_state.reward or "")
@@ -552,7 +632,7 @@ with tab1:
                 st.write("")
                 if st.button("➡️ Tiến tới trạm tiếp theo", type="primary", use_container_width=True):
                     with st.spinner("Đang dịch chuyển qua không gian tiếp theo..."):
-                        p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}. 
+                        p_next = f"""Học sinh vừa vượt qua bước {curr} với đáp án đúng: {correct_text}. Tạo thử thách trắc nghiệm bước {curr + 1} / {total}.
                         TUYỆT ĐỐI KHÔNG dùng đường tròn hoặc kiến thức ngoài chương trình lớp 8."""
                         try:
                             st.session_state.card = execute_gemini_request([st.session_state.img_data, p_next], GAME_PROMPT, is_json=True)
@@ -608,6 +688,7 @@ with tab2:
     up_hw = st.file_uploader("📸 Truyền ảnh nhật ký bài giải viết tay trong vở:", type=["jpg", "png", "jpeg"], key="hw_submit_img")
 
     if st.button("🚀 Phóng tín hiệu nộp bài và nhận điểm", type="primary", use_container_width=True):
+        s_name = s_name.strip()
         if not s_name:
             st.warning("Phi hành gia hãy nhập Họ và tên trước khi phóng tín hiệu nhé!")
         elif not up_hw:
@@ -620,6 +701,7 @@ with tab2:
 Bạn là Giám khảo chấm thi môn Toán THCS tại Việt Nam.
 Chuyên đề nộp: "{topic}".
 Đọc ảnh bài làm viết tay của học sinh và đánh giá theo Rubric thang điểm 10 đúng chuẩn chương trình KNTT SGK 8 (TUYỆT ĐỐI KHÔNG dùng đường tròn).
+KHÔNG dùng LaTeX, viết ký hiệu Unicode.
 
 ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ:
 - Tổng điểm: [Điểm số]/10
@@ -636,7 +718,9 @@ Chuyên đề nộp: "{topic}".
                     score_res = execute_gemini_request([hw_img, RUBRIC])
                     score_res_clean = format_math(score_res)
 
-                    score_match = re.search(r"(\d+(?:[.,]\d+)?)\s*/\s*10", score_res_clean)
+                    # Ưu tiên số sau chữ "Tổng điểm"; không có thì lấy số đầu tiên dạng x/10
+                    score_match = (re.search(r"Tổng điểm\W*(\d+(?:[.,]\d+)?)\s*/\s*10", score_res_clean, flags=re.IGNORECASE)
+                                   or re.search(r"(\d+(?:[.,]\d+)?)\s*/\s*10(?!\d)", score_res_clean))
                     extracted_score = score_match.group(1).replace(",", ".") if score_match else "Chưa xác định"
 
                     sub_record = {
@@ -647,9 +731,10 @@ Chuyên đề nộp: "{topic}".
                         "Điểm số": extracted_score,
                         "Nhận xét của AI": score_res_clean.replace("\n", " ")
                     }
-                    st.session_state.submission_history.append(sub_record)
+                    submission_history.append(sub_record)
 
-                    webhook_url = st.secrets.get("GOOGLE_SHEET_WEBHOOK_URL")
+                    webhook_url = get_secret("GOOGLE_SHEET_WEBHOOK_URL")
+                    sheet_ok = None
                     if webhook_url:
                         payload = {
                             "time": sub_record["Thời gian"],
@@ -660,11 +745,15 @@ Chuyên đề nộp: "{topic}".
                             "feedback": sub_record["Nhận xét của AI"]
                         }
                         try:
-                            requests.post(webhook_url, json=payload, timeout=5)
+                            resp = requests.post(webhook_url, json=payload, timeout=10)
+                            sheet_ok = resp.ok
                         except Exception:
-                            pass
+                            sheet_ok = False
 
-                    st.success("🎉 Tín hiệu đã truyền thành công! Điểm số tự động cập nhật về hạm đội của cô!")
+                    if sheet_ok is False:
+                        st.warning("⚠️ Đã chấm xong nhưng chưa gửi được điểm về Google Sheets. Em hãy chụp màn hình kết quả gửi cô nhé!")
+                    else:
+                        st.success("🎉 Tín hiệu đã truyền thành công! Điểm số tự động cập nhật về hạm đội của cô!")
                     st.markdown(f"### Kết quả của phi hành gia: **{s_name}** - Hạm đội **{s_class}**")
                     st.markdown(score_res_clean)
                 except Exception as err:
@@ -672,17 +761,7 @@ Chuyên đề nộp: "{topic}".
 
 
 # ================= TAB 3: MINIGAME ĐẠI CHIẾN BOWSER (TỨ GIÁC) =================
-st.subheader("🍄 Super Mario Math: Cùng cô Mai Phương diệt Bower")
-st.caption("Hãy cẩn thận với những ô bí mật và hố boom nha!")
-
-DEFAULT_WEBHOOK = "https://script.google.com/macros/s/AKfycbwYEXAMPLE_REPLACE_HERE/exec"
-try:
-    sheet_webhook = st.secrets.get("GOOGLE_SHEET_WEBHOOK_URL", DEFAULT_WEBHOOK)
-except Exception:
-    # Chưa có file .streamlit/secrets.toml -> dùng URL mặc định, game vẫn chạy
-    sheet_webhook = DEFAULT_WEBHOOK
-
-mario_game_code = """
+MARIO_GAME_HTML = """
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -1822,8 +1901,15 @@ mario_game_code = """
 </html>
 """
 
-mario_game_code = mario_game_code.replace("WEBHOOK_URL_PLACEHOLDER", sheet_webhook)
-components.html(mario_game_code, height=720, scrolling=True)
+DEFAULT_WEBHOOK = "https://script.google.com/macros/s/AKfycbwYEXAMPLE_REPLACE_HERE/exec"
+
+with tab3:
+    st.subheader("🍄 Super Mario Math: Cùng cô Mai Phương diệt Bowser")
+    st.caption("Hãy cẩn thận với những ô bí mật và hố boom nha!")
+
+    sheet_webhook = get_secret("GOOGLE_SHEET_WEBHOOK_URL", DEFAULT_WEBHOOK) or DEFAULT_WEBHOOK
+    game_html = MARIO_GAME_HTML.replace('"WEBHOOK_URL_PLACEHOLDER"', json.dumps(sheet_webhook))
+    components.html(game_html, height=720, scrolling=True)
 
 # ================= TAB 4: BẢNG ĐIỂM LỚP =================
 with tab4:
@@ -1831,19 +1917,21 @@ with tab4:
     st.caption("Dữ liệu hạm đội học sinh được mã hóa bảo mật.")
 
     teacher_password = st.text_input("🔑 Nhập mật khẩu hạm đội để mở sổ điểm:", type="password", key="teacher_pass_tab4")
-    ADMIN_PASS = "Maiphuong2026"
+    # Nên đặt TEACHER_PASSWORD trong Secrets: mã nguồn để công khai trên GitHub thì học sinh đọc được mật khẩu mặc định.
+    ADMIN_PASS = get_secret("TEACHER_PASSWORD", "Maiphuong2026")
 
     if teacher_password:
-        if teacher_password == ADMIN_PASS:
+        if hmac.compare_digest(teacher_password.encode(), str(ADMIN_PASS).encode()):
             st.success("🔓 Xác thực trạm thành công! Chào cô Mai Phương.")
-            
-            if len(st.session_state.submission_history) == 0:
-                st.info("Chưa có phi hành gia nào truyền bài nộp trong phiên này.")
+            st.caption("Bảng dưới gồm bài nộp ở Tab 2 kể từ lần khởi động app gần nhất. Điểm game Bowser và bản lưu lâu dài nằm trong Google Sheets.")
+
+            if len(submission_history) == 0:
+                st.info("Chưa có phi hành gia nào truyền bài nộp kể từ khi app khởi động.")
             else:
-                df = pd.DataFrame(st.session_state.submission_history)
+                df = pd.DataFrame(list(submission_history))
                 st.dataframe(df, use_container_width=True)
 
-                csv_data = df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
+                csv_data = df.to_csv(index=False).encode("utf-8-sig")
 
                 st.write("---")
                 st.download_button(
