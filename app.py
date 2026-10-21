@@ -670,684 +670,1016 @@ Chuyên đề nộp: "{topic}".
                 except Exception as err:
                     st.error(f"Lỗi truyền tín hiệu: {err}")
 
-# ================= TAB 3: MINIGAME ĐẠI CHIẾN BOWSER (VŨ TRỤ TỨ GIÁC) =================
-with tab3:
-    st.subheader("👾 Trạm Không Gian: Đại Chiến Bowser (Tứ Giác Toán 8)")
-    st.caption("Vượt qua 5 ải Tứ giác hệ thống & Tiêu diệt trùm Bowser để nhận +5 điểm cộng thực tế từ Cô Mai Phương!")
+# ================= TAB 3: MINIGAME ĐẠI CHIẾN BOWSER (TỨ GIÁC) =================
+st.subheader("🍄 Super Mario Math: Side-Scrolling NES Thực Thụ • Hố Sâu & Ô Bẫy Bom")
+st.caption("Cuộn màn hình theo nhân vật • 12 ô [?] (5 Câu hỏi, 3 Xu, 2 Nấm, 2 Bom/Bẫy) • Hố sâu tử thần!")
 
-    sheet_webhook = st.secrets.get("GOOGLE_SHEET_WEBHOOK_URL", "https://script.google.com/macros/s/AKfycbwYEXAMPLE_REPLACE_HERE/exec")
+DEFAULT_WEBHOOK = "https://script.google.com/macros/s/AKfycbwYEXAMPLE_REPLACE_HERE/exec"
+try:
+    sheet_webhook = st.secrets.get("GOOGLE_SHEET_WEBHOOK_URL", DEFAULT_WEBHOOK)
+except Exception:
+    # Chưa có file .streamlit/secrets.toml -> dùng URL mặc định, game vẫn chạy
+    sheet_webhook = DEFAULT_WEBHOOK
 
-    mario_game_code = """
-    <!DOCTYPE html>
-    <html lang="vi">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-      <script src="https://cdn.tailwindcss.com"></script>
-      <style>
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
-        .font-pixel { font-family: 'Press Start 2P', monospace; }
-        .font-body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .shake {
-          animation: shake-anim 0.35s cubic-bezier(.36,.07,.19,.97) both;
-        }
-        @keyframes shake-anim {
-          10%, 90% { transform: translate3d(-2px, 0, 0); }
-          20%, 80% { transform: translate3d(4px, 0, 0); }
-          30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
-          40%, 60% { transform: translate3d(6px, 0, 0); }
-        }
-      </style>
-    </head>
-    <body class="bg-slate-950 text-slate-100 font-body min-h-screen flex flex-col items-center justify-start p-2 select-none">
+mario_game_code = """
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+    .font-pixel { font-family: 'Press Start 2P', monospace; }
+    .font-body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .shake { animation: shake-anim 0.35s cubic-bezier(.36,.07,.19,.97) both; }
+    @keyframes shake-anim {
+      10%, 90% { transform: translate3d(-2px, 0, 0); }
+      20%, 80% { transform: translate3d(4px, 0, 0); }
+      30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+      40%, 60% { transform: translate3d(6px, 0, 0); }
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-body min-h-screen flex flex-col items-center justify-start p-2 select-none">
 
-      <div id="login-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
-        <div class="bg-slate-900 border-2 border-amber-400/80 rounded-2xl max-w-md w-full p-6 shadow-2xl text-center">
-          <div class="inline-block p-3 bg-indigo-600 rounded-2xl shadow-lg mb-3">
-            <span class="font-pixel text-2xl text-white">🚀</span>
-          </div>
-          <h1 class="text-xl font-extrabold text-amber-400 mb-1">VŨ TRỤ TOÁN HỌC - CÔ MAI PHƯƠNG</h1>
-          <p class="text-xs text-slate-400 mb-5">Đại chiến Bowser - Vượt ải Tứ Giác Toán 8</p>
-          
-          <div class="space-y-3.5 text-left mb-6">
-            <div>
-              <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Tên Phi Hành Gia:</label>
-              <input type="text" id="input-name" placeholder="Ví dụ: Nguyễn Văn An" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Hạm đội Lớp:</label>
-              <input type="text" id="input-class" placeholder="Ví dụ: 8A13" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
-            </div>
-          </div>
+  <!-- ĐĂNG NHẬP -->
+  <div id="login-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-2 border-amber-400/80 rounded-2xl max-w-md w-full p-6 shadow-2xl text-center">
+      <div class="inline-block p-3 bg-red-600 rounded-2xl shadow-lg mb-3">
+        <span class="font-pixel text-2xl text-white">M</span>
+      </div>
+      <h1 class="text-xl font-extrabold text-amber-400 mb-1">LỚP TOÁN CÔ MAI PHƯƠNG</h1>
+      <p class="text-xs text-slate-400 mb-5">Super Mario Math: Cuộn Màn Hình & Hố Sâu Tử Thần</p>
 
-          <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 text-xs text-slate-300 text-left mb-5 space-y-1">
-            <p>• <b>5 Mạng sống (❤️❤️❤️❤️❤️)</b>. Tự động phiêu lưu không gian!</p>
-            <p>• Thời gian: <b>15s</b> (Nhận biết), <b>20s</b> (Thông hiểu), <b>30s</b> (Vận dụng).</p>
-            <p>• Hạ gục Bowser nhận ngay <b>+5 Điểm cộng thực tế</b> từ Cô Mai Phương!</p>
-          </div>
-
-          <button id="btn-start-game" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white font-extrabold text-sm rounded-xl shadow-lg transition transform active:scale-95">
-            BẮT ĐẦU PHÓNG VŨ TRỤ NGAY
-          </button>
+      <div class="space-y-3.5 text-left mb-6">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Họ và tên học sinh:</label>
+          <input type="text" id="input-name" placeholder="Ví dụ: Nguyễn Văn An" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-300 uppercase mb-1">Lớp:</label>
+          <input type="text" id="input-class" placeholder="Ví dụ: 8A13" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
         </div>
       </div>
 
-      <header class="w-full max-w-2xl flex items-center justify-between bg-slate-900/90 border border-slate-800 px-3 py-2 rounded-2xl mb-2 shadow-lg">
-        <div class="flex items-center space-x-2">
-          <div class="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center font-pixel text-white text-[10px]">🚀</div>
-          <div>
-            <h2 class="text-xs font-extrabold text-amber-400 leading-tight">PHI HÀNH GIA TOÁN 8</h2>
-            <p id="hud-student" class="text-[10px] text-slate-400">Phi hành gia: Đang kết nối...</p>
-          </div>
-        </div>
-        
-        <div class="flex items-center space-x-3 text-right">
-          <div>
-            <div class="text-[9px] text-slate-400 font-bold uppercase">Điểm</div>
-            <div id="hud-score" class="font-pixel text-xs text-amber-400">0</div>
-          </div>
-          <div>
-            <div class="text-[9px] text-slate-400 font-bold uppercase">Mạng</div>
-            <div id="hud-lives" class="text-xs">❤️❤️❤️❤️❤️</div>
-          </div>
-          <button id="btn-toggle-sound" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 text-xs">🔊</button>
-        </div>
-      </header>
+      <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 text-xs text-slate-300 text-left mb-5 space-y-1.5">
+        <p>🎮 <b>Điều khiển:</b> Dùng <b>Mũi tên Trái / Phải (← / →)</b> để chạy cuộn màn hình, <b>Space / ↑</b> để nhảy!</p>
+        <p>📦 Húc đầu vào các ô <b>[?]</b>: 5 Câu hỏi, Xu, Nấm (+1 mạng), Bom/Bẫy (mất mạng).</p>
+        <p>⚠️ Cẩn thận rớt xuống <b>Hố sâu tử thần</b>! Trả lời đủ 5 câu hỏi để qua ải.</p>
+      </div>
 
-      <main id="game-arena" class="relative w-full max-w-2xl aspect-[16/9] bg-slate-950 rounded-2xl border-2 border-cyan-500/60 shadow-2xl overflow-hidden">
-        <canvas id="gameCanvas" width="860" height="484" class="w-full h-full block"></canvas>
-      </main>
+      <button id="btn-start-game" class="w-full py-3.5 bg-gradient-to-r from-red-600 to-amber-500 hover:from-red-500 hover:to-amber-400 text-white font-extrabold text-sm rounded-xl shadow-lg transition transform active:scale-95">
+        BẮT ĐẦU VƯỢT ẢI NGAY
+      </button>
+    </div>
+  </div>
 
-      <div id="quiz-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-3 hidden">
-        <div class="bg-slate-900 border-2 border-sky-400/90 rounded-2xl max-w-xl w-full p-4 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
-          
-          <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
-            <span id="quiz-level-badge" class="px-2.5 py-1 bg-sky-500/20 text-sky-400 border border-sky-500/40 rounded-lg text-xs font-bold uppercase">
-              NHẬN BIẾT (15s)
-            </span>
-            <div class="flex items-center space-x-1.5 font-pixel text-xs text-amber-400">
-              <span>⏳</span>
-              <span id="quiz-timer-text">15s</span>
-            </div>
-          </div>
+  <!-- HUD THÔNG TIN NES MARIO -->
+  <header class="w-full max-w-3xl flex items-center justify-between bg-black border-2 border-slate-800 px-4 py-2.5 mb-2 font-pixel text-[11px] text-white rounded-xl shadow-lg">
+    <div class="text-center">
+      <div class="text-red-500 mb-0.5 text-[9px]">SCORE</div>
+      <div id="hud-score" class="text-white">000000</div>
+    </div>
+    <div class="text-center">
+      <div class="text-red-500 mb-0.5 text-[9px]">COINS</div>
+      <div id="hud-coins" class="text-amber-400">🪙 x0</div>
+    </div>
+    <div class="text-center">
+      <div class="text-red-500 mb-0.5 text-[9px]">WORLD</div>
+      <div id="hud-world" class="text-cyan-400">1-1</div>
+    </div>
+    <div class="text-center">
+      <div class="text-red-500 mb-0.5 text-[9px]">QUESTIONS</div>
+      <div id="hud-quest" class="text-amber-300">0/5</div>
+    </div>
+    <div class="text-center">
+      <div class="text-red-500 mb-0.5 text-[9px]">LIVES</div>
+      <div id="hud-lives" class="text-rose-500 text-xs">❤️❤️❤️❤️❤️</div>
+    </div>
+    <button id="btn-toggle-sound" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 text-xs font-body">🔊</button>
+  </header>
 
-          <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mb-3">
-            <div id="quiz-timer-bar" class="h-full bg-amber-400 transition-all duration-100 ease-linear" style="width: 100%;"></div>
-          </div>
+  <!-- MÀN HÌNH GAME CANVAS -->
+  <main id="game-arena" class="relative w-full max-w-3xl aspect-[16/9] bg-[#5c94fc] rounded-2xl border-4 border-slate-800 shadow-2xl overflow-hidden">
+    <canvas id="gameCanvas" width="900" height="506" class="w-full h-full block"></canvas>
+  </main>
 
-          <div id="quiz-question-text" class="text-sm font-bold text-amber-200 mb-3 leading-relaxed">
-            Đề bài...
-          </div>
-
-          <div id="quiz-options-container" class="space-y-2 mb-2"></div>
-
-          <div id="quiz-short-container" class="space-y-2 mb-2 hidden">
-            <input type="text" id="quiz-short-input" placeholder="Nhập đáp số hoặc tên hình..." autocomplete="off" class="w-full bg-slate-800 border-2 border-sky-500/60 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
-            <button id="quiz-short-submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-md transition">
-              XÁC NHẬN TỌA ĐỘ (ENTER)
-            </button>
-          </div>
-
-          <div id="quiz-feedback" class="mt-2 text-xs font-semibold min-h-[20px]"></div>
+  <!-- MODAL CÂU HỎI -->
+  <div id="quiz-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-3 hidden">
+    <div class="bg-slate-900 border-2 border-sky-400/90 rounded-2xl max-w-xl w-full p-4 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+        <span id="quiz-level-badge" class="px-2.5 py-1 bg-sky-500/20 text-sky-400 border border-sky-500/40 rounded-lg text-xs font-bold uppercase">NHẬN BIẾT (15s)</span>
+        <div class="flex items-center space-x-1.5 font-pixel text-xs text-amber-400">
+          <span>⏳</span><span id="quiz-timer-text">15s</span>
         </div>
       </div>
 
-      <div id="stage-clear-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 hidden">
-        <div class="bg-slate-900 border-2 border-emerald-400 rounded-2xl max-w-md w-full p-6 text-center shadow-2xl">
-          <div class="text-3xl mb-2">🌟</div>
-          <h3 id="stage-clear-title" class="text-base font-extrabold text-emerald-400 mb-1">VƯỢT TRẠM THÀNH CÔNG!</h3>
-          <p class="text-xs text-amber-400 font-bold mb-3">NHẬT KÝ TỪ CÔ MAI PHƯƠNG</p>
-          
-          <div id="stage-clear-msg" class="bg-slate-800/80 border border-slate-700 rounded-xl p-3.5 text-xs text-slate-200 text-left mb-5 leading-relaxed"></div>
+      <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mb-3">
+        <div id="timer-bar" class="h-full bg-amber-400 transition-all duration-100 ease-linear" style="width: 100%;"></div>
+      </div>
 
-          <button id="btn-continue-next-stage" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl transition shadow-lg">
-            TIẾP TỤC KHÁM PHÁ TRẠM TIẾP THEO ⏩
-          </button>
+      <div id="quiz-question-text" class="text-sm font-bold text-amber-200 mb-3 leading-relaxed">Đề bài...</div>
+
+      <div id="quiz-options-container" class="space-y-2 mb-2"></div>
+
+      <div id="quiz-short-container" class="space-y-2 mb-2 hidden">
+        <input type="text" id="quiz-short-input" placeholder="Nhập đáp số hoặc tên hình..." autocomplete="off" class="w-full bg-slate-800 border-2 border-sky-500/60 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
+        <button id="quiz-short-submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-md transition">XÁC NHẬN ĐÁP ÁN (ENTER)</button>
+      </div>
+
+      <div id="quiz-feedback" class="mt-2 text-xs font-semibold min-h-[20px]"></div>
+    </div>
+  </div>
+
+  <!-- MODAL HOÀN THÀNH ẢI -->
+  <div id="stage-clear-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border-2 border-emerald-400 rounded-2xl max-w-md w-full p-6 text-center shadow-2xl">
+      <div class="text-3xl mb-2">🌟</div>
+      <h3 id="stage-clear-title" class="text-base font-extrabold text-emerald-400 mb-1">HOÀN THÀNH ẢI!</h3>
+      <p class="text-xs text-amber-400 font-bold mb-3">LỜI DẶN DÒ TỪ CÔ MAI PHƯƠNG</p>
+      <div id="stage-clear-msg" class="bg-slate-800/80 border border-slate-700 rounded-xl p-3.5 text-xs text-slate-200 text-left mb-5 leading-relaxed"></div>
+      <button id="btn-continue-next-stage" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl transition shadow-lg">TIẾP TỤC TIẾN LÊN ẢI TIẾP THEO ⏩</button>
+    </div>
+  </div>
+
+  <!-- MODAL TỔNG KẾT -->
+  <div id="summary-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-3 hidden">
+    <div class="bg-slate-900 border-2 border-amber-400 rounded-2xl max-w-md w-full p-5 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
+      <div class="text-center mb-3">
+        <span id="summary-badge-icon" class="text-3xl">🏆</span>
+        <h2 id="summary-title" class="text-lg font-extrabold text-amber-400 mt-1">VINH DANH CHIẾN THẮNG!</h2>
+        <p id="summary-subtitle" class="text-[11px] text-emerald-400 font-semibold">Đã xuất sắc vượt qua 5 Ải & Hạ gục Bowser</p>
+      </div>
+
+      <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 mb-3 grid grid-cols-2 gap-2 text-xs">
+        <div><span class="text-slate-400">Học sinh:</span> <b id="sum-name" class="text-white">...</b></div>
+        <div><span class="text-slate-400">Lớp:</span> <b id="sum-class" class="text-white">...</b></div>
+        <div><span class="text-slate-400">Mã đề:</span> <b id="sum-examcode" class="text-amber-300">...</b></div>
+        <div><span class="text-slate-400">Tổng điểm:</span> <b id="sum-score" class="text-amber-400 font-pixel">0</b></div>
+        <div class="col-span-2 bg-emerald-950/60 border border-emerald-500/40 p-2 rounded-lg text-emerald-300 text-center font-bold">
+          🎁 Phần thưởng: <span id="sum-bonus" class="text-amber-300 font-extrabold">+5 ĐIỂM CỘNG</span> từ Cô Mai Phương!
         </div>
       </div>
 
-      <div id="summary-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-3 hidden">
-        <div class="bg-slate-900 border-2 border-amber-400 rounded-2xl max-w-md w-full p-5 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
-          
-          <div class="text-center mb-3">
-            <span id="summary-badge-icon" class="text-3xl">🏆</span>
-            <h2 id="summary-title" class="text-lg font-extrabold text-amber-400 mt-1">VINH DANH VŨ TRỤ!</h2>
-            <p id="summary-subtitle" class="text-[11px] text-emerald-400 font-semibold">Đã hoàn thành xuất sắc nhiệm vụ không gian</p>
-          </div>
+      <div id="summary-teacher-note" class="bg-amber-950/30 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-200 mb-3 leading-relaxed"></div>
 
-          <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 mb-3 grid grid-cols-2 gap-2 text-xs">
-            <div><span class="text-slate-400">Phi hành gia:</span> <b id="sum-name" class="text-white">...</b></div>
-            <div><span class="text-slate-400">Hạm đội:</span> <b id="sum-class" class="text-white">...</b></div>
-            <div><span class="text-slate-400">Mã trạm:</span> <b id="sum-examcode" class="text-amber-300">...</b></div>
-            <div><span class="text-slate-400">Tổng điểm:</span> <b id="sum-score" class="text-amber-400 font-pixel">0</b></div>
-            <div class="col-span-2 bg-emerald-950/60 border border-emerald-500/40 p-2 rounded-lg text-emerald-300 text-center font-bold">
-              🎁 Thưởng trạm: <span id="sum-bonus" class="text-amber-300 font-extrabold">+5 ĐIỂM CỘNG</span> từ Cô Mai Phương!
-            </div>
-          </div>
-
-          <div id="summary-teacher-note" class="bg-amber-950/30 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-200 mb-3 leading-relaxed"></div>
-
-          <div id="sync-status-box" class="border border-slate-700 bg-slate-950/60 rounded-xl p-2.5 text-center mb-3">
-            <div id="sync-status-text" class="text-xs text-yellow-400 font-medium">
-              ⏳ Đang truyền kết quả về trạm Google Sheets...
-            </div>
-            <button id="btn-retry-sync" class="mt-2 hidden px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg transition">
-              🔄 Truyền lại dữ liệu
-            </button>
-          </div>
-
-          <button onclick="location.reload()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-bold text-xs rounded-xl transition">
-            PHÓNG LẠI HÀNH TRÌNH MỚI 🔁
-          </button>
-        </div>
+      <div id="sync-status-box" class="border border-slate-700 bg-slate-950/60 rounded-xl p-2.5 text-center mb-3">
+        <div id="sync-status-text" class="text-xs text-yellow-400 font-medium">⏳ Đang kết nối gửi kết quả về Google Sheets...</div>
+        <button id="btn-retry-sync" class="mt-2 hidden px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg transition">🔄 Thử gửi lại dữ liệu</button>
       </div>
 
-      <script>
-        const GOOGLE_SCRIPT_WEBAPP_URL = "WEBHOOK_URL_PLACEHOLDER";
+      <button onclick="location.reload()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-bold text-xs rounded-xl transition">CHƠI LẠI VỚI BỘ ĐỀ MỚI 🔁</button>
+    </div>
+  </div>
 
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        let isSoundMuted = false;
+  <script>
+    const GOOGLE_SCRIPT_WEBAPP_URL = "WEBHOOK_URL_PLACEHOLDER";
 
-        function playTone(freq, type, duration, vol = 0.15) {
-          if (isSoundMuted) return;
-          if (audioCtx.state === 'suspended') audioCtx.resume();
-          try {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + duration);
-          } catch(e) {}
+    // ===== TÀI NGUYÊN ẢNH (tùy chọn) =====
+    // Dán "data:image/png;base64,..." hoặc mã <svg>...</svg> hoặc đường dẫn ảnh.
+    // Để "" thì game tự vẽ hình pixel mặc định.
+    const ASSETS = {
+      mario: "",       // gợi ý 64x88 px, nền trong suốt, nhân vật quay mặt sang PHẢI
+      boss: "",        // gợi ý 160x160 px
+      box: "",         // ô [?] 72x72 px
+      background: ""   // hình nền 1280x720 px
+    };
+
+    function toSrc(value) {
+      if (!value) return "";
+      if (value.trim().startsWith("<svg")) return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(value);
+      return value;
+    }
+    function loadImage(src) {
+      const img = new Image();
+      img.ok = false;
+      if (!src) return img;
+      img.onload = () => { img.ok = true; };
+      img.onerror = () => { img.ok = false; };
+      img.src = src;
+      return img;
+    }
+    const IMG = {
+      mario: loadImage(toSrc(ASSETS.mario)),
+      boss: loadImage(toSrc(ASSETS.boss)),
+      box: loadImage(toSrc(ASSETS.box)),
+      background: loadImage(toSrc(ASSETS.background))
+    };
+
+    // ===== ÂM THANH =====
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let isSoundMuted = false;
+
+    function playTone(freq, type, duration, vol = 0.15) {
+      if (isSoundMuted) return;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch(e) {}
+    }
+
+    function sndJump() { playTone(180, 'square', 0.15, 0.12); setTimeout(() => playTone(450, 'square', 0.15, 0.12), 60); }
+    function sndCoin() { playTone(988, 'square', 0.08, 0.15); setTimeout(() => playTone(1318, 'square', 0.22, 0.15), 70); }
+    function sndPowerup() { playTone(523, 'square', 0.1, 0.15); setTimeout(() => playTone(659, 'square', 0.1, 0.15), 80); setTimeout(() => playTone(784, 'square', 0.2, 0.15), 160); }
+    function sndTrap() { playTone(150, 'sawtooth', 0.25, 0.25); setTimeout(() => playTone(80, 'sawtooth', 0.3, 0.25), 120); }
+    function sndWrong() { playTone(200, 'sawtooth', 0.2, 0.2); setTimeout(() => playTone(120, 'sawtooth', 0.3, 0.2), 150); }
+    function sndRoar() { playTone(85, 'sawtooth', 0.45, 0.3); setTimeout(() => playTone(60, 'sawtooth', 0.5, 0.3), 180); }
+    function sndBump() { playTone(110, 'square', 0.08, 0.15); }
+
+    let bgmInterval = null;
+    const bgmNotes = [261.6, 261.6, 0, 261.6, 0, 207.6, 233.1, 261.6];
+    let noteIdx = 0;
+    function startBgm() {
+      if (bgmInterval || isSoundMuted) return;
+      bgmInterval = setInterval(() => {
+        if (gameState.started && !gameState.isPaused && !gameState.isGameOver && bgmNotes[noteIdx] > 0) {
+          playTone(bgmNotes[noteIdx], 'square', 0.1, 0.03);
         }
+        noteIdx = (noteIdx + 1) % bgmNotes.length;
+      }, 220);
+    }
+    function stopBgm() { if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; } }
 
-        function sndJump() { playTone(220, 'square', 0.12, 0.1); setTimeout(() => playTone(550, 'square', 0.12, 0.1), 60); }
-        function sndCoin() { playTone(1046, 'square', 0.08, 0.12); setTimeout(() => playTone(1318, 'square', 0.2, 0.12), 70); }
-        function sndFireball() { playTone(350, 'triangle', 0.12, 0.2); setTimeout(() => playTone(150, 'sawtooth', 0.25, 0.2), 80); }
-        function sndWrong() { playTone(180, 'sawtooth', 0.2, 0.2); setTimeout(() => playTone(100, 'sawtooth', 0.3, 0.2), 150); }
-        function sndRoar() { playTone(90, 'sawtooth', 0.4, 0.25); setTimeout(() => playTone(50, 'sawtooth', 0.45, 0.25), 180); }
+    document.getElementById("btn-toggle-sound").onclick = (e) => {
+      isSoundMuted = !isSoundMuted;
+      e.currentTarget.textContent = isSoundMuted ? "🔇" : "🔊";
+      e.currentTarget.blur();
+      if (isSoundMuted) stopBgm(); else startBgm();
+    };
 
-        let bgmInterval = null;
-        const bgmNotes = [330, 330, 0, 330, 0, 262, 330, 392];
-        let noteIdx = 0;
-        function startBgm() {
-          if (bgmInterval || isSoundMuted) return;
-          bgmInterval = setInterval(() => {
-            if (!gameState.isPaused && !gameState.isGameOver && bgmNotes[noteIdx] > 0) {
-              playTone(bgmNotes[noteIdx], 'square', 0.08, 0.025);
-            }
-            noteIdx = (noteIdx + 1) % bgmNotes.length;
-          }, 240);
+    // ===== NGÂN HÀNG CÂU HỎI =====
+    const rawQuestionPool = {
+      stage1: [
+        { level: "Nhận biết", time: 15, type: "short", q: "Tổng các góc trong một tứ giác lồi luôn bằng bao nhiêu độ? (Chỉ nhập số)", correctAnswers: ["360"], explain: "Định lý: Tổng các góc của một tứ giác luôn bằng 360 độ." },
+        { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác luôn nằm trong một nửa mặt phẳng có bờ là đường thẳng chứa bất kì cạnh nào gọi là tứ giác gì?", correctAnswers: ["lồi", "tứ giác lồi"], explain: "Định nghĩa: Đó là tứ giác lồi." },
+        { level: "Nhận biết", time: 15, type: "short", q: "Một tứ giác lồi có tổng cộng bao nhiêu đường chéo? (Chỉ nhập số)", correctAnswers: ["2"], explain: "Mỗi tứ giác lồi có đúng 2 đường chéo nối các đỉnh đối diện." },
+        { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác lồi có thể có nhiều nhất bao nhiêu góc nhọn?", answers: ["3 góc nhọn", "4 góc nhọn", "2 góc nhọn"], correct: 0, explain: "Nếu có 4 góc nhọn thì tổng 4 góc < 360° (vô lý). Vậy tối đa có 3 góc nhọn." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác ABCD có góc A = 70°, B = 90°, C = 80°. Tính số đo góc D bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["120"], explain: "Góc D = 360° - (70° + 90° + 80°) = 120°." }
+      ],
+      stage2: [
+        { level: "Nhận biết", time: 15, type: "short", q: "Hình thang có hai góc kề một đáy bằng nhau là hình thang gì?", correctAnswers: ["cân", "hình thang cân", "thang cân"], explain: "Định nghĩa SGK: Hình thang có 2 góc kề một đáy bằng nhau là hình thang cân." },
+        { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình thang cân, hai đường chéo có mối quan hệ gì với nhau?", answers: ["Bằng nhau", "Vuông góc với nhau", "Cắt nhau tại trung điểm mỗi đường"], correct: 0, explain: "Tính chất SGK: Trong hình thang cân, hai đường chéo bằng nhau." },
+        { level: "Thông hiểu", time: 20, type: "short", q: "Hình thang có hai đường chéo bằng nhau là hình thang gì?", correctAnswers: ["cân", "hình thang cân", "thang cân"], explain: "Dấu hiệu nhận biết: Hình thang có 2 đường chéo bằng nhau là hình thang cân." },
+        { level: "Thông hiểu", time: 20, type: "mcq", q: "Cho hình thang cân ABCD (AB // CD). Khẳng định nào sau đây là ĐÚNG?", answers: ["Góc C = góc D và góc A = góc B", "Góc A = góc C", "Góc B = góc D"], correct: 0, explain: "Trong hình thang cân, hai góc kề một đáy có số đo bằng nhau." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình thang cân ABCD (AB // CD) có góc D = 70°. Tính số đo góc A kề cạnh bên AD bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["110"], explain: "Vì AB // CD nên hai góc trong cùng phía bù nhau: Góc A = 180° - 70° = 110°." }
+      ],
+      stage3: [
+        { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có các cạnh đối song song được gọi là hình gì?", correctAnswers: ["hình bình hành", "bình hành"], explain: "Định nghĩa: Hình bình hành là tứ giác có các cạnh đối song song." },
+        { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình bình hành, hai đường chéo có tính chất gì?", answers: ["Cắt nhau tại trung điểm của mỗi đường", "Vuông góc với nhau", "Bằng nhau"], correct: 0, explain: "Tính chất: Hai đường chéo cắt nhau tại trung điểm của mỗi đường." },
+        { level: "Thông hiểu", time: 20, type: "short", q: "Tứ giác có hai đường chéo cắt nhau tại trung điểm của mỗi đường là hình gì?", correctAnswers: ["hình bình hành", "bình hành"], explain: "Dấu hiệu nhận biết: Tứ giác có 2 đường chéo cắt nhau tại trung điểm là hình bình hành." },
+        { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình thang có hai cạnh bên song song là hình gì?", answers: ["Hình bình hành", "Hình thang cân", "Hình chữ nhật"], correct: 0, explain: "Nhận xét SGK: Hình thang có 2 cạnh bên song song là hình bình hành." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Hình bình hành ABCD có góc A = 115°. Tính số đo góc đối C bằng bao nhiêu độ? (Nhập số):", correctAnswers: ["115"], explain: "Tính chất: Hai góc đối hình bình hành bằng nhau nên góc C = góc A = 115°." }
+      ],
+      stage4: [
+        { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có bốn góc vuông được gọi là hình gì?", correctAnswers: ["hình chữ nhật", "chữ nhật"], explain: "Định nghĩa: Hình chữ nhật là tứ giác có bốn góc vuông." },
+        { level: "Nhận biết", time: 15, type: "short", q: "Hình chữ nhật có tất cả bao nhiêu trục đối xứng? (Nhập số)", correctAnswers: ["2"], explain: "Hình chữ nhật có 2 trục đối xứng là hai đường trung trực của các cạnh." },
+        { level: "Thông hiểu", time: 20, type: "short", q: "Hình bình hành có hai đường chéo bằng nhau là hình gì?", correctAnswers: ["hình chữ nhật", "chữ nhật"], explain: "Dấu hiệu nhận biết: Hình bình hành có 2 đường chéo bằng nhau là hình chữ nhật." },
+        { level: "Thông hiểu", time: 20, type: "mcq", q: "Trong tam giác vuông, đường trung tuyến ứng với cạnh huyền có độ dài bằng mấy phần cạnh huyền?", answers: ["Một nửa cạnh huyền", "Bằng cạnh huyền", "Gấp đôi cạnh huyền"], correct: 0, explain: "Định lý: Trong tam giác vuông, đường trung tuyến ứng với cạnh huyền bằng nửa cạnh huyền." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Cho tam giác ABC vuông tại A có cạnh huyền BC = 18 cm. Độ dài đường trung tuyến AM ứng với cạnh huyền bằng mấy cm? (Nhập số):", correctAnswers: ["9"], explain: "Theo định lý: AM = BC / 2 = 18 / 2 = 9 cm." }
+      ],
+      stage5: [
+        { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có bốn cạnh bằng nhau được gọi là hình gì?", correctAnswers: ["hình thoi", "thoi"], explain: "Định nghĩa: Hình thoi là tứ giác có bốn cạnh bằng nhau." },
+        { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác vừa là hình chữ nhật vừa là hình thoi là hình gì?", correctAnswers: ["hình vuông", "vuông"], explain: "Định nghĩa: Hình vuông là hình chữ nhật đồng thời là hình thoi." },
+        { level: "Thông hiểu", time: 20, type: "mcq", q: "Trong hình thoi, hai đường chéo có tính chất đặc trưng nào sau đây?", answers: ["Vuông góc với nhau và là tia phân giác các góc", "Bằng nhau và song song", "Cắt nhau tại 1/3 mỗi đường"], correct: 0, explain: "Tính chất: Hai đường chéo hình thoi vuông góc và là phân giác các góc." },
+        { level: "Thông hiểu", time: 20, type: "short", q: "Hình bình hành có hai đường chéo vuông góc với nhau là hình gì?", correctAnswers: ["hình thoi", "thoi"], explain: "Dấu hiệu: Hình bình hành có 2 đường chéo vuông góc là hình thoi." },
+        { level: "Vận dụng", time: 30, type: "short", q: "Một hình thoi có chu vi bằng 52 cm. Độ dài một cạnh của hình thoi đó bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["13"], explain: "Hình thoi có 4 cạnh bằng nhau nên độ dài một cạnh = 52 / 4 = 13 cm." }
+      ],
+      boss: [
+        { level: "Vận dụng cao", time: 30, type: "mcq", q: "Nối trung điểm 4 cạnh của một hình chữ nhật ta luôn nhận được hình gì?", answers: ["Hình thoi", "Hình bình hành thông thường", "Hình vuông"], correct: 0, explain: "Bốn cạnh của tứ giác mới đều bằng nửa đường chéo hình chữ nhật nên bằng nhau => Là Hình thoi." },
+        { level: "Vận dụng cao", time: 30, type: "mcq", q: "Nối trung điểm 4 cạnh của một hình thoi ta luôn nhận được hình gì?", answers: ["Hình chữ nhật", "Hình vuông", "Hình bình hành có góc 60°"], correct: 0, explain: "Vì hai đường chéo hình thoi vuông góc nên các cạnh của tứ giác trung điểm vuông góc với nhau => Hình chữ nhật." },
+        { level: "Vận dụng cao", time: 30, type: "short", q: "Hình thoi ABCD có cạnh bằng 10 cm và góc A = 60°. Độ dài đường chéo BD bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["10"], explain: "Tam giác ABD cân có góc A = 60° nên là tam giác đều => BD = AB = 10 cm." }
+      ]
+    };
+
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    // Trộn thứ tự đáp án trắc nghiệm để mỗi lần chơi đáp án đúng không luôn ở vị trí 1
+    function prepareQuestion(q) {
+      if (q.type !== "mcq") return { ...q };
+      const order = shuffle(q.answers.map((_, i) => i));
+      return { ...q, answers: order.map(i => q.answers[i]), correct: order.indexOf(q.correct) };
+    }
+
+    function buildExam() {
+      const prep = list => list.map(prepareQuestion);
+      return {
+        code: "CMP-8A-" + Math.floor(1000 + Math.random() * 9000),
+        stages: [
+          { name: "Màn 1: Tứ giác lồi", questions: prep(rawQuestionPool.stage1), bg: "#5c94fc" },
+          { name: "Màn 2: Hình thang cân", questions: prep(rawQuestionPool.stage2), bg: "#d97706" },
+          { name: "Màn 3: Hình bình hành", questions: prep(rawQuestionPool.stage3), bg: "#0d9488" },
+          { name: "Màn 4: Hình chữ nhật", questions: prep(rawQuestionPool.stage4), bg: "#0284c7" },
+          { name: "Màn 5: Hình thoi và Hình vuông", questions: prep(rawQuestionPool.stage5), bg: "#7c3aed" }
+        ],
+        bossQuestions: prep(rawQuestionPool.boss)
+      };
+    }
+
+    // Chuẩn hóa đáp án tự luận: bỏ hoa/thường, bỏ đơn vị "độ", "°", "cm", gộp khoảng trắng
+    function normalizeAnswer(s) {
+      return String(s).normalize("NFC").toLowerCase()
+        .replace(/°|độ|cm/g, "")
+        .replace(/\\s+/g, " ")
+        .trim();
+    }
+
+    // ===== TRẠNG THÁI GAME =====
+    const gameState = {
+      started: false, studentName: "", studentClass: "", examData: null,
+      currentStageIdx: 0, currentQuestionIdx: 0, inBossFight: false,
+      bossHp: 3, bossMaxHp: 3, bossQIdx: 0, score: 0, coins: 0, lives: 5,
+      isPaused: true, isGameOver: false, defeatedBoss: false, answerLocked: true,
+      timerSec: 15, timerMax: 15, timerInterval: null, lastPayload: null
+    };
+
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const arenaEl = document.getElementById("game-arena");
+
+    const WORLD_W = 3000;
+    const GROUND_TOP = 400;
+    const GROUND_Y = 356;            // y của Mario khi đứng trên mặt đất
+    const BOX_SIZE = 36;
+    const BOSS_X = 1200, BOSS_Y = 260;
+    const STAGE_PITS = [ { start: 1200, width: 120 }, { start: 2200, width: 140 } ];
+
+    const mario = { x: 100, y: GROUND_Y, w: 32, h: 44, vx: 0, vy: 0, isJumping: false, falling: false, fallPit: null, facing: 1, legSwing: 0, speed: 4 };
+    let cameraX = 0;
+    const keys = { left: false, right: false };
+
+    let mysteryBoxes = [];
+    let groundPits = [];
+    let floatingCoins = [];
+    const fireball = { active: false, x: 0, y: 0, vx: 0 };
+    let bossFlash = 0;
+
+    function initLevelBoxes() {
+      mysteryBoxes = [
+        { x: 300,  type: 'quiz' },
+        { x: 500,  type: 'coin' },
+        { x: 700,  type: 'quiz' },
+        { x: 900,  type: 'trap' },
+        { x: 1050, type: 'mushroom' },
+        { x: 1450, type: 'quiz' },
+        { x: 1650, type: 'coin' },
+        { x: 1900, type: 'quiz' },
+        { x: 2080, type: 'trap' },
+        { x: 2450, type: 'mushroom' },
+        { x: 2650, type: 'quiz' },
+        { x: 2850, type: 'coin' }
+      ].map(b => ({ ...b, y: 220, active: true, bump: 0 }));
+      groundPits = STAGE_PITS.map(p => ({ ...p }));
+      floatingCoins = [];
+    }
+
+    function resetMario(x) {
+      mario.x = x; mario.y = GROUND_Y; mario.vy = 0;
+      mario.isJumping = false; mario.falling = false; mario.fallPit = null; mario.facing = 1;
+      keys.left = keys.right = false;
+    }
+
+    // ===== HUD =====
+    function updateHud() {
+      document.getElementById("hud-score").textContent = String(gameState.score).padStart(6, '0');
+      document.getElementById("hud-coins").textContent = "🪙 x" + gameState.coins;
+      document.getElementById("hud-lives").textContent = gameState.lives > 0 ? "❤️".repeat(gameState.lives) : "💀";
+    }
+
+    // ===== BÀN PHÍM (bỏ qua khi đang gõ vào ô nhập) =====
+    function isTyping(e) {
+      const t = e.target;
+      return t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (isTyping(e)) return;
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        if (!mario.isJumping && !mario.falling && !gameState.isPaused && !gameState.isGameOver) {
+          mario.isJumping = true;
+          mario.vy = -14;
+          sndJump();
         }
-        function stopBgm() { if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; } }
+      }
+    });
 
-        document.getElementById("btn-toggle-sound").onclick = () => {
-          isSoundMuted = !isSoundMuted;
-          document.getElementById("btn-toggle-sound").textContent = isSoundMuted ? "🔇" : "🔊";
-          if (isSoundMuted) stopBgm(); else startBgm();
-        };
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+    });
 
-        const rawQuestionPool = {
-          stage1: [
-            { level: "Nhận biết", time: 15, type: "short", q: "Tổng các góc trong một tứ giác lồi luôn bằng bao nhiêu độ? (Chỉ nhập số)", correctAnswers: ["360", "360 độ", "360°"], explain: "Định lý: Tổng các góc của một tứ giác luôn bằng 360 độ." },
-            { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác luôn nằm trong một nửa mặt phẳng có bờ là đường thẳng chứa bất kì cạnh nào gọi là tứ giác gì?", correctAnswers: ["lồi", "tứ giác lồi"], explain: "Định nghĩa: Đó là tứ giác lồi." },
-            { level: "Thông hiểu", time: 20, type: "mcq", q: "Một tứ giác lồi có thể có nhiều nhất bao nhiêu góc nhọn?", answers: ["3 góc nhọn", "4 góc nhọn", "2 góc nhọn"], correct: 0, explain: "Nếu có 4 góc nhọn thì tổng 4 góc < 360° (vô lý). Vậy tối đa có 3 góc nhọn." },
-            { level: "Vận dụng", time: 30, type: "short", q: "Tứ giác ABCD có góc A = 70°, B = 90°, C = 80°. Tính số đo góc D (nhập số):", correctAnswers: ["120", "120 độ", "120°"], explain: "Góc D = 360° - (70° + 90° + 80°) = 120°." }
-          ],
-          stage2: [
-            { level: "Nhận biết", time: 15, type: "short", q: "Hình thang có hai góc kề một đáy bằng nhau là hình thang gì?", correctAnswers: ["cân", "hình thang cân"], explain: "Định nghĩa SGK: Hình thang có 2 góc kề một đáy bằng nhau là hình thang cân." },
-            { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình thang cân, hai đường chéo có mối quan hệ gì với nhau?", answers: ["Bằng nhau", "Vuông góc với nhau", "Cắt nhau tại trung điểm"], correct: 0, explain: "Tính chất SGK: Trong hình thang cân, hai đường chéo bằng nhau." },
-            { level: "Thông hiểu", time: 20, type: "short", q: "Hình thang có hai đường chéo bằng nhau là hình thang gì?", correctAnswers: ["cân", "hình thang cân"], explain: "Dấu hiệu nhận biết: Hình thang có 2 đường chéo bằng nhau là hình thang cân." },
-            { level: "Vận dụng", time: 30, type: "short", q: "Hình thang cân ABCD (AB // CD) có góc D = 70°. Tính số đo góc A kề cạnh bên AD (nhập số):", correctAnswers: ["110", "110 độ", "110°"], explain: "Vì AB // CD nên hai góc trong cùng phía bù nhau: Góc A = 180° - 70° = 110°." }
-          ],
-          stage3: [
-            { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có các cạnh đối song song được gọi là hình gì?", correctAnswers: ["hình bình hành", "bình hành"], explain: "Định nghĩa: Hình bình hành là tứ giác có các cạnh đối song song." },
-            { level: "Nhận biết", time: 15, type: "mcq", q: "Trong hình bình hành, hai đường chéo có tính chất gì?", answers: ["Cắt nhau tại trung điểm của mỗi đường", "Vuông góc với nhau", "Bằng nhau"], correct: 0, explain: "Tính chất: Hai đường chéo cắt nhau tại trung điểm của mỗi đường." },
-            { level: "Thông hiểu", time: 20, type: "short", q: "Tứ giác có hai đường chéo cắt nhau tại trung điểm của mỗi đường là hình gì?", correctAnswers: ["hình bình hành", "bình hành"], explain: "Dấu hiệu nhận biết: Tứ giác có 2 đường chéo cắt nhau tại trung điểm là hình bình hành." },
-            { level: "Thông hiểu", time: 20, type: "mcq", q: "Hình thang có hai cạnh bên song song là hình gì?", answers: ["Hình bình hành", "Hình thang cân", "Hình chữ nhật"], correct: 0, explain: "Nhận xét SGK: Hình thang có 2 cạnh bên song song là hình bình hành." },
-            { level: "Vận dụng", time: 30, type: "short", q: "Hình bình hành ABCD có góc A = 115°. Tính số đo góc đối C (nhập số):", correctAnswers: ["115", "115 độ", "115°"], explain: "Tính chất: Hai góc đối bằng nhau nên góc C = góc A = 115°." }
-          ],
-          stage4: [
-            { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có bốn góc vuông được gọi là hình gì?", correctAnswers: ["hình chữ nhật", "chữ nhật"], explain: "Định nghĩa: Hình chữ nhật là tứ giác có bốn góc vuông." },
-            { level: "Thông hiểu", time: 20, type: "short", q: "Hình bình hành có hai đường chéo bằng nhau là hình gì?", correctAnswers: ["hình chữ nhật", "chữ nhật"], explain: "Dấu hiệu nhận biết: Hình bình hành có 2 đường chéo bằng nhau là hình chữ nhật." },
-            { level: "Thông hiểu", time: 20, type: "short", q: "Hình thang cân có một góc vuông là hình gì?", correctAnswers: ["hình chữ nhật", "chữ nhật"], explain: "Dấu hiệu: Hình thang cân có 1 góc vuông là hình chữ nhật." },
-            { level: "Thông hiểu", time: 20, type: "mcq", q: "Trong tam giác vuông, đường trung tuyến ứng với cạnh huyền có độ dài bằng mấy phần cạnh huyền?", answers: ["Một nửa cạnh huyền", "Bằng cạnh huyền", "Gấp đôi cạnh huyền"], correct: 0, explain: "Định lý: Đường trung tuyến ứng với cạnh huyền bằng nửa cạnh huyền." },
-            { level: "Vận dụng", time: 30, type: "short", q: "Cho tam giác ABC vuông tại A có cạnh huyền BC = 16 cm. Độ dài đường trung tuyến AM bằng mấy cm? (Nhập số):", correctAnswers: ["8", "8 cm", "8cm"], explain: "AM = BC / 2 = 16 / 2 = 8 cm." }
-          ],
-          stage5: [
-            { level: "Nhận biết", time: 15, type: "short", q: "Tứ giác có bốn cạnh bằng nhau là hình gì?", correctAnswers: ["hình thoi", "thoi"], explain: "Định nghĩa: Hình thoi là tứ giác có bốn cạnh bằng nhau." },
-            { level: "Thông hiểu", time: 20, type: "mcq", q: "Trong hình thoi, hai đường chéo có tính chất đặc trưng nào sau đây?", answers: ["Vuông góc với nhau và là tia phân giác các góc", "Bằng nhau và song song", "Cắt nhau tại 1/3 mỗi đường"], correct: 0, explain: "Tính chất: Hai đường chéo vuông góc và là phân giác các góc của hình thoi." },
-            { level: "Thông hiểu", time: 20, type: "short", q: "Hình bình hành có hai đường chéo vuông góc với nhau là hình gì?", correctAnswers: ["hình thoi", "thoi"], explain: "Dấu hiệu: Hình bình hành có 2 đường chéo vuông góc là hình thoi." },
-            { level: "Thông hiểu", time: 20, type: "short", q: "Hình chữ nhật có hai đường chéo vuông góc với nhau là hình gì?", correctAnswers: ["hình vuông", "vuông"], explain: "Dấu hiệu: Hình chữ nhật có 2 đường chéo vuông góc là hình vuông." },
-            { level: "Vận dụng", time: 30, type: "short", q: "Một hình thoi có chu vi bằng 48 cm. Độ dài một cạnh của hình thoi đó bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["12", "12 cm", "12cm"], explain: "Độ dài 1 cạnh = 48 / 4 = 12 cm." }
-          ],
-          boss: [
-            { level: "Vận dụng cao", time: 30, type: "mcq", q: "Nối trung điểm 4 cạnh của một hình chữ nhật ta luôn nhận được hình gì?", answers: ["Hình thoi", "Hình bình hành thông thường", "Hình vuông"], correct: 0, explain: "Bốn cạnh đều bằng nửa đường chéo HCN => Bằng nhau => Là Hình thoi." },
-            { level: "Vận dụng cao", time: 30, type: "mcq", q: "Nối trung điểm 4 cạnh của một hình thoi ta luôn nhận được hình gì?", answers: ["Hình chữ nhật", "Hình vuông", "Hình bình hành góc 60°"], correct: 0, explain: "Vì hai đường chéo hình thoi vuông góc nên các cạnh kề vuông góc => Hình chữ nhật." },
-            { level: "Vận dụng cao", time: 30, type: "short", q: "Hình thoi ABCD có cạnh bằng 8 cm và góc A = 60°. Độ dài đường chéo BD bằng bao nhiêu cm? (Nhập số):", correctAnswers: ["8", "8 cm", "8cm"], explain: "Tam giác ABD cân có góc 60° nên là tam giác đều => BD = 8 cm." }
-          ]
-        };
+    window.addEventListener('blur', () => { keys.left = keys.right = false; });
 
-        function shuffle(arr) {
-          const a = [...arr];
-          for (let i = a.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [a[i], a[j]] = [a[j], a[i]];
-          }
-          return a;
+    function triggerShake() {
+      arenaEl.classList.add("shake");
+      setTimeout(() => arenaEl.classList.remove("shake"), 380);
+    }
+
+    function loseLife() {
+      gameState.lives = Math.max(0, gameState.lives - 1);
+      updateHud();
+      if (gameState.lives <= 0) finishGameSession(false);
+    }
+
+    // ===== CẬP NHẬT THẾ GIỚI =====
+    function findPitUnderMario() {
+      const cx = mario.x + mario.w / 2;
+      return groundPits.find(p => cx > p.start + 4 && cx < p.start + p.width - 4) || null;
+    }
+
+    function hitBox(box) {
+      box.active = false;
+      box.bump = 8;
+      if (box.type === 'coin') {
+        sndCoin();
+        gameState.coins++;
+        gameState.score += 200;
+        floatingCoins.push({ x: box.x + 6, y: box.y - 10, vy: -9 });
+        updateHud();
+      } else if (box.type === 'mushroom') {
+        sndPowerup();
+        gameState.lives = Math.min(5, gameState.lives + 1);
+        updateHud();
+      } else if (box.type === 'trap') {
+        sndTrap();
+        triggerShake();
+        gameState.score = Math.max(0, gameState.score - 1000);
+        loseLife();
+      } else {
+        openNextQuestion();
+      }
+    }
+
+    function checkBoxBump() {
+      for (const box of mysteryBoxes) {
+        const overlapX = mario.x + mario.w - 6 > box.x && mario.x + 6 < box.x + BOX_SIZE;
+        const headHit = mario.y <= box.y + BOX_SIZE && mario.y > box.y + BOX_SIZE - 16;
+        if (overlapX && headHit) {
+          mario.y = box.y + BOX_SIZE;
+          mario.vy = 1;
+          if (box.active) hitBox(box); else sndBump();
+          return;
         }
+      }
+    }
 
-        function buildExam() {
-          return {
-            code: "CMP-SPACE-8-" + Math.floor(1000 + Math.random() * 9000),
-            stages: [
-              { name: "Trạm 1: Tứ giác lồi", questions: shuffle(rawQuestionPool.stage1).slice(0, 3) },
-              { name: "Trạm 2: Hình thang cân", questions: shuffle(rawQuestionPool.stage2).slice(0, 4) },
-              { name: "Trạm 3: Hình bình hành", questions: shuffle(rawQuestionPool.stage3).slice(0, 5) },
-              { name: "Trạm 4: Hình chữ nhật", questions: shuffle(rawQuestionPool.stage4).slice(0, 5) },
-              { name: "Trạm 5: Hình thoi & Hình vuông", questions: shuffle(rawQuestionPool.stage5).slice(0, 5) },
-            ],
-            bossQuestions: shuffle(rawQuestionPool.boss).slice(0, 3)
-          };
+    function step() {
+      if (!gameState.started || gameState.isGameOver) return;
+      const active = !gameState.isPaused;
+
+      // Di chuyển ngang (khóa khi đang rơi hố)
+      if (active && !mario.falling) {
+        if (keys.left)  { mario.x = Math.max(30, mario.x - mario.speed); mario.facing = -1; mario.legSwing += 0.3; }
+        if (keys.right) { mario.x = Math.min(WORLD_W - 100, mario.x + mario.speed); mario.facing = 1; mario.legSwing += 0.3; }
+        cameraX = Math.max(0, Math.min(WORLD_W - canvas.width, mario.x - 300));
+      }
+
+      // Rơi xuống hố
+      if (mario.falling) {
+        mario.y += 7;
+        if (mario.y > canvas.height + 20) {
+          sndTrap();
+          triggerShake();
+          const pit = mario.fallPit;
+          loseLife();
+          if (!gameState.isGameOver) resetMario(Math.max(60, pit.start - 90));
         }
+      } else if (mario.isJumping) {
+        mario.y += mario.vy;
+        mario.vy += 0.8;
+        if (active && mario.vy < 0 && !gameState.inBossFight) checkBoxBump();
+        if (mario.y >= GROUND_Y) { mario.y = GROUND_Y; mario.vy = 0; mario.isJumping = false; }
+      }
 
-        const gameState = {
-          studentName: "", studentClass: "", examData: null,
-          currentStageIdx: 0, currentQuestionIdx: 0, inBossFight: false,
-          bossHp: 3, bossMaxHp: 3, score: 0, lives: 5, correctCount: 0,
-          totalAnswered: 0, isPaused: true, isGameOver: false, defeatedBoss: false,
-          timerSec: 15, timerMax: 15, timerInterval: null, lastPayload: null
-        };
+      // Đứng trên miệng hố -> rơi
+      if (active && !mario.isJumping && !mario.falling) {
+        const pit = findPitUnderMario();
+        if (pit) { mario.falling = true; mario.fallPit = pit; }
+      }
 
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
-        const arenaEl = document.getElementById("game-arena");
+      // Hiệu ứng: xu bay, ô nảy, cầu lửa
+      floatingCoins.forEach(fc => { fc.y += fc.vy; fc.vy += 0.6; });
+      floatingCoins = floatingCoins.filter(fc => fc.vy < 9);
+      mysteryBoxes.forEach(b => { if (b.bump > 0) b.bump--; });
 
-        const rocket = { x: 120, y: 330, w: 46, h: 28, vy: 0, isJumping: false, exhaustFlame: 0 };
-        let worldOffset = 0;
-        let meteorBox = { x: 750, y: 230, active: true, bounce: 0 };
-        let laserBeam = { active: false, x: 0, y: 0, vx: 0 };
+      if (fireball.active) {
+        fireball.x += fireball.vx;
+        if (fireball.x >= BOSS_X + 20) { fireball.active = false; bossFlash = 18; sndTrap(); triggerShake(); }
+      }
+      if (bossFlash > 0) bossFlash--;
+    }
 
-        function triggerShake() {
-          arenaEl.classList.add("shake");
-          setTimeout(() => arenaEl.classList.remove("shake"), 380);
-        }
+    // ===== VẼ =====
+    function drawMario() {
+      const mx = mario.x, my = mario.y;
+      ctx.save();
+      if (mario.facing < 0) { ctx.translate(mx * 2 + mario.w, 0); ctx.scale(-1, 1); }
 
-        function updateWorld() {
-          if (gameState.isPaused || gameState.isGameOver) return;
-          rocket.exhaustFlame += 0.4;
+      if (IMG.mario.ok) {
+        ctx.drawImage(IMG.mario, mx, my, mario.w, mario.h);
+      } else {
+        const legOffset = (keys.left || keys.right) && !mario.isJumping ? Math.round(Math.sin(mario.legSwing) * 2) : 0;
+        ctx.fillStyle = "#8b4513";
+        ctx.fillRect(mx + 4, my + 38 + legOffset, 10, 6);
+        ctx.fillRect(mx + 18, my + 38 - legOffset, 10, 6);
+        ctx.fillStyle = "#0000ff";
+        ctx.fillRect(mx + 6, my + 26, 20, 14);
+        ctx.fillStyle = "#f8b800";
+        ctx.fillRect(mx + 7, my + 28, 4, 4);
+        ctx.fillRect(mx + 21, my + 28, 4, 4);
+        ctx.fillStyle = "#e52521";
+        ctx.fillRect(mx + 4, my + 14, 24, 14);
+        ctx.fillStyle = "#f8b4a2";
+        ctx.fillRect(mx + 10, my + 8, 18, 10);
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(mx + 20, my + 10, 4, 4);
+        ctx.fillStyle = "#8b4513";
+        ctx.fillRect(mx + 16, my + 14, 12, 4);
+        ctx.fillStyle = "#e52521";
+        ctx.fillRect(mx + 6, my + 2, 22, 8);
+        ctx.fillRect(mx + 12, my - 2, 16, 4);
+      }
+      ctx.restore();
+    }
 
-          if (rocket.isJumping) {
-            rocket.y += rocket.vy;
-            rocket.vy += 0.8;
-            if (rocket.y >= 330) { rocket.y = 330; rocket.isJumping = false; }
-          }
+    function drawGround() {
+      ctx.fillStyle = "#c84c0c";
+      ctx.strokeStyle = "#000"; ctx.lineWidth = 3;
+      const segments = [];
+      let lastX = 0;
+      groundPits.forEach(pit => { segments.push([lastX, pit.start]); lastX = pit.start + pit.width; });
+      segments.push([lastX, WORLD_W]);
+      segments.forEach(([a, b]) => {
+        ctx.fillRect(a, GROUND_TOP, b - a, canvas.height - GROUND_TOP);
+        for (let gx = a; gx < b; gx += 32) ctx.strokeRect(gx, GROUND_TOP, Math.min(32, b - gx), canvas.height - GROUND_TOP);
+      });
+    }
 
-          if (laserBeam.active) {
-            laserBeam.x += laserBeam.vx;
-            if (laserBeam.x >= 680) {
-              laserBeam.active = false;
-              triggerShake();
-              sndFireball();
-            }
-          }
+    function drawBoss() {
+      const bx = BOSS_X, by = BOSS_Y;
+      const shakeX = bossFlash > 0 ? (bossFlash % 4 < 2 ? -4 : 4) : 0;
+      if (IMG.boss.ok) {
+        ctx.drawImage(IMG.boss, bx + shakeX, by, 90, 140);
+      } else {
+        ctx.fillStyle = bossFlash > 0 && bossFlash % 4 < 2 ? "#ffffff" : "#15803d";
+        ctx.fillRect(bx + shakeX, by, 80, 80);
+        ctx.strokeStyle = "#000"; ctx.lineWidth = 3; ctx.strokeRect(bx + shakeX, by, 80, 80);
+        ctx.fillStyle = "#064e3b";
+        ctx.beginPath();
+        ctx.arc(bx + 45 + shakeX, by + 40, 40, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#facc15";
+        ctx.fillRect(bx + 10 + shakeX, by + 85, 60, 55);
+        ctx.strokeRect(bx + 10 + shakeX, by + 85, 60, 55);
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(bx + 14 + shakeX, by + 22, 12, 12);
+        ctx.fillStyle = "#b91c1c";
+        ctx.fillRect(bx + 18 + shakeX, by + 26, 5, 5);
+      }
+      ctx.fillStyle = "#000";
+      ctx.fillRect(bx - 10, by - 32, 100, 16);
+      ctx.fillStyle = "#ef4444";
+      const hpW = (gameState.bossHp / gameState.bossMaxHp) * 96;
+      ctx.fillRect(bx - 8, by - 30, Math.max(0, hpW), 12);
+      ctx.fillStyle = "#fff";
+      ctx.font = "8px 'Press Start 2P', monospace";
+      ctx.fillText("BOWSER", bx + 14, by - 38);
+    }
 
-          if (!gameState.inBossFight) {
-            worldOffset += 3.5;
-            meteorBox.x -= 3.5;
-            if (meteorBox.x <= 220 && meteorBox.active) {
-              meteorBox.active = false;
-              openNextQuestion();
-            }
-          }
-        }
+    function drawWorld() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        function drawWorld() {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          
-          // Vẽ nền không gian vũ trụ & các ngôi sao lấp lánh
-          ctx.fillStyle = gameState.inBossFight ? "#0f051d" : "#060913";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const currentBg = !gameState.examData ? "#5c94fc"
+        : gameState.inBossFight ? "#2d0a1e"
+        : gameState.examData.stages[Math.min(gameState.currentStageIdx, 4)].bg;
+      ctx.fillStyle = currentBg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (IMG.background.ok && !gameState.inBossFight) {
+        ctx.globalAlpha = 0.85;
+        ctx.drawImage(IMG.background, 0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = 1;
+      }
 
-          ctx.fillStyle = "#ffffff";
-          for(let i=0; i<30; i++) {
-            let sx = (i * 37 + worldOffset * 0.3) % canvas.width;
-            let sy = (i * 23) % (canvas.height - 50);
-            ctx.fillRect(sx, sy, 2, 2);
-          }
+      ctx.save();
+      ctx.translate(-Math.round(cameraX), 0);
 
-          // Vẽ bề mặt hành tinh bên dưới
-          ctx.fillStyle = gameState.inBossFight ? "#31103f" : "#1e1b4b";
-          ctx.fillRect(0, 394, canvas.width, 16);
-          ctx.fillStyle = gameState.inBossFight ? "#581c87" : "#312e81";
-          ctx.fillRect(0, 410, canvas.width, 74);
-
-          // Vẽ thiên thạch / hộp bí ẩn không gian
-          if (!gameState.inBossFight && meteorBox.x > -50) {
-            ctx.fillStyle = "#f59e0b";
-            ctx.fillRect(meteorBox.x, meteorBox.y, 44, 44);
-            ctx.strokeStyle = "#b45309";
-            ctx.lineWidth = 3;
-            ctx.strokeRect(meteorBox.x, meteorBox.y, 44, 44);
-            ctx.fillStyle = "#ffffff";
-            ctx.font = "bold 24px monospace";
-            ctx.fillText("?", meteorBox.x + 14, meteorBox.y + 31);
-          }
-
-          // Vẽ Tên lửa (Phi hành gia)
-          ctx.fillStyle = "#38bdf8";
+      if (!gameState.inBossFight) {
+        ctx.fillStyle = "rgba(0, 168, 0, 0.75)";
+        [ [200, 400, 90], [800, 400, 110], [1550, 400, 100], [2500, 400, 120] ].forEach(([hx, hy, hr]) => {
           ctx.beginPath();
-          ctx.moveTo(rocket.x + rocket.w, rocket.y + rocket.h / 2);
-          ctx.lineTo(rocket.x, rocket.y);
-          ctx.lineTo(rocket.x + 10, rocket.y + rocket.h / 2);
-          ctx.lineTo(rocket.x, rocket.y + rocket.h);
-          ctx.closePath();
+          ctx.arc(hx, hy, hr, Math.PI, 0, false);
           ctx.fill();
+          ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.stroke();
+        });
 
-          // Lửa tên lửa
-          let flameSize = 8 + Math.sin(rocket.exhaustFlame) * 5;
-          ctx.fillStyle = "#f97316";
-          ctx.fillRect(rocket.x - flameSize, rocket.y + 10, flameSize, 8);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+        [ [300, 60, 1.2], [900, 45, 1.0], [1600, 70, 1.3], [2400, 50, 1.1] ].forEach(([cx, cy, sc]) => {
+          ctx.beginPath();
+          ctx.arc(cx, cy, 18 * sc, 0, Math.PI * 2);
+          ctx.arc(cx + 16, cy - 6, 22 * sc, 0, Math.PI * 2);
+          ctx.arc(cx + 36, cy, 18 * sc, 0, Math.PI * 2);
+          ctx.fill();
+        });
 
-          if (laserBeam.active) {
-            ctx.fillStyle = "#38bdf8";
-            ctx.beginPath();
-            ctx.arc(laserBeam.x, laserBeam.y, 14, 0, Math.PI * 2);
-            ctx.fill();
-          }
+        // Cờ đích cuối màn
+        ctx.fillStyle = "#e5e7eb"; ctx.fillRect(2940, 150, 6, 250);
+        ctx.fillStyle = "#22c55e";
+        ctx.beginPath(); ctx.moveTo(2946, 155); ctx.lineTo(2986, 170); ctx.lineTo(2946, 185); ctx.fill();
 
-          // Vẽ Trùm Bowser Không Gian (Hành tinh độc ác)
-          if (gameState.inBossFight && !gameState.defeatedBoss) {
-            const bx = 680, by = 285;
-            ctx.fillStyle = "#7c2d12";
-            ctx.beginPath();
-            ctx.arc(bx + 40, by + 45, 48, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = "#b91c1c";
-            ctx.fillRect(bx + 10, by + 15, 60, 50);
-
-            ctx.fillStyle = "#000";
-            ctx.fillRect(bx - 20, by - 36, 120, 16);
-            ctx.fillStyle = "#ef4444";
-            const hpW = (gameState.bossHp / gameState.bossMaxHp) * 116;
-            ctx.fillRect(bx - 18, by - 34, Math.max(0, hpW), 12);
-            ctx.fillStyle = "#fff";
-            ctx.font = "bold 10px monospace";
-            ctx.fillText("TRÙM BOWSER: " + gameState.bossHp + "/" + gameState.bossMaxHp, bx - 14, by - 42);
-          }
-        }
-
-        function gameLoop() {
-          updateWorld();
-          drawWorld();
-          requestAnimationFrame(gameLoop);
-        }
-        gameLoop();
-
-        document.getElementById("btn-start-game").onclick = () => {
-          const name = document.getElementById("input-name").value.trim();
-          const sClass = document.getElementById("input-class").value.trim();
-          if (!name || !sClass) { alert("Em vui lòng nhập đầy đủ Tên và Lớp nhé!"); return; }
-          gameState.studentName = name;
-          gameState.studentClass = sClass;
-          gameState.examData = buildExam();
-
-          document.getElementById("login-modal").classList.add("hidden");
-          document.getElementById("hud-student").textContent = name + " (" + sClass + ") • " + gameState.examData.code;
-          gameState.isPaused = false;
-          startBgm();
-        };
-
-        const quizModal = document.getElementById("quiz-modal");
-        const badgeEl = document.getElementById("quiz-level-badge");
-        const timerTextEl = document.getElementById("quiz-timer-text");
-        const timerBarEl = document.getElementById("quiz-timer-bar");
-        const questionTextEl = document.getElementById("quiz-question-text");
-        const optionsBox = document.getElementById("quiz-options-container");
-        const shortBox = document.getElementById("quiz-short-container");
-        const shortInput = document.getElementById("quiz-short-input");
-        const shortSubmit = document.getElementById("quiz-short-submit");
-        const feedbackEl = document.getElementById("quiz-feedback");
-
-        let currentQ = null;
-
-        function openNextQuestion() {
-          gameState.isPaused = true;
-          feedbackEl.innerHTML = "";
-
-          if (!gameState.inBossFight) {
-            const curStage = gameState.examData.stages[gameState.currentStageIdx];
-            currentQ = curStage.questions[gameState.currentQuestionIdx];
-            badgeEl.textContent = gameState.examData.code + " • " + curStage.name + " (" + (gameState.currentQuestionIdx + 1) + "/" + curStage.questions.length + ")";
+        mysteryBoxes.forEach(box => {
+          const by = box.y - (box.bump > 0 ? Math.sin((box.bump / 8) * Math.PI) * 8 : 0);
+          if (IMG.box.ok && box.active) {
+            ctx.drawImage(IMG.box, box.x, by, BOX_SIZE, BOX_SIZE);
           } else {
-            currentQ = gameState.examData.bossQuestions[gameState.bossMaxHp - gameState.bossHp];
-            sndRoar();
-            badgeEl.textContent = "⚔️ TIÊU DIỆT TRÙM HP: " + gameState.bossHp + "/" + gameState.bossMaxHp + " - VẬN DỤNG CAO";
+            ctx.fillStyle = box.active ? "#f8b800" : "#7c3f00";
+            ctx.fillRect(box.x, by, BOX_SIZE, BOX_SIZE);
+            ctx.strokeStyle = "#000"; ctx.lineWidth = 3; ctx.strokeRect(box.x, by, BOX_SIZE, BOX_SIZE);
+            ctx.fillStyle = box.active ? "#000" : "#ffcc00";
+            ctx.font = "bold 16px 'Press Start 2P', monospace";
+            ctx.fillText(box.active ? "?" : "✓", box.x + 10, by + 26);
           }
+        });
 
-          questionTextEl.textContent = currentQ.q;
-          quizModal.classList.remove("hidden");
+        floatingCoins.forEach(fc => {
+          ctx.fillStyle = "#facc15";
+          ctx.beginPath();
+          ctx.arc(fc.x + 12, fc.y, 10, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "#78350f"; ctx.lineWidth = 2; ctx.stroke();
+        });
+      }
 
-          gameState.timerSec = currentQ.time;
-          gameState.timerMax = currentQ.time;
-          timerTextEl.textContent = gameState.timerSec + "s";
-          timerBarEl.style.width = "100%";
+      drawGround();
+      drawMario();
 
-          if (gameState.timerInterval) clearInterval(gameState.timerInterval);
-          gameState.timerInterval = setInterval(() => {
-            gameState.timerSec--;
-            timerTextEl.textContent = gameState.timerSec + "s";
-            const percent = Math.max(0, (gameState.timerSec / gameState.timerMax) * 100);
-            timerBarEl.style.width = percent + "%";
+      if (gameState.inBossFight && !gameState.defeatedBoss) drawBoss();
 
-            if (gameState.timerSec <= 0) {
-              clearInterval(gameState.timerInterval);
-              handleAnswer(false, "Đã hết thời gian không gian!");
-            }
-          }, 1000);
+      if (fireball.active) {
+        ctx.fillStyle = "#f97316";
+        ctx.beginPath(); ctx.arc(fireball.x, fireball.y, 10, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#fde047";
+        ctx.beginPath(); ctx.arc(fireball.x, fireball.y, 5, 0, Math.PI * 2); ctx.fill();
+      }
 
-          if (currentQ.type === "mcq") {
-            optionsBox.classList.remove("hidden");
-            shortBox.classList.add("hidden");
-            optionsBox.innerHTML = "";
+      ctx.restore();
+    }
 
-            currentQ.answers.forEach((ans, idx) => {
-              const btn = document.createElement("button");
-              btn.className = "w-full text-left bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl p-3 text-xs font-semibold";
-              btn.innerHTML = '<span class="text-amber-400 font-bold">' + (idx + 1) + '.</span> ' + ans;
-              btn.onclick = () => {
-                clearInterval(gameState.timerInterval);
-                handleAnswer(idx === currentQ.correct);
-              };
-              optionsBox.appendChild(btn);
-            });
-          } else {
-            optionsBox.classList.add("hidden");
-            shortBox.classList.remove("hidden");
-            shortInput.value = "";
-            setTimeout(() => shortInput.focus(), 150);
-          }
+    // Vòng lặp bước cố định 60 lần/giây -> tốc độ như nhau trên màn 60Hz hay 144Hz
+    const STEP_MS = 1000 / 60;
+    let lastTime = performance.now();
+    let accumulator = 0;
+    function gameLoop(now) {
+      accumulator += Math.min(250, now - lastTime);
+      lastTime = now;
+      while (accumulator >= STEP_MS) { step(); accumulator -= STEP_MS; }
+      drawWorld();
+      requestAnimationFrame(gameLoop);
+    }
+    requestAnimationFrame(gameLoop);
+
+    // ===== BẮT ĐẦU =====
+    function startGame() {
+      const name = document.getElementById("input-name").value.trim();
+      const sClass = document.getElementById("input-class").value.trim();
+      if (!name || !sClass) { alert("Em vui lòng nhập đầy đủ Họ tên và Lớp nhé!"); return; }
+
+      gameState.studentName = name;
+      gameState.studentClass = sClass;
+      gameState.examData = buildExam();
+      initLevelBoxes();
+      resetMario(100);
+      cameraX = 0;
+
+      document.getElementById("login-modal").classList.add("hidden");
+      document.getElementById("hud-world").textContent = "1-1";
+      document.getElementById("hud-quest").textContent = "0/5";
+      updateHud();
+      if (document.activeElement) document.activeElement.blur();
+      gameState.started = true;
+      gameState.isPaused = false;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      startBgm();
+    }
+    document.getElementById("btn-start-game").onclick = startGame;
+    ["input-name", "input-class"].forEach(id => {
+      document.getElementById(id).addEventListener("keydown", (e) => { if (e.key === "Enter") startGame(); });
+    });
+
+    // ===== CÂU HỎI =====
+    const quizModal = document.getElementById("quiz-modal");
+    const badgeEl = document.getElementById("quiz-level-badge");
+    const timerTextEl = document.getElementById("quiz-timer-text");
+    const timerBarEl = document.getElementById("timer-bar");
+    const questionTextEl = document.getElementById("quiz-question-text");
+    const optionsBox = document.getElementById("quiz-options-container");
+    const shortBox = document.getElementById("quiz-short-container");
+    const shortInput = document.getElementById("quiz-short-input");
+    const shortSubmit = document.getElementById("quiz-short-submit");
+    const feedbackEl = document.getElementById("quiz-feedback");
+
+    let currentQ = null;
+
+    function closeQuizModal() {
+      quizModal.classList.add("hidden");
+      if (document.activeElement) document.activeElement.blur();
+    }
+
+    function openNextQuestion() {
+      if (gameState.isGameOver) return;
+      gameState.isPaused = true;
+      keys.left = keys.right = false;
+      feedbackEl.innerHTML = "";
+
+      if (!gameState.inBossFight) {
+        const curStage = gameState.examData.stages[gameState.currentStageIdx];
+        currentQ = curStage.questions[gameState.currentQuestionIdx];
+        badgeEl.textContent = `Màn ${gameState.currentStageIdx + 1} • Câu ${gameState.currentQuestionIdx + 1}/5 • ${currentQ.level}`;
+      } else {
+        const list = gameState.examData.bossQuestions;
+        currentQ = list[gameState.bossQIdx % list.length];
+        gameState.bossQIdx++;
+        sndRoar();
+        badgeEl.textContent = `⚔️ ĐẠI CHIẾN BOWSER (HP: ${gameState.bossHp}/${gameState.bossMaxHp})`;
+      }
+
+      questionTextEl.textContent = currentQ.q;
+      quizModal.classList.remove("hidden");
+      gameState.answerLocked = false;
+
+      gameState.timerSec = currentQ.time;
+      gameState.timerMax = currentQ.time;
+      timerTextEl.textContent = gameState.timerSec + "s";
+      timerBarEl.style.width = "100%";
+
+      if (gameState.timerInterval) clearInterval(gameState.timerInterval);
+      gameState.timerInterval = setInterval(() => {
+        gameState.timerSec--;
+        timerTextEl.textContent = Math.max(0, gameState.timerSec) + "s";
+        timerBarEl.style.width = Math.max(0, (gameState.timerSec / gameState.timerMax) * 100) + "%";
+        if (gameState.timerSec <= 0) handleAnswer(false, "Đã hết thời gian!");
+      }, 1000);
+
+      if (currentQ.type === "mcq") {
+        optionsBox.classList.remove("hidden");
+        shortBox.classList.add("hidden");
+        optionsBox.innerHTML = "";
+        currentQ.answers.forEach((ans, idx) => {
+          const btn = document.createElement("button");
+          btn.className = "w-full text-left bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl p-3 text-xs font-semibold disabled:opacity-60";
+          const num = document.createElement("span");
+          num.className = "text-amber-400 font-bold";
+          num.textContent = (idx + 1) + ". ";
+          btn.appendChild(num);
+          btn.appendChild(document.createTextNode(ans));
+          btn.onclick = () => handleAnswer(idx === currentQ.correct, null, idx);
+          optionsBox.appendChild(btn);
+        });
+      } else {
+        optionsBox.classList.add("hidden");
+        shortBox.classList.remove("hidden");
+        shortInput.value = "";
+        shortInput.disabled = false;
+        shortSubmit.disabled = false;
+        setTimeout(() => shortInput.focus(), 150);
+      }
+    }
+
+    function submitShortAnswer() {
+      const val = normalizeAnswer(shortInput.value);
+      if (!val) return;
+      const isOk = currentQ.correctAnswers.some(ans => normalizeAnswer(ans) === val);
+      handleAnswer(isOk);
+    }
+    shortSubmit.onclick = submitShortAnswer;
+    shortInput.addEventListener("keydown", (e) => { if (e.key === "Enter") submitShortAnswer(); });
+
+    function handleAnswer(isCorrect, customReason = null, pickedIdx = null) {
+      if (gameState.answerLocked) return;          // chống bấm 2 lần / trùng với hết giờ
+      gameState.answerLocked = true;
+      clearInterval(gameState.timerInterval);
+
+      // Khóa giao diện, tô màu đáp án
+      shortInput.disabled = true;
+      shortSubmit.disabled = true;
+      [...optionsBox.children].forEach((btn, i) => {
+        btn.disabled = true;
+        if (currentQ.type === "mcq" && i === currentQ.correct) btn.classList.add("border-emerald-400", "bg-emerald-900/40");
+        else if (i === pickedIdx) btn.classList.add("border-rose-400", "bg-rose-900/40");
+      });
+
+      if (isCorrect) {
+        sndCoin();
+        gameState.score += gameState.inBossFight ? 300 : 100;
+        updateHud();
+        feedbackEl.innerHTML = '<span class="text-emerald-400 font-bold">🎉 CHÍNH XÁC!</span>';
+
+        if (gameState.inBossFight) {
+          gameState.bossHp--;
+          fireball.active = true;
+          fireball.x = mario.x + 30;
+          fireball.y = mario.y + 16;
+          fireball.vx = 9;
+        } else if (!mario.isJumping && !mario.falling) {
+          mario.isJumping = true;
+          mario.vy = -10;
         }
 
-        function submitShortAnswer() {
-          const val = shortInput.value.trim().toLowerCase();
-          if (!val) return;
-          clearInterval(gameState.timerInterval);
-          const isOk = currentQ.correctAnswers.some(ans => ans.toLowerCase() === val);
-          handleAnswer(isOk);
+        setTimeout(() => { closeQuizModal(); advanceProgress(); }, 1100);
+      } else {
+        sndWrong();
+        gameState.lives = Math.max(0, gameState.lives - 1);
+        updateHud();
+        const correctText = currentQ.type === "mcq" ? currentQ.answers[currentQ.correct] : currentQ.correctAnswers[0];
+        feedbackEl.innerHTML = "";
+        const line1 = document.createElement("div");
+        line1.className = "text-rose-400 font-bold";
+        line1.textContent = "❌ " + (customReason || "Chưa chính xác!") + " Đáp án: " + correctText;
+        const line2 = document.createElement("div");
+        line2.className = "text-[11px] text-slate-300 mt-1";
+        line2.textContent = "Ghi nhớ: " + currentQ.explain;
+        feedbackEl.append(line1, line2);
+
+        setTimeout(() => {
+          closeQuizModal();
+          if (gameState.lives <= 0) finishGameSession(false);
+          else advanceProgress();
+        }, 3000);
+      }
+    }
+
+    const stageClearModal = document.getElementById("stage-clear-modal");
+    const teacherNotes = [
+      "Cô Mai Phương rất vui khi em nắm vững tính chất góc tứ giác lồi! Sang Ải 2 nhé!",
+      "Làm tốt lắm! Em đã thuộc lòng tính chất hai đường chéo của hình thang cân. Sang Ải 3 nào!",
+      "Xuất sắc! Tính chất hai đường chéo cắt nhau tại trung điểm là chìa khóa vàng. Tiến lên Ải 4!",
+      "Tuyệt vời! Em đã vận dụng thành thạo tính chất hình chữ nhật. Ải 5 đang chờ đón!",
+      "Hoàn thành 5 Ải! Hãy tập trung cao độ đánh bại Bowser để nhận +5 Điểm cộng nhé!"
+    ];
+
+    function advanceProgress() {
+      if (gameState.isGameOver) return;
+
+      if (gameState.inBossFight) {
+        if (gameState.bossHp <= 0) {
+          gameState.defeatedBoss = true;
+          setTimeout(() => finishGameSession(true), 500);
+        } else {
+          setTimeout(() => openNextQuestion(), 700);
         }
-        shortSubmit.onclick = submitShortAnswer;
-        shortInput.onkeydown = (e) => { if (e.key === "Enter") submitShortAnswer(); };
+        return;
+      }
 
-        function handleAnswer(isCorrect, customReason = null) {
-          gameState.totalAnswered++;
+      gameState.currentQuestionIdx++;
+      document.getElementById("hud-quest").textContent = `${gameState.currentQuestionIdx}/5`;
 
-          if (isCorrect) {
-            sndCoin();
-            gameState.correctCount++;
-            gameState.score += gameState.inBossFight ? 300 : 100;
-            document.getElementById("hud-score").textContent = gameState.score;
-            feedbackEl.innerHTML = '<span class="text-emerald-400 font-bold">🎉 TỌA ĐỘ CHUẨN XÁC! +' + (gameState.inBossFight ? 300 : 100) + ' Điểm</span>';
+      if (gameState.currentQuestionIdx >= 5) {
+        const curStage = gameState.examData.stages[gameState.currentStageIdx];
+        document.getElementById("stage-clear-title").textContent = "HOÀN THÀNH " + curStage.name.toUpperCase() + "!";
+        document.getElementById("stage-clear-msg").textContent = teacherNotes[gameState.currentStageIdx];
+        stageClearModal.classList.remove("hidden");
+      } else {
+        gameState.isPaused = false;
+      }
+    }
 
-            rocket.isJumping = true;
-            rocket.vy = -12;
+    document.getElementById("btn-continue-next-stage").onclick = (e) => {
+      e.currentTarget.blur();
+      stageClearModal.classList.add("hidden");
+      gameState.currentStageIdx++;
+      gameState.currentQuestionIdx = 0;
+      resetMario(100);
+      cameraX = 0;
+      document.getElementById("hud-quest").textContent = "0/5";
 
-            if (gameState.inBossFight) {
-              laserBeam.active = true;
-              laserBeam.x = rocket.x + 30;
-              laserBeam.y = rocket.y + 14;
-              laserBeam.vx = 14;
-              gameState.bossHp--;
-            }
+      if (gameState.currentStageIdx >= gameState.examData.stages.length) {
+        // Đấu trùm: không có hố, không có ô [?]
+        gameState.inBossFight = true;
+        groundPits = [];
+        mysteryBoxes = [];
+        floatingCoins = [];
+        resetMario(1000);
+        cameraX = 900;
+        document.getElementById("hud-world").textContent = "BOSS";
+        document.getElementById("hud-quest").textContent = "BOSS";
+        sndRoar();
+        setTimeout(() => openNextQuestion(), 800);
+      } else {
+        document.getElementById("hud-world").textContent = `1-${gameState.currentStageIdx + 1}`;
+        initLevelBoxes();
+        gameState.isPaused = false;
+      }
+    };
 
-            setTimeout(() => {
-              quizModal.classList.add("hidden");
-              advanceProgress();
-            }, 1100);
-          } else {
-            sndWrong();
-            gameState.lives--;
-            document.getElementById("hud-lives").textContent = "❤️".repeat(Math.max(0, gameState.lives)) || "💀 Hết";
-            feedbackEl.innerHTML = '<span class="text-rose-400 font-bold">❌ ' + (customReason || "Sai quỹ đạo!") + '</span><br><span class="text-[11px] text-slate-300">Ghi nhớ: ' + currentQ.explain + '</span>';
+    // ===== KẾT THÚC & GỬI KẾT QUẢ =====
+    function finishGameSession(isVictory) {
+      if (gameState.isGameOver) return;           // chỉ chạy 1 lần
+      gameState.isGameOver = true;
+      gameState.isPaused = true;
+      clearInterval(gameState.timerInterval);
+      stopBgm();
+      quizModal.classList.add("hidden");
+      stageClearModal.classList.add("hidden");
 
-            setTimeout(() => {
-              quizModal.classList.add("hidden");
-              if (gameState.lives <= 0) {
-                finishGameSession(false);
-              } else {
-                advanceProgress();
-              }
-            }, 3000);
-          }
-        }
+      document.getElementById("sum-name").textContent = gameState.studentName;
+      document.getElementById("sum-class").textContent = gameState.studentClass;
+      document.getElementById("sum-examcode").textContent = gameState.examData.code;
+      document.getElementById("sum-score").textContent = gameState.score;
 
-        const stageClearModal = document.getElementById("stage-clear-modal");
-        const teacherNotes = [
-          "Cô Mai Phương rất tự hào! Em đã nắm vững góc tứ giác lồi. Tiếp tục phóng tới Trạm 2 nhé!",
-          "Xuất sắc! Em đã thuộc lòng tính chất hai đường chéo hình thang cân. Tiến lên Trạm 3!",
-          "Tuyệt vời! Quỹ đạo hình bình hành đã được chinh phục. Phóng tới Trạm 4 nào!",
-          "Quá đỉnh! Em vận dụng hoàn hảo tính chất hình chữ nhật. Trạm 5 đang chờ đón!",
-          "Đã vượt qua 5 Trạm không gian! Hãy tập trung tối đa tiêu diệt trùm Bowser để nhận +5 Điểm!"
-        ];
+      const subtitle = document.getElementById("summary-subtitle");
+      if (isVictory) {
+        document.getElementById("summary-badge-icon").textContent = "👑";
+        document.getElementById("summary-title").textContent = "CHIẾN THẮNG TUYỆT ĐỐI!";
+        subtitle.textContent = "Đã xuất sắc vượt qua 5 Ải & Hạ gục Bowser";
+        subtitle.className = "text-[11px] text-emerald-400 font-semibold";
+        document.getElementById("sum-bonus").textContent = "+5 ĐIỂM CỘNG";
+        document.getElementById("summary-teacher-note").innerHTML = '🎉 <b>Lời khen từ Cô Mai Phương:</b> Em đã xuất sắc hạ gục Bowser! Cô cộng <b>+5 điểm thực tế</b> vào sổ điểm cho em!';
+      } else {
+        const reached = gameState.inBossFight ? "trận đấu Bowser" : "Màn " + (gameState.currentStageIdx + 1);
+        document.getElementById("summary-badge-icon").textContent = "🛡️";
+        document.getElementById("summary-title").textContent = "DỪNG BƯỚC THỬ THÁCH";
+        subtitle.textContent = "Em đã dừng lại ở " + reached;
+        subtitle.className = "text-[11px] text-rose-400 font-semibold";
+        document.getElementById("sum-bonus").textContent = "0 ĐIỂM CỘNG";
+        document.getElementById("summary-teacher-note").innerHTML = '💡 <b>Lời dặn từ Cô Mai Phương:</b> Em đã nỗ lực đạt <b>' + gameState.score + ' điểm</b>. Hãy xem lại bài và bấm Chơi lại để phục thù nhé!';
+      }
 
-        function advanceProgress() {
-          if (gameState.inBossFight) {
-            if (gameState.bossHp <= 0) {
-              gameState.defeatedBoss = true;
-              finishGameSession(true);
-            } else {
-              setTimeout(() => openNextQuestion(), 600);
-            }
-            return;
-          }
+      document.getElementById("summary-modal").classList.remove("hidden");
 
-          const curStage = gameState.examData.stages[gameState.currentStageIdx];
-          gameState.currentQuestionIdx++;
+      const payload = {
+        time: new Date().toLocaleString("vi-VN"),
+        examCode: gameState.examData.code,
+        name: gameState.studentName,
+        student_class: gameState.studentClass,
+        score: gameState.score,
+        topic: "Minigame Tứ Giác (Bowser)",
+        feedback: isVictory ? "Hạ gục Bowser (+5đ)" : ("Chưa diệt Bowser - dừng ở " + (gameState.inBossFight ? "BOSS" : "Màn " + (gameState.currentStageIdx + 1)))
+      };
 
-          if (gameState.currentQuestionIdx >= curStage.questions.length) {
-            document.getElementById("stage-clear-title").textContent = "HOÀN THÀNH " + curStage.name.toUpperCase() + "!";
-            document.getElementById("stage-clear-msg").textContent = teacherNotes[gameState.currentStageIdx];
-            stageClearModal.classList.remove("hidden");
-          } else {
-            meteorBox.x = 760;
-            meteorBox.active = true;
-            gameState.isPaused = false;
-          }
-        }
+      gameState.lastPayload = payload;
+      syncToGoogleSheets(payload);
+    }
 
-        document.getElementById("btn-continue-next-stage").onclick = () => {
-          stageClearModal.classList.add("hidden");
-          gameState.currentStageIdx++;
-          gameState.currentQuestionIdx = 0;
+    async function syncToGoogleSheets(payload) {
+      const syncStatusText = document.getElementById("sync-status-text");
+      const retryBtn = document.getElementById("btn-retry-sync");
 
-          if (gameState.currentStageIdx >= gameState.examData.stages.length) {
-            gameState.inBossFight = true;
-            sndRoar();
-            setTimeout(() => openNextQuestion(), 600);
-          } else {
-            meteorBox.x = 760;
-            meteorBox.active = true;
-            gameState.isPaused = false;
-          }
-        };
+      if (!GOOGLE_SCRIPT_WEBAPP_URL || GOOGLE_SCRIPT_WEBAPP_URL.includes("EXAMPLE_REPLACE")) {
+        syncStatusText.innerHTML = "⚠️ Cô chưa cấu hình link Google Sheets. Em hãy chụp màn hình kết quả gửi cô nhé!";
+        syncStatusText.className = "text-xs text-amber-300 font-bold";
+        retryBtn.classList.add("hidden");
+        return;
+      }
 
-        function finishGameSession(isVictory) {
-          gameState.isGameOver = true;
-          gameState.isPaused = true;
-          stopBgm();
+      syncStatusText.innerHTML = "⏳ Đang kết nối gửi kết quả về Google Sheets của cô...";
+      syncStatusText.className = "text-xs text-yellow-400 font-medium";
+      retryBtn.classList.add("hidden");
 
-          document.getElementById("sum-name").textContent = gameState.studentName;
-          document.getElementById("sum-class").textContent = gameState.studentClass;
-          document.getElementById("sum-examcode").textContent = gameState.examData.code;
-          document.getElementById("sum-score").textContent = gameState.score;
+      try {
+        // no-cors chỉ cho phép Content-Type "text/plain"; Apps Script đọc bằng e.postData.contents
+        await fetch(GOOGLE_SCRIPT_WEBAPP_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(payload)
+        });
+        syncStatusText.innerHTML = "✅ Đã gửi kết quả về Google Sheets của Cô Mai Phương!";
+        syncStatusText.className = "text-xs text-emerald-400 font-bold";
+      } catch (err) {
+        syncStatusText.innerHTML = '<div class="text-rose-400 font-bold">⚠️ Chưa có mạng! Kết quả chưa gửi được.</div><div class="text-[10px] text-slate-300 mt-1">Em hãy chụp màn hình gửi cô hoặc bấm nút thử lại:</div>';
+        retryBtn.classList.remove("hidden");
+      }
+    }
 
-          if (isVictory) {
-            document.getElementById("summary-badge-icon").textContent = "👑";
-            document.getElementById("summary-title").textContent = "CHIẾN THẮNG VŨ TRỤ!";
-            document.getElementById("sum-bonus").textContent = "+5 ĐIỂM CỘNG";
-            document.getElementById("summary-teacher-note").innerHTML = '🎉 <b>Lời khen từ Cô Mai Phương:</b> Em đã hạ gục trùm Bowser xuất sắc! Cô cộng ngay <b>+5 điểm thực tế</b> vào sổ điểm cho em!';
-          } else {
-            document.getElementById("summary-badge-icon").textContent = "🛡️";
-            document.getElementById("summary-title").textContent = "HOÀN THÀNH NHIỆM VỤ";
-            document.getElementById("sum-bonus").textContent = "0 ĐIỂM";
-            document.getElementById("summary-teacher-note").innerHTML = '💡 <b>Lời dặn từ Cô Mai Phương:</b> Em đã đạt <b>' + gameState.score + ' điểm</b>. Hãy xem lại kiến thức và phóng lại để đạt điểm tuyệt đối nhé!';
-          }
+    document.getElementById("btn-retry-sync").onclick = () => {
+      if (gameState.lastPayload) syncToGoogleSheets(gameState.lastPayload);
+    };
+  </script>
+</body>
+</html>
+"""
 
-          document.getElementById("summary-modal").classList.remove("hidden");
+mario_game_code = mario_game_code.replace("WEBHOOK_URL_PLACEHOLDER", sheet_webhook)
+components.html(mario_game_code, height=720, scrolling=True)
 
-          const payload = {
-            time: new Date().toLocaleString("vi-VN"),
-            examCode: gameState.examData.code,
-            name: gameState.studentName,
-            student_class: gameState.studentClass,
-            score: gameState.score,
-            topic: "Minigame Vũ Trụ Tứ Giác (Bowser)",
-            feedback: isVictory ? "Hạ gục Bowser (+5đ)" : "Chưa diệt Bowser"
-          };
-
-          gameState.lastPayload = payload;
-          syncToGoogleSheets(payload);
-        }
-
-        async function syncToGoogleSheets(payload) {
-          const syncStatusText = document.getElementById("sync-status-text");
-          const retryBtn = document.getElementById("btn-retry-sync");
-
-          syncStatusText.innerHTML = "⏳ Đang truyền kết quả về trạm Google Sheets của cô...";
-          syncStatusText.className = "text-xs text-yellow-400 font-medium";
-          retryBtn.classList.add("hidden");
-
-          try {
-            await fetch(GOOGLE_SCRIPT_WEBAPP_URL, {
-              method: "POST",
-              mode: "no-cors",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload)
-            });
-
-            syncStatusText.innerHTML = "✅ Đã lưu kết quả thành công vào trạm Google Sheets của Cô Mai Phương!";
-            syncStatusText.className = "text-xs text-emerald-400 font-bold";
-          } catch (err) {
-            syncStatusText.innerHTML = '<div class="text-rose-400 font-bold">⚠️ Mất kết nối trạm!</div><div class="text-[10px] text-slate-300 mt-1">Hãy chụp màn hình gửi cô hoặc bấm nút truyền lại:</div>';
-            retryBtn.classList.remove("hidden");
-          }
-        }
-
-        document.getElementById("btn-retry-sync").onclick = () => {
-          if (gameState.lastPayload) syncToGoogleSheets(gameState.lastPayload);
-        };
-      </script>
-    </body>
-    </html>
-    """
-
-    mario_game_code = mario_game_code.replace("WEBHOOK_URL_PLACEHOLDER", sheet_webhook)
-    components.html(mario_game_code, height=720, scrolling=True)
 
 # ================= TAB 4: BẢNG ĐIỂM LỚP =================
 with tab4:
