@@ -235,6 +235,8 @@ def to_int(value, default):
 
 # Lấy Gemini API Key. Thiếu key thì chỉ tắt phần AI (tab 1, 2); game và sổ điểm vẫn dùng được.
 API_KEY = get_secret("GEMINI_API_KEY")
+# Link Web App Apps Script ghi điểm vào Google Sheet; Secrets GOOGLE_SHEET_WEBHOOK_URL (nếu có) được ưu tiên
+DEFAULT_WEBHOOK = "https://script.google.com/macros/s/AKfycbzZ9lzrOGbOUJfalzR3cUH5aYXuOELw94aJvvb0BwVLq7eDYcZ9sLR241l6b9osYgzA/exec"
 MODEL_NAME = get_secret("GEMINI_MODEL", "gemini-3.8-flash")
 
 
@@ -733,9 +735,12 @@ KHÔNG dùng LaTeX, viết ký hiệu Unicode.
                     }
                     submission_history.append(sub_record)
 
-                    webhook_url = get_secret("GOOGLE_SHEET_WEBHOOK_URL")
-                    sheet_ok = None
-                    if webhook_url:
+                    webhook_url = get_secret("GOOGLE_SHEET_WEBHOOK_URL", DEFAULT_WEBHOOK) or DEFAULT_WEBHOOK
+                    sheet_ok = False
+                    sheet_err = ""
+                    if not webhook_url or "EXAMPLE_REPLACE" in webhook_url:
+                        sheet_err = "Chưa cấu hình GOOGLE_SHEET_WEBHOOK_URL trong Secrets của Streamlit"
+                    else:
                         payload = {
                             "time": sub_record["Thời gian"],
                             "name": s_name,
@@ -745,15 +750,22 @@ KHÔNG dùng LaTeX, viết ký hiệu Unicode.
                             "feedback": sub_record["Nhận xét của AI"]
                         }
                         try:
-                            resp = requests.post(webhook_url, json=payload, timeout=10)
-                            sheet_ok = resp.ok
-                        except Exception:
-                            sheet_ok = False
+                            # Gửi dạng text/plain giống game Bowser; Apps Script đọc bằng e.postData.contents
+                            resp = requests.post(webhook_url, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+                                                 headers={"Content-Type": "text/plain;charset=utf-8"}, timeout=15)
+                            # Apps Script trả mã 200 cả khi lỗi hoặc bắt đăng nhập, nên phải đọc nội dung trả về
+                            sheet_ok = resp.ok and '"ok"' in resp.text
+                            if not sheet_ok:
+                                sheet_err = f"HTTP {resp.status_code}: {resp.text[:300]}"
+                        except Exception as e:
+                            sheet_err = str(e)
 
-                    if sheet_ok is False:
-                        st.warning("⚠️ Đã chấm xong nhưng chưa gửi được điểm về Google Sheets. Em hãy chụp màn hình kết quả gửi cô nhé!")
-                    else:
+                    if sheet_ok:
                         st.success("🎉 Tín hiệu đã truyền thành công! Điểm số tự động cập nhật về hạm đội của cô!")
+                    else:
+                        st.warning("⚠️ Đã chấm xong nhưng chưa gửi được điểm về Google Sheets. Em hãy chụp màn hình kết quả gửi cô nhé!")
+                        with st.expander("Chi tiết lỗi (dành cho cô)"):
+                            st.code(sheet_err)
                     st.markdown(f"### Kết quả của phi hành gia: **{s_name}** - Hạm đội **{s_class}**")
                     st.markdown(score_res_clean)
                 except Exception as err:
@@ -1901,7 +1913,6 @@ MARIO_GAME_HTML = """
 </html>
 """
 
-DEFAULT_WEBHOOK = "https://script.google.com/macros/s/AKfycbwYEXAMPLE_REPLACE_HERE/exec"
 
 with tab3:
     st.subheader("🍄 Super Mario Math: Cùng cô Mai Phương diệt Bowser")
