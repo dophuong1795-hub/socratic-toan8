@@ -10,6 +10,8 @@ import re
 import pandas as pd
 import requests
 from datetime import datetime
+import base64
+import io
 
 # ================= CẤU HÌNH GIAO DIỆN STREAMLIT =================
 st.set_page_config(
@@ -2274,6 +2276,65 @@ with tab3:
     game_html = SPACE_GAME_HTML.replace('"WEBHOOK_URL_PLACEHOLDER"', json.dumps(sheet_webhook))
     components.html(game_html, height=820, scrolling=True)
 
+# ================= HÀM NÉN ẢNH SIÊU NHẸ RAM =================
+def compress_image_to_base64(uploaded_file, max_size=(800, 800), quality=75):
+  """Nén ảnh gọn nhẹ thành data URL base64, tốn cực ít RAM."""
+  img = Image.open(uploaded_file)
+  if img.mode in ("RGBA", "P"):
+    img = img.convert("RGB")
+  img.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+  buffer = io.BytesIO()
+  img.save(buffer, format="JPEG", quality=quality, optimize=True)
+  encoded = base64.b64encode(buffer.getvalue()).decode()
+  return f"data:image/jpeg;base64,{encoded}"
+
+# ================= LƯU TRƯNG BÀY LÂU DÀI (GOOGLE SHEET + DRIVE QUA APPS SCRIPT) =================
+# Secrets GALLERY_WEBHOOK_URL = link /exec của Apps Script Trạm Trưng Bày (khác link chấm điểm).
+# Chưa cấu hình thì app vẫn chạy như cũ: tác phẩm chỉ nằm trong bộ nhớ, mất khi app khởi động lại.
+GALLERY_URL = get_secret("GALLERY_WEBHOOK_URL", "") or ""
+
+
+def gallery_post(payload):
+  """Gửi thao tác thêm/sửa/xóa/thả tim tới Apps Script. Trả về (thành công, dữ liệu hoặc lỗi)."""
+  try:
+    resp = requests.post(
+        GALLERY_URL,
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "text/plain;charset=utf-8"},
+        timeout=40,
+    )
+    data = resp.json()
+    if data.get("status") == "ok":
+      return True, data
+    return False, data.get("message", resp.text[:300])
+  except Exception as e:
+    return False, str(e)
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def gallery_fetch_list(url):
+  resp = requests.get(url, params={"action": "list"}, timeout=30)
+  data = resp.json()
+  if data.get("status") != "ok":
+    raise RuntimeError(data.get("message", resp.text[:300]))
+  return data["items"]
+
+
+# Mỗi ảnh chỉ tải từ Drive một lần rồi giữ lại, để học sinh mở trang không phải chờ lâu
+@st.cache_data(max_entries=300, show_spinner=False)
+def gallery_fetch_image(url, file_id):
+  resp = requests.get(url, params={"action": "image", "file": file_id}, timeout=30)
+  data = resp.json()
+  if data.get("status") != "ok":
+    raise RuntimeError(data.get("message", resp.text[:300]))
+  return data["img_b64"]
+
+
+def gallery_after_change():
+  gallery_fetch_list.clear()
+  st.rerun()
+
 # ================= TAB 4: TRIỂN LÃM SẢN PHẨM & BÌNH CHỌN (TỐI ƯU SIÊU NHẸ RAM) =================
 with tab4:
   st.markdown(
@@ -2291,6 +2352,17 @@ with tab4:
       "Chương III: Tứ giác (Hình bình hành, chữ nhật, thoi, vuông)"
       # Thêm các chủ đề sau này tại đây
   ]
+
+  # Có link Apps Script thì đọc danh sách từ Google Sheet, không thì dùng bộ nhớ app như cũ
+  gallery_error = ""
+  if GALLERY_URL:
+    try:
+      shown_items = gallery_fetch_list(GALLERY_URL)
+    except Exception as e:
+      shown_items = []
+      gallery_error = str(e)
+  else:
+    shown_items = gallery_items
 
   # 1. KHU VỰC QUẢN TRỊ VIÊN DÀNH RIÊNG CHO GIÁO VIÊN
   with st.expander(
@@ -2310,6 +2382,12 @@ with tab4:
           "🔓 Xác thực Giáo viên thành công! Cô có thể đăng tải sản phẩm của"
           " học sinh lên sảnh triển lãm."
       )
+      if GALLERY_URL:
+        st.caption("💾 Tác phẩm được lưu lâu dài vào Google Sheet (trang Trưng bày) và Google Drive của cô.")
+      else:
+        st.warning(
+            "Chưa cấu hình GALLERY_WEBHOOK_URL trong Secrets nên tác phẩm sẽ mất khi app khởi động lại."
+        )
 
       c_up1, c_up2 = st.columns(2)
       with c_up1:
@@ -2360,7 +2438,7 @@ with tab4:
 
             new_item = {
                 "id": (
-                    f"item_{len(gallery_items) + 1}_{datetime.now().strftime('%M%S')}"
+                    f"item_{datetime.now().strftime('%Y%m%d%H%M%S')}_{random.randint(100, 999)}"
                 ),
                 "title": prod_title.strip(),
                 "author": author_name.strip(),
@@ -2375,9 +2453,18 @@ with tab4:
                 "time": datetime.now().strftime("%d/%m %H:%M"),
                 "likes": 0,
             }
-            gallery_items.insert(0, new_item)
-            st.success("🎉 Đã đăng tải tác phẩm lên sảnh triển lãm thành công!")
-            st.rerun()
+            if GALLERY_URL:
+              with st.spinner("Đang lưu tác phẩm vào Google Drive..."):
+                ok, res = gallery_post({"action": "add", **new_item})
+              if ok:
+                st.success("🎉 Đã đăng tải và lưu tác phẩm lâu dài thành công!")
+                gallery_after_change()
+              else:
+                st.error(f"Chưa lưu được lên Google Sheet: {res}")
+            else:
+              gallery_items.insert(0, new_item)
+              st.success("🎉 Đã đăng tải tác phẩm lên sảnh triển lãm thành công!")
+              st.rerun()
           except Exception as e:
             st.error(f"Lỗi tải ảnh: {e}")
     elif admin_input:
@@ -2389,10 +2476,15 @@ with tab4:
   # 2. KHU VỰC HIỂN THỊ TRIỂN LÃM & BÌNH CHỌN CHO HỌC SINH
   st.markdown("---")
   st.markdown(
-      f"#### 🏆 Danh sách tác phẩm triển lãm ({len(gallery_items)} tác phẩm)"
+      f"#### 🏆 Danh sách tác phẩm triển lãm ({len(shown_items)} tác phẩm)"
   )
 
-  if len(gallery_items) == 0:
+  if gallery_error:
+    st.warning("⚠️ Chưa tải được danh sách tác phẩm từ Google Sheet. Các em thử tải lại trang sau ít phút nhé!")
+    if is_teacher:
+      with st.expander("Chi tiết lỗi (dành cho cô)"):
+        st.code(gallery_error)
+  elif len(shown_items) == 0:
     st.info(
         "Hiện tại chưa có tác phẩm nào được đăng tải. Cô Mai Phương sẽ cập nhật"
         " các sản phẩm tiêu biểu sớm nhất!"
@@ -2401,13 +2493,13 @@ with tab4:
     # Bộ lọc chủ đề
     selected_topic = st.selectbox(
         "Lọc tác phẩm theo chuyên đề:",
-        ["Tất cả chủ đề"] + list(set([item["topic"] for item in gallery_items])),
+        ["Tất cả chủ đề"] + list(set([item["topic"] for item in shown_items])),
     )
 
     display_list = (
-        gallery_items
+        shown_items
         if selected_topic == "Tất cả chủ đề"
-        else [it for it in gallery_items if it["topic"] == selected_topic]
+        else [it for it in shown_items if it["topic"] == selected_topic]
     )
 
     # Hiển thị lưới sản phẩm 2 cột
@@ -2428,7 +2520,15 @@ with tab4:
 
         # Hiển thị ảnh qua data base64 hoặc Image object tương thích ngược
         img_source = item.get("img_b64") or item.get("img")
-        st.image(img_source, use_container_width=True)
+        if not img_source and item.get("file_id"):
+          try:
+            img_source = gallery_fetch_image(GALLERY_URL, item["file_id"])
+          except Exception:
+            img_source = None
+        if img_source:
+          st.image(img_source, use_container_width=True)
+        else:
+          st.caption("🖼️ Chưa tải được ảnh, em thử tải lại trang nhé.")
         st.caption(f"💡 {item['desc']}")
 
         # Nút thao tác
@@ -2443,9 +2543,17 @@ with tab4:
               key=f"like_btn_{item['id']}",
               use_container_width=True,
           ):
-            item["likes"] += 1
-            st.toast(f"Đã tặng 1 ❤️ cho tác phẩm của {item['author']}!")
-            st.rerun()
+            if GALLERY_URL:
+              ok, res = gallery_post({"action": "like", "id": item["id"]})
+              if ok:
+                st.toast(f"Đã tặng 1 ❤️ cho tác phẩm của {item['author']}!")
+                gallery_after_change()
+              else:
+                st.toast("⚠️ Chưa gửi được tim, em thử lại sau nhé!")
+            else:
+              item["likes"] += 1
+              st.toast(f"Đã tặng 1 ❤️ cho tác phẩm của {item['author']}!")
+              st.rerun()
 
         with btn_c2:
           with st.popover("🔍 Xem lớn"):
@@ -2454,7 +2562,8 @@ with tab4:
                 f"**Tác giả:** {item['author']} - Hạm đội Lớp {item['class']}"
             )
             st.write(f"**Thuyết minh / Lời phê:** {item['desc']}")
-            st.image(img_source, use_container_width=True)
+            if img_source:
+              st.image(img_source, use_container_width=True)
 
         if is_teacher:
           with btn_c3:
@@ -2487,15 +2596,35 @@ with tab4:
                     key=f"btn_save_{item['id']}",
                     use_container_width=True,
                 ):
-                  item["title"] = edit_title.strip()
-                  item["author"] = edit_author.strip()
-                  item["desc"] = edit_desc.strip()
-                  if edit_img:
-                    item["img_b64"] = compress_image_to_base64(
-                        edit_img, max_size=(800, 800), quality=75
-                    )
-                  st.success("Đã lưu thay đổi!")
-                  st.rerun()
+                  new_b64 = (
+                      compress_image_to_base64(
+                          edit_img, max_size=(800, 800), quality=75
+                      )
+                      if edit_img
+                      else ""
+                  )
+                  if GALLERY_URL:
+                    ok, res = gallery_post({
+                        "action": "update",
+                        "id": item["id"],
+                        "title": edit_title.strip(),
+                        "author": edit_author.strip(),
+                        "desc": edit_desc.strip(),
+                        "img_b64": new_b64,
+                    })
+                    if ok:
+                      st.success("Đã lưu thay đổi!")
+                      gallery_after_change()
+                    else:
+                      st.error(f"Chưa lưu được: {res}")
+                  else:
+                    item["title"] = edit_title.strip()
+                    item["author"] = edit_author.strip()
+                    item["desc"] = edit_desc.strip()
+                    if new_b64:
+                      item["img_b64"] = new_b64
+                    st.success("Đã lưu thay đổi!")
+                    st.rerun()
 
               with tab_del:
                 st.warning("Xác nhận gỡ tác phẩm này khỏi sảnh triển lãm?")
@@ -2505,9 +2634,17 @@ with tab4:
                     type="primary",
                     use_container_width=True,
                 ):
-                  gallery_items.remove(item)
-                  st.success("Đã xóa tác phẩm!")
-                  st.rerun()
+                  if GALLERY_URL:
+                    ok, res = gallery_post({"action": "delete", "id": item["id"]})
+                    if ok:
+                      st.success("Đã xóa tác phẩm!")
+                      gallery_after_change()
+                    else:
+                      st.error(f"Chưa xóa được: {res}")
+                  else:
+                    gallery_items.remove(item)
+                    st.success("Đã xóa tác phẩm!")
+                    st.rerun()
 
         st.write("")
 # ================= TAB 5: BẢNG ĐIỂM LỚP (ĐỔI SANG with tab5) =================
