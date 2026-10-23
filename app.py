@@ -2274,151 +2274,242 @@ with tab3:
     game_html = SPACE_GAME_HTML.replace('"WEBHOOK_URL_PLACEHOLDER"', json.dumps(sheet_webhook))
     components.html(game_html, height=820, scrolling=True)
 
-# ================= TAB 4: TRIỂN LÃM SẢN PHẨM & BÌNH CHỌN (CHỈ GV QUẢN TRỊ) =================
+# ================= TAB 4: TRIỂN LÃM SẢN PHẨM & BÌNH CHỌN (TỐI ƯU SIÊU NHẸ RAM) =================
 with tab4:
-    st.markdown("""
+  st.markdown(
+      """
     <div style="background: rgba(30, 41, 59, 0.75); border: 1px solid rgba(56, 189, 248, 0.5); padding: 18px; border-radius: 18px; margin-bottom: 20px;">
         <h3 style="color: #38bdf8; margin: 0 0 6px 0;">🖼️ Trạm Trưng Bày Sản Phẩm Học Tập</h3>
         <p style="color: #cbd5e1; font-size: 13px; margin: 0;">Không gian triển lãm các tác phẩm xuất sắc do Cô Mai Phương chọn lọc. Các phi hành gia hãy chiêm ngưỡng và thả tim ủng hộ tác phẩm mình yêu thích nhé!</p>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+      unsafe_allow_html=True,
+  )
 
-    ADMIN_PASS = get_secret("TEACHER_PASSWORD", "Maiphuong2026")
-    TOPIC_LIST = [
-        "Chương III: Tứ giác (Hình bình hành, chữ nhật, thoi, vuông)"
-        # Thêm các chủ đề sau này tại đây
-    ]
+  ADMIN_PASS = get_secret("TEACHER_PASSWORD", "Maiphuong2026")
+  TOPIC_LIST = [
+      "Chương III: Tứ giác (Hình bình hành, chữ nhật, thoi, vuông)"
+      # Thêm các chủ đề sau này tại đây
+  ]
 
-    # 1. KHU VỰC QUẢN TRỊ VIÊN DÀNH RIÊNG CHO GIÁO VIÊN (ĐĂNG BÀI MỚI)
-    with st.expander("🔐 Trạm Quản Trị Viên (Dành cho Giáo viên đăng bài & duyệt sản phẩm)"):
-        admin_input = st.text_input("🔑 Nhập mật khẩu quản trị để mở trạm đăng bài:", type="password", key="teacher_gal_admin_pass")
-        is_teacher = bool(admin_input) and hmac.compare_digest(admin_input.encode(), str(ADMIN_PASS).encode())
+  # 1. KHU VỰC QUẢN TRỊ VIÊN DÀNH RIÊNG CHO GIÁO VIÊN
+  with st.expander(
+      "🔐 Trạm Quản Trị Viên (Dành cho Giáo viên đăng bài & duyệt sản phẩm)"
+  ):
+    admin_input = st.text_input(
+        "🔑 Nhập mật khẩu quản trị để mở trạm đăng bài:",
+        type="password",
+        key="teacher_gal_admin_pass",
+    )
+    is_teacher = bool(admin_input) and hmac.compare_digest(
+        admin_input.encode(), str(ADMIN_PASS).encode()
+    )
 
-        if is_teacher:
-            st.success("🔓 Xác thực Giáo viên thành công! Cô có thể đăng tải sản phẩm của học sinh lên sảnh triển lãm.")
-            
-            c_up1, c_up2 = st.columns(2)
-            with c_up1:
-                author_name = st.text_input("Tác giả (Học sinh / Nhóm làm):", key="admin_gal_author", placeholder="Ví dụ: Nguyễn Văn A hoặc Tổ 1")
-                author_class = st.selectbox("Lớp:", ["8A13", "8A18", "Khác"], key="admin_gal_class")
-            with c_up2:
-                prod_title = st.text_input("Tên tác phẩm / mô hình:", key="admin_gal_title", placeholder="Ví dụ: Mô hình tứ giác lồi tự chế")
-                prod_topic = st.selectbox("Chủ đề bài học:", TOPIC_LIST, key="admin_gal_topic")
+    if is_teacher:
+      st.success(
+          "🔓 Xác thực Giáo viên thành công! Cô có thể đăng tải sản phẩm của"
+          " học sinh lên sảnh triển lãm."
+      )
 
-            prod_file = st.file_uploader("Tải ảnh sản phẩm học sinh:", type=["jpg", "png", "jpeg"], key="admin_gal_file")
-            prod_caption = st.text_area("Lời nhận xét / Thuyết minh của cô:", key="admin_gal_desc", placeholder="Nhận xét ngắn về ý tưởng, sự sáng tạo...")
-
-            if st.button("🚀 Đăng tác phẩm lên Sảnh Trưng Bày", type="primary", use_container_width=True):
-                if not author_name.strip() or not prod_title.strip() or not prod_file:
-                    st.warning("Cô vui lòng nhập tên tác giả, tên tác phẩm và đính kèm ảnh nhé!")
-                else:
-                    try:
-                        img_uploaded = Image.open(prod_file)
-                        img_uploaded.thumbnail((1000, 1000), Image.Resampling.LANCZOS)
-                        
-                        new_item = {
-                            "id": f"item_{len(gallery_items) + 1}_{datetime.now().strftime('%M%S')}",
-                            "title": prod_title.strip(),
-                            "author": author_name.strip(),
-                            "class": author_class,
-                            "topic": prod_topic,
-                            "desc": prod_caption.strip() if prod_caption.strip() else "Tác phẩm xuất sắc được trưng bày.",
-                            "img": img_uploaded,
-                            "time": datetime.now().strftime("%d/%m %H:%M"),
-                            "likes": 0
-                        }
-                        gallery_items.insert(0, new_item)
-                        st.success("🎉 Đã đăng tải tác phẩm lên sảnh triển lãm thành công!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Lỗi tải ảnh: {e}")
-        elif admin_input:
-            st.error("⛔ Mật khẩu không chính xác! Khu vực chỉ dành cho Giáo viên quản trị.")
-
-    # 2. KHU VỰC HIỂN THỊ TRIỂN LÃM & BÌNH CHỌN CHO HỌC SINH
-    st.markdown("---")
-    st.markdown(f"#### 🏆 Danh sách tác phẩm triển lãm ({len(gallery_items)} tác phẩm)")
-
-    if len(gallery_items) == 0:
-        st.info("Hiện tại chưa có tác phẩm nào được đăng tải. Cô Mai Phương sẽ cập nhật các sản phẩm tiêu biểu sớm nhất!")
-    else:
-        # Bộ lọc chủ đề
-        selected_topic = st.selectbox(
-            "Lọc tác phẩm theo chuyên đề:",
-            ["Tất cả chủ đề"] + list(set([item["topic"] for item in gallery_items]))
+      c_up1, c_up2 = st.columns(2)
+      with c_up1:
+        author_name = st.text_input(
+            "Tác giả (Học sinh / Nhóm làm):",
+            key="admin_gal_author",
+            placeholder="Ví dụ: Nguyễn Văn A hoặc Tổ 1",
+        )
+        author_class = st.selectbox(
+            "Lớp:", ["8A13", "8A18", "Khác"], key="admin_gal_class"
+        )
+      with c_up2:
+        prod_title = st.text_input(
+            "Tên tác phẩm / mô hình:",
+            key="admin_gal_title",
+            placeholder="Ví dụ: Mô hình tứ giác lồi tự chế",
+        )
+        prod_topic = st.selectbox(
+            "Chủ đề bài học:", TOPIC_LIST, key="admin_gal_topic"
         )
 
-        display_list = gallery_items if selected_topic == "Tất cả chủ đề" else [it for it in gallery_items if it["topic"] == selected_topic]
+      prod_file = st.file_uploader(
+          "Tải ảnh sản phẩm học sinh:",
+          type=["jpg", "png", "jpeg"],
+          key="admin_gal_file",
+      )
+      prod_caption = st.text_area(
+          "Lời nhận xét / Thuyết minh của cô:",
+          key="admin_gal_desc",
+          placeholder="Nhận xét ngắn về ý tưởng, sự sáng tạo...",
+      )
 
-        # Hiển thị lưới sản phẩm 2 cột
-        cols = st.columns(2)
-        for idx, item in enumerate(display_list):
-            col = cols[idx % 2]
-            with col:
-                st.markdown(f"""
+      if st.button(
+          "🚀 Đăng tác phẩm lên Sảnh Trưng Bày",
+          type="primary",
+          use_container_width=True,
+      ):
+        if not author_name.strip() or not prod_title.strip() or not prod_file:
+          st.warning(
+              "Cô vui lòng nhập tên tác giả, tên tác phẩm và đính kèm ảnh nhé!"
+          )
+        else:
+          try:
+            # Nén ảnh thành chuỗi base64 nhẹ ~100KB, giải phóng RAM ngay lập tức
+            img_b64 = compress_image_to_base64(
+                prod_file, max_size=(800, 800), quality=75
+            )
+
+            new_item = {
+                "id": (
+                    f"item_{len(gallery_items) + 1}_{datetime.now().strftime('%M%S')}"
+                ),
+                "title": prod_title.strip(),
+                "author": author_name.strip(),
+                "class": author_class,
+                "topic": prod_topic,
+                "desc": (
+                    prod_caption.strip()
+                    if prod_caption.strip()
+                    else "Tác phẩm xuất sắc được trưng bày."
+                ),
+                "img_b64": img_b64,  # Lưu chuỗi base64 đã nén
+                "time": datetime.now().strftime("%d/%m %H:%M"),
+                "likes": 0,
+            }
+            gallery_items.insert(0, new_item)
+            st.success("🎉 Đã đăng tải tác phẩm lên sảnh triển lãm thành công!")
+            st.rerun()
+          except Exception as e:
+            st.error(f"Lỗi tải ảnh: {e}")
+    elif admin_input:
+      st.error(
+          "⛔ Mật khẩu không chính xác! Khu vực chỉ dành cho Giáo viên quản"
+          " trị."
+      )
+
+  # 2. KHU VỰC HIỂN THỊ TRIỂN LÃM & BÌNH CHỌN CHO HỌC SINH
+  st.markdown("---")
+  st.markdown(
+      f"#### 🏆 Danh sách tác phẩm triển lãm ({len(gallery_items)} tác phẩm)"
+  )
+
+  if len(gallery_items) == 0:
+    st.info(
+        "Hiện tại chưa có tác phẩm nào được đăng tải. Cô Mai Phương sẽ cập nhật"
+        " các sản phẩm tiêu biểu sớm nhất!"
+    )
+  else:
+    # Bộ lọc chủ đề
+    selected_topic = st.selectbox(
+        "Lọc tác phẩm theo chuyên đề:",
+        ["Tất cả chủ đề"] + list(set([item["topic"] for item in gallery_items])),
+    )
+
+    display_list = (
+        gallery_items
+        if selected_topic == "Tất cả chủ đề"
+        else [it for it in gallery_items if it["topic"] == selected_topic]
+    )
+
+    # Hiển thị lưới sản phẩm 2 cột
+    cols = st.columns(2)
+    for idx, item in enumerate(display_list):
+      col = cols[idx % 2]
+      with col:
+        st.markdown(
+            f"""
                 <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 16px; padding: 12px; margin-bottom: 8px;">
                     <span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(56, 189, 248, 0.4);">{item['topic']}</span>
                     <h4 style="color: #fef08a; margin: 8px 0 2px 0;">{item['title']}</h4>
                     <p style="color: #94a3b8; font-size: 12px; margin: 0;">Tác giả: <b style="color: #ffffff;">{item['author']}</b> ({item['class']}) • <span style="font-size: 11px;">{item['time']}</span></p>
                 </div>
-                """, unsafe_allow_html=True)
-                
-                # Ảnh sản phẩm
-                st.image(item["img"], use_container_width=True)
-                st.caption(f"💡 {item['desc']}")
+                """,
+            unsafe_allow_html=True,
+        )
 
-                # Các nút thao tác (Thả tim & Xem lớn; có thêm Sửa/Xóa nếu cô đang đăng nhập)
-                if is_teacher:
-                    btn_c1, btn_c2, btn_c3 = st.columns([1.2, 1, 1])
-                else:
-                    btn_c1, btn_c2 = st.columns([1.2, 1])
+        # Hiển thị ảnh qua data base64 hoặc Image object tương thích ngược
+        img_source = item.get("img_b64") or item.get("img")
+        st.image(img_source, use_container_width=True)
+        st.caption(f"💡 {item['desc']}")
 
-                with btn_c1:
-                    # Học sinh bấm thả tim
-                    if st.button(f"💖 Thả tim ({item['likes']})", key=f"like_btn_{item['id']}", use_container_width=True):
-                        item["likes"] += 1
-                        st.toast(f"Đã tặng 1 ❤️ cho tác phẩm của {item['author']}!")
-                        st.rerun()
+        # Nút thao tác
+        if is_teacher:
+          btn_c1, btn_c2, btn_c3 = st.columns([1.2, 1, 1])
+        else:
+          btn_c1, btn_c2 = st.columns([1.2, 1])
 
-                with btn_c2:
-                    with st.popover("🔍 Xem lớn"):
-                        st.markdown(f"### {item['title']}")
-                        st.write(f"**Tác giả:** {item['author']} - Lớp {item['class']}")
-                        st.write(f"**Thuyết minh / Lời phê:** {item['desc']}")
-                        st.image(item["img"], use_container_width=True)
+        with btn_c1:
+          if st.button(
+              f"💖 Thả tim ({item['likes']})",
+              key=f"like_btn_{item['id']}",
+              use_container_width=True,
+          ):
+            item["likes"] += 1
+            st.toast(f"Đã tặng 1 ❤️ cho tác phẩm của {item['author']}!")
+            st.rerun()
 
-                # Nút quản lý Sửa / Xóa chỉ hiện khi Cô Mai Phương đã đăng nhập mật khẩu ở trên
-                if is_teacher:
-                    with btn_c3:
-                        with st.popover("⚙️ Quản lý"):
-                            st.markdown(f"**Quản lý bài: {item['title']}**")
-                            tab_edit, tab_del = st.tabs(["✏️ Sửa", "🗑️ Xóa"])
-                            
-                            with tab_edit:
-                                edit_title = st.text_input("Tên tác phẩm:", value=item["title"], key=f"ed_t_{item['id']}")
-                                edit_author = st.text_input("Tác giả:", value=item["author"], key=f"ed_a_{item['id']}")
-                                edit_desc = st.text_area("Thuyết minh / Nhận xét:", value=item["desc"], key=f"ed_d_{item['id']}")
-                                edit_img = st.file_uploader("Đổi ảnh khác:", type=["jpg", "png", "jpeg"], key=f"ed_f_{item['id']}")
-                                
-                                if st.button("💾 Lưu chỉnh sửa", key=f"btn_save_{item['id']}", use_container_width=True):
-                                    item["title"] = edit_title.strip()
-                                    item["author"] = edit_author.strip()
-                                    item["desc"] = edit_desc.strip()
-                                    if edit_img:
-                                        new_pic = Image.open(edit_img)
-                                        new_pic.thumbnail((1000, 1000), Image.Resampling.LANCZOS)
-                                        item["img"] = new_pic
-                                    st.success("Đã lưu thay đổi!")
-                                    st.rerun()
+        with btn_c2:
+          with st.popover("🔍 Xem lớn"):
+            st.markdown(f"### {item['title']}")
+            st.write(
+                f"**Tác giả:** {item['author']} - Hạm đội Lớp {item['class']}"
+            )
+            st.write(f"**Thuyết minh / Lời phê:** {item['desc']}")
+            st.image(img_source, use_container_width=True)
 
-                            with tab_del:
-                                st.warning("Xác nhận gỡ tác phẩm này khỏi sảnh triển lãm?")
-                                if st.button("❌ Gỡ tác phẩm", key=f"btn_del_{item['id']}", type="primary", use_container_width=True):
-                                    gallery_items.remove(item)
-                                    st.success("Đã xóa tác phẩm!")
-                                    st.rerun()
+        if is_teacher:
+          with btn_c3:
+            with st.popover("⚙️ Quản lý"):
+              st.markdown(f"**Quản lý bài: {item['title']}**")
+              tab_edit, tab_del = st.tabs(["✏️ Sửa", "🗑️ Xóa"])
 
-                st.write("")
+              with tab_edit:
+                edit_title = st.text_input(
+                    "Tên tác phẩm:",
+                    value=item["title"],
+                    key=f"ed_t_{item['id']}",
+                )
+                edit_author = st.text_input(
+                    "Tác giả:", value=item["author"], key=f"ed_a_{item['id']}"
+                )
+                edit_desc = st.text_area(
+                    "Thuyết minh / Nhận xét:",
+                    value=item["desc"],
+                    key=f"ed_d_{item['id']}",
+                )
+                edit_img = st.file_uploader(
+                    "Đổi ảnh khác:",
+                    type=["jpg", "png", "jpeg"],
+                    key=f"ed_f_{item['id']}",
+                )
+
+                if st.button(
+                    "💾 Lưu chỉnh sửa",
+                    key=f"btn_save_{item['id']}",
+                    use_container_width=True,
+                ):
+                  item["title"] = edit_title.strip()
+                  item["author"] = edit_author.strip()
+                  item["desc"] = edit_desc.strip()
+                  if edit_img:
+                    item["img_b64"] = compress_image_to_base64(
+                        edit_img, max_size=(800, 800), quality=75
+                    )
+                  st.success("Đã lưu thay đổi!")
+                  st.rerun()
+
+              with tab_del:
+                st.warning("Xác nhận gỡ tác phẩm này khỏi sảnh triển lãm?")
+                if st.button(
+                    "❌ Gỡ tác phẩm",
+                    key=f"btn_del_{item['id']}",
+                    type="primary",
+                    use_container_width=True,
+                ):
+                  gallery_items.remove(item)
+                  st.success("Đã xóa tác phẩm!")
+                  st.rerun()
+
+        st.write("")
 # ================= TAB 5: BẢNG ĐIỂM LỚP (ĐỔI SANG with tab5) =================
 with tab5:
     st.markdown("### 🔒 Trạm Bảo Mật Sổ Điểm Giáo Viên")
