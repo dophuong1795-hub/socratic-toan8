@@ -254,6 +254,12 @@ client = get_gemini_client(API_KEY) if API_KEY else None
 @st.cache_resource
 def get_shared_history():
     return []
+    # Bộ lưu trữ danh sách sản phẩm triển lãm dùng chung cho toàn bộ học sinh
+@st.cache_resource
+def get_shared_gallery():
+    return []
+
+gallery_items = get_shared_gallery()
 
 
 submission_history = get_shared_history()
@@ -451,10 +457,11 @@ st.markdown("""
 if client is None:
     st.error("Chưa cấu hình biến GEMINI_API_KEY trong Secrets của Streamlit! Tab 1 và Tab 2 tạm thời không dùng được; game Vượt Ải Không Gian vẫn chơi bình thường.")
 
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🪐 Thử Thách Tương Tác",
     "📝 Nộp Bài Tập",
     "👾 Vượt Ải Không Gian",
+    "🎨 Triển Lãm Sản Phẩm",
     "📊 Bảng Điểm Lớp"
 ])
 
@@ -2302,3 +2309,111 @@ with tab4:
             st.error("⛔ Mật khẩu không chính xác! Khu vực hạn chế truy cập.")
     else:
         st.info("👉 Vui lòng nhập mật khẩu bảo mật để mở trạm theo dõi điểm.")
+# ================= TAB 4: TRIỂN LÃM SẢN PHẨM & BÌNH CHỌN =================
+with tab4:
+    st.markdown("""
+    <div style="background: rgba(30, 41, 59, 0.75); border: 1px solid rgba(56, 189, 248, 0.5); padding: 18px; border-radius: 18px; margin-bottom: 20px;">
+        <h3 style="color: #38bdf8; margin: 0 0 6px 0;">🖼️ Trạm Trưng Bày & Bình Chọn Tác Phẩm</h3>
+        <p style="color: #cbd5e1; font-size: 13px; margin: 0;">Phi hành gia hãy đăng tải hình ảnh sản phẩm sáng tạo của mình và thả tim bình chọn cho các tác phẩm ấn tượng nhất nhé!</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 1. KHU VỰC ĐĂNG TẢI TÁC PHẨM
+    with st.expander("📤 ĐĂNG TẢI TÁC PHẨM MỚI LÊN TRIỂN LÃM", expanded=(len(gallery_items) == 0)):
+        # Danh sách chủ đề (sau này muốn thêm chủ đề mới, bạn chỉ cần gõ thêm vào mảng này)
+        TOPIC_LIST = [
+            "Chương III: Tứ giác (Hình bình hành, chữ nhật, thoi, vuông)"
+            # Bạn có thể thêm chủ đề tiếp theo ở đây, ví dụ:
+            # , "Chương IV: Định lý Thalès"
+        ]
+
+        up_col1, up_col2 = st.columns(2)
+        with up_col1:
+            author_name = st.text_input("Tác giả (Họ tên hoặc Nhóm):", key="gal_author")
+            author_class = st.selectbox("Lớp:", ["8A13", "8A18", "Khác"], key="gal_class")
+        with up_col2:
+            prod_title = st.text_input("Tên tác phẩm / sản phẩm:", key="gal_title")
+            prod_topic = st.selectbox("Chủ đề bài học:", TOPIC_LIST, key="gal_topic")
+
+        prod_file = st.file_uploader("Chọn ảnh tác phẩm thực tế (Chụp vở vẽ, mô hình, sơ đồ...):", type=["jpg", "png", "jpeg"], key="gal_file")
+        prod_caption = st.text_area("Thuyết minh ngắn (Ý tưởng hoặc kiến thức hình học ứng dụng):", key="gal_desc")
+
+        if st.button("🚀 Đưa tác phẩm lên Trưng Bày Ngay!", type="primary", use_container_width=True):
+            if not author_name.strip():
+                st.warning("Phi hành gia hãy nhập tên tác giả nhé!")
+            elif not prod_title.strip():
+                st.warning("Vui lòng đặt tên cho tác phẩm của bạn!")
+            elif not prod_file:
+                st.warning("Bạn chưa đính kèm ảnh sản phẩm!")
+            else:
+                try:
+                    img_uploaded = Image.open(prod_file)
+                    # Giảm kích thước ảnh nhẹ bớt để tải trang nhanh mượt
+                    img_uploaded.thumbnail((1000, 1000), Image.Resampling.LANCZOS)
+                    
+                    new_item = {
+                        "id": f"item_{len(gallery_items) + 1}_{datetime.now().strftime('%M%S')}",
+                        "title": prod_title.strip(),
+                        "author": author_name.strip(),
+                        "class": author_class,
+                        "topic": prod_topic,
+                        "desc": prod_caption.strip() if prod_caption.strip() else "Không có phần thuyết minh thêm.",
+                        "img": img_uploaded,
+                        "time": datetime.now().strftime("%d/%m %H:%M"),
+                        "likes": 0
+                    }
+                    # Đưa sản phẩm mới nhất lên đầu danh sách
+                    gallery_items.insert(0, new_item)
+                    st.success("🎉 Tác phẩm đã được cập nhật thành công lên sảnh trưng bày chung!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Lỗi tải ảnh: {e}")
+
+    # 2. KHU VỰC TRƯNG BÀY SẢN PHẨM & BÌNH CHỌN THẢ TIM
+    st.markdown("---")
+    st.markdown(f"#### 🏆 Danh sách tác phẩm đang triển lãm ({len(gallery_items)} tác phẩm)")
+
+    if len(gallery_items) == 0:
+        st.info("Chưa có tác phẩm nào được đăng tải. Em hãy là phi hành gia đầu tiên gửi tác phẩm lên nhé! 🚀")
+    else:
+        # Bộ lọc chủ đề cho học sinh dễ theo dõi
+        selected_topic = st.selectbox(
+            "Lọc tác phẩm theo chủ đề:",
+            ["Tất cả chủ đề"] + list(set([item["topic"] for item in gallery_items]))
+        )
+
+        display_list = gallery_items if selected_topic == "Tất cả chủ đề" else [it for it in gallery_items if it["topic"] == selected_topic]
+
+        # Hiển thị dạng lưới 2 cột
+        cols = st.columns(2)
+        for idx, item in enumerate(display_list):
+            col = cols[idx % 2]
+            with col:
+                st.markdown(f"""
+                <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 16px; padding: 12px; margin-bottom: 8px;">
+                    <span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(56, 189, 248, 0.4);">{item['topic']}</span>
+                    <h4 style="color: #fef08a; margin: 8px 0 2px 0;">{item['title']}</h4>
+                    <p style="color: #94a3b8; font-size: 12px; margin: 0;">Tác giả: <b style="color: #ffffff;">{item['author']}</b> ({item['class']}) • <span style="font-size: 11px;">{item['time']}</span></p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Hiển thị ảnh sản phẩm
+                st.image(item["img"], use_container_width=True)
+                st.caption(f"💡 {item['desc']}")
+
+                # Hàng nút Thả Tim & Xem phóng to
+                btn_c1, btn_c2 = st.columns([1.2, 1])
+                with btn_c1:
+                    # Nút bấm thả tim tăng điểm
+                    if st.button(f"💖 Thả tim ({item['likes']})", key=f"like_btn_{item['id']}", use_container_width=True):
+                        item["likes"] += 1
+                        st.toast(f"Đã tặng 1 ❤️ cho tác phẩm của {item['author']}!")
+                        st.rerun()
+                with btn_c2:
+                    with st.popover("🔍 Xem lớn"):
+                        st.markdown(f"### {item['title']}")
+                        st.write(f"**Tác giả:** {item['author']} - Lớp {item['class']}")
+                        st.write(f"**Thuyết minh:** {item['desc']}")
+                        st.image(item["img"], use_container_width=True)
+                
+                st.write("") # Dòng đệm khoảng cách giữa các card
