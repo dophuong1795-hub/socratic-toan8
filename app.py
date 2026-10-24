@@ -2647,100 +2647,215 @@ with tab4:
                     st.rerun()
 
         st.write("")
-const SHEET_ID = "1lYGh3jYv5XfpghUOSGXz92UM4fLarD_0xhP0Gyi6AMw"; // Google Sheet của cô
+# ================= TAB 5: BẢNG ĐIỂM LỚP & CHẨN ĐOÁN LỖI SAI TOÀN DIỆN =================
+with tab5:
+    st.markdown("### 🔒 Trạm Bảo Mật Sổ Điểm & Chẩn Đoán Lỗi Sai Toàn Lớp")
+    st.caption("Khu vực quản trị dành riêng cho Giáo viên - Phân tích dữ liệu học tập chuyên sâu.")
 
-function doPost(e) {
-  const lock = LockService.getScriptLock();
-  lock.waitLock(20000);
+    teacher_password = st.text_input("🔑 Nhập mật khẩu giáo viên:", type="password", key="teacher_pass_tab5")
+    ADMIN_PASS = get_secret("TEACHER_PASSWORD", "Maiphuong2026")
 
-  try {
-    const data = JSON.parse(e.postData.contents);
-    const ss = SpreadsheetApp.openById(SHEET_ID);
+    if teacher_password:
+        if hmac.compare_digest(teacher_password.encode(), str(ADMIN_PASS).encode()):
+            st.success("🔓 Xác thực thành công! Chào cô Mai Phương.")
 
-    // Kiểm tra loại bài nộp: Minigame hay Bài tập toán viết tay
-    const isGame = data.topic && String(data.topic).indexOf("Minigame") !== -1;
-    const targetSheetName = isGame ? "Minigame" : "BaiTap";
+            st.write("---")
+            st.markdown("#### 📥 NGUỒN DỮ LIỆU ĐỂ PHÂN TÍCH TOÀN BỘ HỌC SINH")
+            
+            data_source_opt = st.radio(
+                "Chọn nguồn nạp dữ liệu bài nộp:",
+                ["Kết nối Google Sheet trực tiếp", "Tải file dữ liệu lên (.csv hoặc .xlsx)", "Dùng dữ liệu phiên hiện tại"],
+                horizontal=True
+            )
 
-    let sh = ss.getSheetByName(targetSheetName);
+            df_all = pd.DataFrame()
 
-    // Tự động khởi tạo trang tính và hàng tiêu đề nếu chưa có
-    if (!sh) {
-      sh = ss.insertSheet(targetSheetName);
-      if (isGame) {
-        sh.appendRow(["Thời gian", "Mã đề", "Họ và tên", "Lớp", "Điểm game", "Hoạt động", "Kết quả / Danh hiệu"]);
-      } else {
-        sh.appendRow(["Thời gian", "Họ và tên", "Lớp", "Chuyên đề bài toán", "Điểm số (Thang 10)", "Nhận xét của AI", "Mã đề"]);
-      }
-      sh.getRange(1, 1, 1, isGame ? 7 : 7).setFontWeight("bold").setBackground("#e2e8f0");
+            if data_source_opt == "Kết nối Google Sheet trực tiếp":
+                default_sheet_id = get_secret("GOOGLE_SHEET_ID", "1lYGh3jYv5XfpghUOSGXz92UM4fLarD_0xhP0Gyi6AMw")
+                sheet_id_input = st.text_input("ID Google Sheet của cô:", value=default_sheet_id)
+                sheet_sub_name = st.selectbox("Chọn trang tính cần đọc:", ["BaiTap", "Minigame", "Bảng điểm"])
+                st.caption("💡 *Lưu ý: File Google Sheet cần được bật quyền chia sẻ 'Bất kỳ ai có đường liên kết đều có thể Xem'.*")
+                
+                if sheet_id_input.strip():
+                    try:
+                        csv_export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id_input.strip()}/gviz/tq?tqx=out:csv&sheet={sheet_sub_name}"
+                        df_all = pd.read_csv(csv_export_url)
+                        st.success(f"✅ Đã kết nối và đọc thành công **{len(df_all)} dòng dữ liệu** từ trang tính **{sheet_sub_name}**!")
+                    except Exception as e:
+                        st.error(f"Chưa đọc được dữ liệu: {e}. Cô hãy kiểm tra quyền 'Người xem' trên file Sheet nhé.")
+
+            elif data_source_opt == "Tải file dữ liệu lên (.csv hoặc .xlsx)":
+                uploaded_sheet_file = st.file_uploader("Tải file bảng điểm xuất từ Google Sheets:", type=["csv", "xlsx"])
+                if uploaded_sheet_file:
+                    try:
+                        if uploaded_sheet_file.name.endswith(".csv"):
+                            df_all = pd.read_csv(uploaded_sheet_file)
+                        else:
+                            df_all = pd.read_excel(uploaded_sheet_file)
+                        st.success(f"✅ Đã đọc thành công **{len(df_all)} dòng dữ liệu** từ file!")
+                    except Exception as e:
+                        st.error(f"Lỗi đọc file: {e}")
+
+            else:
+                if len(submission_history) > 0:
+                    df_all = pd.DataFrame(list(submission_history))
+                else:
+                    st.info("Chưa có bài nộp nào trong phiên chạy hiện tại.")
+
+            # Chuẩn hóa cột dữ liệu
+            if not df_all.empty:
+                col_map = {}
+                for c in df_all.columns:
+                    c_clean = str(c).strip().lower()
+                    if "tên" in c_clean or "name" in c_clean: col_map[c] = "Họ và tên"
+                    elif "lớp" in c_clean or "class" in c_clean: col_map[c] = "Lớp"
+                    elif "bài" in c_clean or "topic" in c_clean or "hoạt động" in c_clean or "chuyên đề" in c_clean: col_map[c] = "Bài tập"
+                    elif "điểm" in c_clean or "score" in c_clean: col_map[c] = "Điểm số"
+                    elif "nhận xét" in c_clean or "feedback" in c_clean or "kết quả" in c_clean: col_map[c] = "Nhận xét của AI"
+                    elif "thời gian" in c_clean or "time" in c_clean: col_map[c] = "Thời gian"
+                df_all.rename(columns=col_map, inplace=True)
+
+                tab_sub_bt, tab_sub_gm = st.tabs(["📝 Danh Sách Bài Tập & Chẩn Đoán Lỗi", "👾 Điểm Minigame Vượt Ải"])
+
+                with tab_sub_bt:
+                    df_bt = df_all[~df_all["Bài tập"].astype(str).str.contains("Minigame", case=False, na=False)].copy()
+                    st.dataframe(df_bt, use_container_width=True)
+
+                    csv_bt = df_bt.to_csv(index=False).encode("utf-8-sig")
+                    st.download_button(
+                        label="📗 Tải bảng điểm bài tập (.CSV)",
+                        data=csv_bt,
+                        file_name=f"Diem_BaiTap_Toan8_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                        mime="text/csv",
+                        use_container_width=True
+                    )
+
+                    st.write("---")
+                    st.markdown("### 🧠 Trạm Chẩn Đoán Lỗ Hổng Kiến Thức & Lỗi Sai Cả Lớp")
+                    st.caption("AI tự động quét toàn bộ nhật ký bài chấm, gom cụm các lỗi sai và đưa ra giải pháp sư phạm.")
+
+                    c_f1, c_f2 = st.columns(2)
+                    with c_f1:
+                        class_vals = ["Tất cả"] + sorted([str(x) for x in df_bt["Lớp"].dropna().unique() if str(x).strip()]) if "Lớp" in df_bt else ["Tất cả"]
+                        filter_class = st.selectbox("Lọc theo lớp:", class_vals, key="sb_bt_class")
+                    with c_f2:
+                        topic_vals = ["Tất cả"] + sorted([str(x) for x in df_bt["Bài tập"].dropna().unique() if str(x).strip()]) if "Bài tập" in df_bt else ["Tất cả"]
+                        filter_topic = st.selectbox("Lọc theo chuyên đề:", topic_vals, key="sb_bt_topic")
+
+                    df_filtered = df_bt.copy()
+                    if filter_class != "Tất cả" and "Lớp" in df_filtered:
+                        df_filtered = df_filtered[df_filtered["Lớp"].astype(str) == filter_class]
+                    if filter_topic != "Tất cả" and "Bài tập" in df_filtered:
+                        df_filtered = df_filtered[df_filtered["Bài tập"].astype(str) == filter_topic]
+
+                    st.info(f"📊 Đang sẵn sàng phân tích trên **{len(df_filtered)} bài nộp**.")
+
+                    if st.button("🚀 Khởi động AI phân tích lỗi sai toàn lớp", type="primary", use_container_width=True):
+                        with st.spinner("Phi hành đoàn AI đang tổng hợp toàn bộ bài nộp và phân loại lỗi sai chi tiết..."):
+                            try:
+                                feedbacks_corpus = []
+                                for _, row in df_filtered.iterrows():
+                                    name = row.get("Họ và tên", "HS")
+                                    s_class = row.get("Lớp", "")
+                                    score = row.get("Điểm số", "")
+                                    topic = row.get("Bài tập", "")
+                                    fb = str(row.get("Nhận xét của AI", "")).strip()
+                                    if fb:
+                                        feedbacks_corpus.append(f"- HS {name} ({s_class}, {score}đ) - {topic}: {fb}")
+                                
+                                corpus_text = "\n".join(feedbacks_corpus[:100])
+
+                                DIAGNOSIS_PROMPT = """
+Bạn là Chuyên gia Đánh giá Đo lường Giáo dục môn Toán THCS (Chương trình GDPT 2018).
+Dưới đây là tập hợp toàn bộ nhật ký bài chấm và nhận xét chi tiết của học sinh:
+
+HÃY QUÉT VÀ TỔNG HỢP CÁC LỖI SAI PHỔ BIẾN, ĐẶC BIỆT CHÚ Ý CÁC LỖI:
+1. ĐẠI SỐ (TOÁN SỐ):
+   - Sai dấu (khi chuyển vế, bỏ ngoặc có dấu trừ đằng trước, nhân chia số âm)
+   - Thiếu dấu ngoặc (khi nhân đa thức với đa thức, nâng lên lũy thừa, đặt dấu trừ trước phân thức)
+   - Sót hạng tử (khi nhân phân phối, khi thu gọn các đơn thức đồng dạng)
+   - Thiếu mũ / nhầm số mũ (khi nhân chia lũy thừa cùng cơ số, tính bậc của đa thức)
+   - Sai hệ số (cộng trừ nhầm hệ số tự do, nhân sai hệ số đơn thức)
+   - Khai triển sai hằng đẳng thức đáng nhớ (nhầm dấu, thiếu số 2ab, nhầm hằng đẳng thức bậc 3)
+   - Quên hoặc sai điều kiện xác định (mẫu thức khác 0, điều kiện ẩn bài toán thực tế)
+2. HÌNH HỌC (TOÁN HÌNH):
+   - Vẽ hình sai / thiếu ký hiệu góc vuông, ký hiệu cạnh bằng nhau
+   - Lập luận thiếu bước, ngộ nhận tính chất khi chưa chứng minh
+   - Nhầm lẫn giữa dấu hiệu nhận biết và tính chất của các tứ giác (hình thang cân, bình hành, chữ nhật, thoi, vuông)
+
+TRẢ VỀ KẾT QUẢ ĐÚNG ĐỊNH DẠNG JSON:
+{
+  "total_analyzed": [Số bài nộp đã phân tích],
+  "common_errors": [
+    {
+      "error_group": "Tên nhóm lỗi ngắn gọn (ví dụ: Sai dấu khi bỏ ngoặc, Khai triển sai HĐT, Thiếu điều kiện xác định...)",
+      "category": "Toán Số (Đại số)" HOẶC "Toán Hình (Hình học)" HOẶC "Kỹ năng Trình bày",
+      "count": [Ước lượng số HS mắc lỗi],
+      "percentage": [Tỷ lệ % HS mắc lỗi, từ 1 đến 100],
+      "severity": "Nghiêm trọng" HOẶC "Trung bình" HOẶC "Nhẹ",
+      "example_mistake": "Trích dẫn 1 câu lỗi sai cụ thể của học sinh",
+      "remedy": "Lời khuyên sư phạm cụ thể để cô Mai Phương giảng chữa trên lớp"
     }
-
-    // Ghi dòng dữ liệu tương ứng vào đúng Sheet
-    if (isGame) {
-      sh.appendRow([
-        data.time || new Date().toLocaleString("vi-VN"),
-        data.examCode || "",
-        data.name || "",
-        data.student_class || "",
-        data.score !== undefined ? data.score : "",
-        data.topic || "Vượt Ải Không Gian",
-        data.feedback || ""
-      ]);
-    } else {
-      sh.appendRow([
-        data.time || new Date().toLocaleString("vi-VN"),
-        data.name || "",
-        data.student_class || "",
-        data.topic || "",
-        data.score !== undefined ? data.score : "",
-        data.feedback || "",
-        data.examCode || ""
-      ]);
-    }
-
-    return ContentService.createTextOutput(JSON.stringify({ status: "ok" }))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: String(err) }))
-      .setMimeType(ContentService.MimeType.JSON);
-  } finally {
-    lock.releaseLock();
-  }
+  ],
+  "teacher_recommendation": "Đoạn văn 2-3 câu tổng kết mức độ hiểu bài của cả lớp và lưu ý giảng dạy tiếp theo."
 }
+Quy tắc: Không dùng mã LaTeX. Dùng ký hiệu Unicode: ², ³, ∛, √, ∠, ⊥, //, Δ, °.
+"""
+                                analysis_result = execute_gemini_request([corpus_text, DIAGNOSIS_PROMPT], is_json=True)
+                                st.session_state["last_analysis"] = analysis_result
+                                st.success("✅ Đã hoàn tất chẩn đoán dữ liệu toàn bộ học sinh!")
+                            except Exception as e:
+                                st.error(f"Lỗi trong quá trình phân tích: {e}")
 
-function doGet(e) {
-  try {
-    const ss = SpreadsheetApp.openById(SHEET_ID);
-    // Cho phép lấy dữ liệu theo query param: ?sheet=BaiTap hoặc ?sheet=Minigame (mặc định lấy BaiTap)
-    const sheetName = (e && e.parameter && e.parameter.sheet) ? e.parameter.sheet : "BaiTap";
-    const sh = ss.getSheetByName(sheetName);
+                    if "last_analysis" in st.session_state and st.session_state["last_analysis"]:
+                        res = st.session_state["last_analysis"]
+                        st.markdown("#### 📑 BẢNG CHẨN ĐOÁN LỖI SAI PHỔ BIẾN TOÀN DIỆN")
 
-    if (!sh) {
-      return ContentService.createTextOutput(JSON.stringify({ status: "ok", data: [] }))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
+                        errors = res.get("common_errors", [])
+                        if errors:
+                            chart_df = pd.DataFrame([
+                                {"Nhóm lỗi": e["error_group"], "Tỷ lệ (%)": to_int(e.get("percentage", 0), 0)}
+                                for e in errors
+                            ]).set_index("Nhóm lỗi")
 
-    const data = sh.getDataRange().getValues();
-    if (data.length <= 1) {
-      return ContentService.createTextOutput(JSON.stringify({ status: "ok", data: [] }))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
+                            st.bar_chart(chart_df)
 
-    const headers = data[0];
-    const rows = [];
-    for (let i = 1; i < data.length; i++) {
-      let obj = {};
-      for (let j = 0; j < headers.length; j++) {
-        obj[headers[j]] = data[i][j];
-      }
-      rows.push(obj);
-    }
+                            for e in errors:
+                                sev = e.get("severity", "Trung bình")
+                                color = "#ef4444" if sev == "Nghiêm trọng" else ("#f59e0b" if sev == "Trung bình" else "#38bdf8")
+                                st.markdown(f"""
+                                <div style="background: rgba(15, 23, 42, 0.85); border-left: 4px solid {color}; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-top: 1px solid rgba(255,255,255,0.08); border-right: 1px solid rgba(255,255,255,0.08); border-bottom: 1px solid rgba(255,255,255,0.08);">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="color: #fef08a; font-weight: 800; font-size: 14px;">⚠️ {e.get('error_group')}</span>
+                                        <span style="background: rgba(255,255,255,0.1); color: {color}; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700;">{e.get('percentage')}% HS mắc lỗi</span>
+                                    </div>
+                                    <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1;"><b>Phân loại:</b> {e.get('category')} | <b>Mức độ:</b> {e.get('severity')}</p>
+                                    <p style="margin: 3px 0; font-size: 11px; color: #fda4af;"><i>"Ví dụ: {e.get('example_mistake')}"</i></p>
+                                    <p style="margin: 6px 0 0 0; font-size: 11px; color: #6ee7b7; background: rgba(16, 185, 129, 0.1); padding: 6px 10px; border-radius: 6px;">💡 <b>Hướng can thiệp cho cô:</b> {e.get('remedy')}</p>
+                                </div>
+                                """, unsafe_allow_html=True)
 
-    return ContentService.createTextOutput(JSON.stringify({ status: "ok", data: rows }))
-      .setMimeType(ContentService.MimeType.JSON);
+                            rec = res.get("teacher_recommendation", "")
+                            if rec:
+                                st.info(f"👩‍🏫 **Đánh giá tổng quan từ Trợ lý Sư phạm:**\n\n{rec}")
 
-  } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: String(err) }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
+                with tab_sub_gm:
+                    df_gm = df_all[df_all["Bài tập"].astype(str).str.contains("Minigame", case=False, na=False)].copy()
+                    if df_gm.empty:
+                        st.info("Chưa có lượt chơi game nào được ghi nhận.")
+                    else:
+                        st.dataframe(df_gm, use_container_width=True)
+                        csv_gm = df_gm.to_csv(index=False).encode("utf-8-sig")
+                        st.download_button(
+                            label="👾 Tải bảng điểm Minigame (.CSV)",
+                            data=csv_gm,
+                            file_name=f"Diem_Minigame_Toan8_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                            mime="text/csv",
+                            use_container_width=True
+                        )
+            else:
+                st.warning("Chưa có dữ liệu bài nộp để hiển thị.")
+        else:
+            st.error("⛔ Mật khẩu không chính xác! Khu vực hạn chế truy cập.")
+    else:
+        st.info("👉 Vui lòng nhập mật khẩu bảo mật của giáo viên để mở khóa sổ theo dõi điểm và công cụ chẩn đoán.")
