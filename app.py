@@ -13,6 +13,7 @@ from datetime import datetime
 import base64
 import io
 import html
+import hashlib
 import unicodedata
 from urllib.parse import quote
 
@@ -471,6 +472,22 @@ def lay_du_lieu_lop():
     bt["Lớp"] = bt["_lop"]
     gm["Lớp"] = gm["_lop"]
     return bt, loc_luot_game_trung(gm)
+
+
+def tim_nguoi_da_nop_anh(img_hash: str, ma_anh: str):
+    """Tìm học sinh đã từng nộp đúng ảnh này: xem bộ nhớ app và cột Mã đề trong sheet Bảng điểm.
+    Trả về họ tên người nộp trước, hoặc None nếu ảnh mới."""
+    for r in submission_history:
+        if r.get("img_hash") == img_hash:
+            return str(r.get("Họ và tên", "")).strip()
+    try:
+        bt = chuan_hoa_cot(doc_sheet(SHEET_BAITAP))
+        trung = bt[bt["Mã đề"].astype(str).str.strip() == ma_anh]
+        if not trung.empty:
+            return str(trung.iloc[0]["Họ và tên"]).strip()
+    except Exception:
+        pass
+    return None
 
 
 def ten_hien_thi(series: pd.Series) -> str:
@@ -1220,6 +1237,14 @@ with tab2:
     </div>
     """, unsafe_allow_html=True)
 
+    with st.expander("📌 Quy định chụp ảnh bài làm (đọc kỹ trước khi nộp)", expanded=False):
+        st.markdown("""
+- **Trang vở:** viết tay **Họ tên + Lớp** ở dòng đầu tiên trước khi giải.
+- **Chụp ảnh:** chụp thẳng từ trên xuống, đủ sáng, rõ từng dòng chữ và ký hiệu toán học.
+- **Số lượng:** mỗi lần nộp chỉ **01 ảnh** cho một bài.
+- **Trung thực:** hệ thống nhận diện ảnh đã từng nộp. Không nộp lại ảnh cũ khi chưa sửa bài, không dùng ảnh của bạn.
+""")
+
     c1, c2 = st.columns(2)
     with c1:
         s_name = st.text_input("Tên phi hành gia (Họ và tên):")
@@ -1253,100 +1278,117 @@ with tab2:
         elif not up_hw:
             st.warning("Bạn chưa đính kèm ảnh nhật ký bài làm!")
         else:
-            with st.spinner("Trạm AI đang kiểm tra độ rõ của ảnh và chấm điểm theo Rubric Vũ trụ Toán..."):
-                try:
-                    hw_img = Image.open(up_hw)
-                    hw_img.load()
-                    RUBRIC = f"""
-Bạn là Giám khảo chấm thi môn Toán THCS tại Việt Nam.
-Chuyên đề nộp: "{topic}".
+            # ---------- CHỐNG GIAN LẬN: nhận diện ảnh đã nộp bằng mã băm ----------
+            img_hash = hashlib.md5(up_hw.getvalue()).hexdigest()
+            ma_anh = "ANH-" + img_hash[:16]
+            nguoi_da_nop = tim_nguoi_da_nop_anh(img_hash, ma_anh)
+            if nguoi_da_nop and bo_dau(nguoi_da_nop) == bo_dau(s_name):
+                st.session_state.hw_result = None
+                st.warning("⚠️ **Ảnh này em đã nộp trước đây.** Em hãy đọc lại nhận xét của cô, sửa bài vào vở rồi chụp ảnh mới để nộp nhé!")
+            elif nguoi_da_nop:
+                st.session_state.hw_result = None
+                st.error(f"⛔ **Ảnh này đã được bạn {nguoi_da_nop} nộp trước đó.** Em hãy tự trình bày bài giải của mình vào vở rồi chụp ảnh nộp nhé!")
+            else:
+                with st.spinner("Trạm AI đang kiểm tra độ rõ của ảnh và chấm điểm theo Rubric Vũ trụ Toán..."):
+                    try:
+                        hw_img = Image.open(up_hw)
+                        hw_img.load()
+                        RUBRIC = f"""
+    Bạn là Giám khảo chấm thi môn Toán THCS tại Việt Nam.
+    Chuyên đề nộp: "{topic}".
 
-BƯỚC 0 - KIỂM TRA ẢNH (BẮT BUỘC LÀM TRƯỚC KHI CHẤM):
-Nếu ảnh bị mờ, rung, quá tối, lóa sáng, chụp nghiêng/ngược, bị cắt mất một phần bài làm, có chỗ chữ hoặc hình không đọc được,
-hoặc ảnh không phải bài làm viết tay của học sinh (ví dụ chỉ chụp đề bài, trang sách) thì KHÔNG chấm điểm,
-KHÔNG đoán nội dung, chỉ trả về đúng 1 dòng theo mẫu:
-ANH_CHUA_DAT: <mô tả cụ thể chỗ chưa đọc được, ví dụ: chữ ở bước lập luận thứ 2 bị mờ; góc phải ảnh bị lóa>
+    BƯỚC 0 - KIỂM TRA ẢNH (BẮT BUỘC LÀM TRƯỚC KHI CHẤM):
+    Nếu ảnh bị mờ, rung, quá tối, lóa sáng, chụp nghiêng/ngược, bị cắt mất một phần bài làm, có chỗ chữ hoặc hình không đọc được,
+    hoặc ảnh không phải bài làm viết tay của học sinh (ví dụ chỉ chụp đề bài, trang sách) thì KHÔNG chấm điểm,
+    KHÔNG đoán nội dung, chỉ trả về đúng 1 dòng theo mẫu:
+    ANH_CHUA_DAT: <mô tả cụ thể chỗ chưa đọc được, ví dụ: chữ ở bước lập luận thứ 2 bị mờ; góc phải ảnh bị lóa>
+
+    KIỂM TRA TÊN TRÊN VỞ: học sinh đăng ký tên "{s_name}". Đọc dòng viết tay đầu trang.
+Nếu dòng đầu ghi rõ một họ tên KHÁC "{s_name}" (không tính khác biệt dấu, viết hoa, viết tắt tên đệm) thì thêm 1 dòng
+ngay trước "Tổng điểm": TEN_KHONG_KHOP: <tên đọc được trên vở>. Nếu không có tên hoặc tên khớp thì không ghi dòng này.
 
 Nếu ảnh đạt yêu cầu thì đánh giá theo Rubric thang điểm 10 đúng chuẩn chương trình KNTT SGK 8 (TUYỆT ĐỐI KHÔNG dùng đường tròn).
-QUY TẮC CHẤM NHẤT QUÁN:
-- Bài hình học không có hình vẽ thì mục 1 được 0 điểm.
-- Chỉ trừ điểm cho lỗi thực sự nhìn thấy trong ảnh, mỗi lỗi ghi rõ số điểm bị trừ.
-- Lời giải gợi ý (nếu có) không được dùng chính điều cần chứng minh làm căn cứ.
-KHÔNG dùng LaTeX, viết ký hiệu Unicode.
+    QUY TẮC CHẤM NHẤT QUÁN:
+    - Bài hình học không có hình vẽ thì mục 1 được 0 điểm.
+    - Chỉ trừ điểm cho lỗi thực sự nhìn thấy trong ảnh, mỗi lỗi ghi rõ số điểm bị trừ.
+    - Lời giải gợi ý (nếu có) không được dùng chính điều cần chứng minh làm căn cứ.
+    KHÔNG dùng LaTeX, viết ký hiệu Unicode.
 
-ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ:
-- Tổng điểm: [Điểm số]/10
-1. Kỹ năng nền tảng / Hình vẽ ([Điểm]/2.0 điểm):
-   - Ưu điểm: ...
-   - Hạn chế: ...
-2. Quá trình biến đổi & Lập luận ([Điểm]/6.0 điểm):
-   - Ưu điểm: ...
-   - Hạn chế: ...
-3. Trình bày & Kết luận ([Điểm]/2.0 điểm):
-   - Ưu điểm: ...
-   - Hạn chế: ...
-"""
-                    score_res = execute_gemini_request([hw_img, RUBRIC])
-                    score_res_clean = format_math(score_res)
-                    st.session_state.hw_chat = []
+    ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ:
+    - Tổng điểm: [Điểm số]/10
+    1. Kỹ năng nền tảng / Hình vẽ ([Điểm]/2.0 điểm):
+       - Ưu điểm: ...
+       - Hạn chế: ...
+    2. Quá trình biến đổi & Lập luận ([Điểm]/6.0 điểm):
+       - Ưu điểm: ...
+       - Hạn chế: ...
+    3. Trình bày & Kết luận ([Điểm]/2.0 điểm):
+       - Ưu điểm: ...
+       - Hạn chế: ...
+    """
+                        score_res = execute_gemini_request([hw_img, RUBRIC])
+                        score_res_clean = format_math(score_res)
+                        st.session_state.hw_chat = []
 
-                    anh_loi = re.search(r"ANH_CHUA_DAT\s*:?\s*(.*)", score_res_clean)
-                    if anh_loi:
-                        # Ảnh chưa đạt: không chấm, không gửi điểm về Google Sheets
-                        st.session_state.hw_result = {"anh_chua_dat": anh_loi.group(1).strip() or "Ảnh chưa đủ rõ để chấm."}
-                    else:
-                        # Ưu tiên số sau chữ "Tổng điểm"; không có thì lấy số đầu tiên dạng x/10
-                        score_match = (re.search(r"Tổng điểm\W*(\d+(?:[.,]\d+)?)\s*/\s*10", score_res_clean, flags=re.IGNORECASE)
-                                       or re.search(r"(\d+(?:[.,]\d+)?)\s*/\s*10(?!\d)", score_res_clean))
-                        extracted_score = score_match.group(1).replace(",", ".") if score_match else "Chưa xác định"
-
-                        sub_record = {
-                            "Thời gian": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                            "Họ và tên": s_name,
-                            "Lớp": s_class,
-                            "Bài tập": topic,
-                            "Điểm số": extracted_score,
-                            "Nhận xét của AI": score_res_clean.replace("\n", " ")
-                        }
-                        submission_history.append(sub_record)
-
-                        sheet_ok = False
-                        sheet_err = ""
-                        if not WEBHOOK_URL or "EXAMPLE_REPLACE" in WEBHOOK_URL:
-                            sheet_err = "Chưa cấu hình GOOGLE_SHEET_WEBHOOK_URL trong Secrets của Streamlit"
+                        anh_loi = re.search(r"ANH_CHUA_DAT\s*:?\s*(.*)", score_res_clean)
+                        if anh_loi:
+                            # Ảnh chưa đạt: không chấm, không gửi điểm về Google Sheets
+                            st.session_state.hw_result = {"anh_chua_dat": anh_loi.group(1).strip() or "Ảnh chưa đủ rõ để chấm."}
                         else:
-                            payload = {
-                                "time": sub_record["Thời gian"],
-                                "name": s_name,
-                                "student_class": s_class,
-                                "topic": topic,
-                                "score": extracted_score,
-                                "feedback": sub_record["Nhận xét của AI"]
-                            }
-                            try:
-                                # Gửi dạng text/plain giống game Vượt Ải Không Gian; Apps Script đọc bằng e.postData.contents
-                                resp = requests.post(WEBHOOK_URL, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-                                                     headers={"Content-Type": "text/plain;charset=utf-8"}, timeout=15)
-                                # Apps Script trả mã 200 cả khi lỗi hoặc bắt đăng nhập, nên phải đọc nội dung trả về
-                                sheet_ok = resp.ok and '"ok"' in resp.text
-                                if not sheet_ok:
-                                    sheet_err = f"HTTP {resp.status_code}: {resp.text[:300]}"
-                            except Exception as e:
-                                sheet_err = str(e)
-                        if sheet_ok:
-                            doc_sheet.clear()   # để Hồ sơ Phi hành gia và Bảng vàng thấy bài mới ngay
+                            # Ưu tiên số sau chữ "Tổng điểm"; không có thì lấy số đầu tiên dạng x/10
+                            score_match = (re.search(r"Tổng điểm\W*(\d+(?:[.,]\d+)?)\s*/\s*10", score_res_clean, flags=re.IGNORECASE)
+                                           or re.search(r"(\d+(?:[.,]\d+)?)\s*/\s*10(?!\d)", score_res_clean))
+                            extracted_score = score_match.group(1).replace(",", ".") if score_match else "Chưa xác định"
 
-                        # Lưu ảnh thu nhỏ để trợ lý đàm thoại đọc lại đúng bài vừa chấm
-                        img_nho = hw_img.copy()
-                        if img_nho.mode != "RGB":
-                            img_nho = img_nho.convert("RGB")
-                        img_nho.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
-                        st.session_state.hw_result = {
-                            "name": s_name, "class": s_class, "topic": topic, "score": extracted_score,
-                            "text": score_res_clean, "img": img_nho, "sheet_ok": sheet_ok, "sheet_err": sheet_err,
-                        }
-                except Exception as err:
-                    st.error(f"Lỗi truyền tín hiệu: {err}")
+                            sub_record = {
+                                "Thời gian": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                                "Họ và tên": s_name,
+                                "Lớp": s_class,
+                                "Bài tập": topic,
+                                "Điểm số": extracted_score,
+                                "Nhận xét của AI": score_res_clean.replace("\n", " "),
+                                "img_hash": img_hash,
+                            }
+                            submission_history.append(sub_record)
+
+                            sheet_ok = False
+                            sheet_err = ""
+                            if not WEBHOOK_URL or "EXAMPLE_REPLACE" in WEBHOOK_URL:
+                                sheet_err = "Chưa cấu hình GOOGLE_SHEET_WEBHOOK_URL trong Secrets của Streamlit"
+                            else:
+                                payload = {
+                                    "time": sub_record["Thời gian"],
+                                    "name": s_name,
+                                    "student_class": s_class,
+                                    "topic": topic,
+                                    "score": extracted_score,
+                                    "feedback": sub_record["Nhận xét của AI"],
+                                    "examCode": ma_anh,   # lưu mã ảnh vào cột Mã đề để chống nộp trùng ảnh
+                                }
+                                try:
+                                    # Gửi dạng text/plain giống game Vượt Ải Không Gian; Apps Script đọc bằng e.postData.contents
+                                    resp = requests.post(WEBHOOK_URL, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+                                                         headers={"Content-Type": "text/plain;charset=utf-8"}, timeout=15)
+                                    # Apps Script trả mã 200 cả khi lỗi hoặc bắt đăng nhập, nên phải đọc nội dung trả về
+                                    sheet_ok = resp.ok and '"ok"' in resp.text
+                                    if not sheet_ok:
+                                        sheet_err = f"HTTP {resp.status_code}: {resp.text[:300]}"
+                                except Exception as e:
+                                    sheet_err = str(e)
+                            if sheet_ok:
+                                doc_sheet.clear()   # để Hồ sơ Phi hành gia và Bảng vàng thấy bài mới ngay
+
+                            # Lưu ảnh thu nhỏ để trợ lý đàm thoại đọc lại đúng bài vừa chấm
+                            img_nho = hw_img.copy()
+                            if img_nho.mode != "RGB":
+                                img_nho = img_nho.convert("RGB")
+                            img_nho.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
+                            st.session_state.hw_result = {
+                                "name": s_name, "class": s_class, "topic": topic, "score": extracted_score,
+                                "text": score_res_clean, "img": img_nho, "sheet_ok": sheet_ok, "sheet_err": sheet_err,
+                            }
+                    except Exception as err:
+                        st.error(f"Lỗi truyền tín hiệu: {err}")
 
     # ---------- HIỂN THỊ KẾT QUẢ (giữ lại khi học sinh đặt câu hỏi cho trợ lý) ----------
     hw_res = st.session_state.get("hw_result")
@@ -1370,8 +1412,11 @@ KHÔNG dùng LaTeX, viết ký hiệu Unicode.
             st.warning("⚠️ Đã chấm xong nhưng chưa gửi được điểm về Google Sheets. Em hãy chụp màn hình kết quả gửi cô nhé!")
             with st.expander("Chi tiết lỗi (dành cho cô)"):
                 st.code(hw_res["sheet_err"])
+        ten_vo = re.search(r"TEN_KHONG_KHOP\s*:?\s*([^\n]*)", hw_res["text"])
+        if ten_vo:
+            st.error(f"⚠️ Tên viết trên vở (**{ten_vo.group(1).strip()}**) không khớp với tên em nhập. Bài vẫn được ghi điểm nhưng cô sẽ kiểm tra lại.")
         st.markdown(f"### Kết quả của phi hành gia: **{hw_res['name']}** - Hạm đội **{hw_res['class']}**")
-        st.markdown(hw_res["text"])
+        st.markdown(re.sub(r"TEN_KHONG_KHOP[^\n]*\n?", "", hw_res["text"]))
 
         # ---------- TRẠM ĐÀM THOẠI: HỎI LẠI CÔ VỀ BÀI VỪA CHẤM ----------
         st.write("---")
