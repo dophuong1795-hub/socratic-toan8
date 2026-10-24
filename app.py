@@ -12,6 +12,9 @@ import requests
 from datetime import datetime
 import base64
 import io
+import html
+import unicodedata
+from urllib.parse import quote
 
 # ================= CẤU HÌNH GIAO DIỆN STREAMLIT =================
 st.set_page_config(
@@ -215,6 +218,67 @@ st.markdown("""
         visibility: hidden !important;
         height: 0 !important;
     }
+
+    /* ===== SỬA CHỮ TRẮNG TRÊN NỀN TRẮNG ===== */
+    /* Danh sách thả xuống của selectbox */
+    div[data-baseweb="popover"], div[data-baseweb="popover"] > div,
+    div[data-baseweb="menu"], ul[role="listbox"] {
+        background-color: #1e293b !important;
+    }
+    li[role="option"], li[role="option"] * {
+        color: #f8fafc !important;
+        background-color: transparent !important;
+    }
+    li[role="option"]:hover, li[role="option"][aria-selected="true"] {
+        background-color: rgba(79, 70, 229, 0.75) !important;
+    }
+    /* Ô nhập nhiều dòng, ô số, ô chat */
+    textarea, input[type="number"], [data-testid="stChatInput"] textarea {
+        background-color: rgba(30, 41, 59, 0.95) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(56, 189, 248, 0.5) !important;
+        border-radius: 12px !important;
+    }
+    input::placeholder, textarea::placeholder { color: #94a3b8 !important; opacity: 1 !important; }
+    /* Nút tải xuống, nút popover, nút gửi form: trước đây nền trắng chữ trắng */
+    div[data-testid="stDownloadButton"] button,
+    div[data-testid="stPopover"] button,
+    div[data-testid="stFormSubmitButton"] button {
+        background-color: rgba(15, 23, 42, 0.9) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(99, 102, 241, 0.6) !important;
+        border-radius: 14px !important;
+    }
+    div[data-testid="stDownloadButton"] button:hover,
+    div[data-testid="stPopover"] button:hover,
+    div[data-testid="stFormSubmitButton"] button:hover {
+        background-color: rgba(67, 56, 202, 0.9) !important;
+        border-color: #38bdf8 !important;
+    }
+    /* Khung nội dung popover, thông báo nhỏ (toast), chú thích (tooltip) */
+    [data-testid="stPopoverBody"], div[data-baseweb="popover"] [data-testid="stVerticalBlock"] {
+        background-color: #0f172a !important;
+    }
+    [data-testid="stToast"], [data-testid="stTooltipContent"], div[data-baseweb="tooltip"] {
+        background-color: #1e293b !important;
+        color: #f8fafc !important;
+    }
+    /* Khung tin nhắn trò chuyện và số liệu (metric) */
+    [data-testid="stChatMessage"] {
+        background-color: rgba(30, 41, 59, 0.75) !important;
+        border: 1px solid rgba(56, 189, 248, 0.25);
+        border-radius: 14px;
+    }
+    [data-testid="stMetricValue"], [data-testid="stMetricValue"] * { color: #fef08a !important; }
+    [data-testid="stMetricLabel"], [data-testid="stMetricLabel"] * { color: #cbd5e1 !important; }
+    /* Form trò chuyện */
+    [data-testid="stForm"] {
+        background: rgba(15, 23, 42, 0.6) !important;
+        border: 1px solid rgba(56, 189, 248, 0.35) !important;
+        border-radius: 16px !important;
+    }
+    /* Tên tệp đã tải lên */
+    [data-testid="stFileUploaderFile"], [data-testid="stFileUploaderFile"] * { color: #e2e8f0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -265,6 +329,376 @@ gallery_items = get_shared_gallery()
 
 
 submission_history = get_shared_history()
+
+# ================= ĐỌC DỮ LIỆU TỪ GOOGLE SHEET (DÙNG CHUNG CHO HỒ SƠ, BẢNG VÀNG, TAB 5) =================
+SHEET_ID = get_secret("GOOGLE_SHEET_ID", "1lYGh3jYv5XfpghUOSGXz92UM4fLarD_0xhP0Gyi6AMw")
+SHEET_BAITAP = "Bảng điểm"   # bài nộp Tab 2
+SHEET_GAME = "Minigame"      # lượt chơi Tab 3
+WEBHOOK_URL = get_secret("GOOGLE_SHEET_WEBHOOK_URL", DEFAULT_WEBHOOK) or DEFAULT_WEBHOOK
+
+
+def bo_dau(s) -> str:
+    """Bỏ dấu, viết thường, gọn khoảng trắng: dùng để so khớp tên và từ khóa."""
+    s = unicodedata.normalize("NFD", str(s or ""))
+    s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
+    s = s.replace("đ", "d").replace("Đ", "D").lower()
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def chuan_lop(s) -> str:
+    return re.sub(r"\s+", "", str(s or "")).upper()
+
+
+def doc_so(x):
+    try:
+        if isinstance(x, (int, float)) and not pd.isna(x):
+            return float(x)
+        m = re.search(r"-?\d+(?:[.,]\d+)?", str(x))
+        return float(m.group(0).replace(",", ".")) if m else float("nan")
+    except Exception:
+        return float("nan")
+
+
+def doc_thoi_gian(x):
+    s = str(x or "").strip()
+    for fmt in ("%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%H:%M:%S %d/%m/%Y", "%H:%M %d/%m/%Y", "%H:%M:%S, %d/%m/%Y"):
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            pass
+    return pd.to_datetime(s, dayfirst=True, errors="coerce")
+
+
+def chuan_hoa_cot(df: pd.DataFrame) -> pd.DataFrame:
+    """Đưa tên cột của mọi nguồn (Sheet, file tải lên, phiên hiện tại) về một bộ tên chung."""
+    m = {}
+    for c in df.columns:
+        k = str(c).strip().lower()
+        if "mã đề" in k:
+            m[c] = "Mã đề"
+        elif "thời gian" in k or k == "time":
+            m[c] = "Thời gian"
+        elif "tên" in k or "name" in k:
+            m[c] = "Họ và tên"
+        elif "lớp" in k or "class" in k:
+            m[c] = "Lớp"
+        elif "nhận xét" in k or "feedback" in k or "kết quả" in k:
+            m[c] = "Nhận xét của AI"
+        elif "điểm" in k or "score" in k:
+            m[c] = "Điểm số"
+        elif "bài" in k or "topic" in k or "hoạt động" in k or "chuyên đề" in k:
+            m[c] = "Bài tập"
+    df = df.rename(columns=m)
+    df = df.loc[:, ~df.columns.duplicated()].copy()
+    for col in ["Thời gian", "Họ và tên", "Lớp", "Bài tập", "Điểm số", "Nhận xét của AI", "Mã đề"]:
+        if col not in df.columns:
+            df[col] = ""
+    return df
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def doc_sheet(sheet_name: str) -> pd.DataFrame:
+    """Đọc 1 trang tính: ưu tiên qua Web App (không cần chia sẻ công khai), dự phòng qua link CSV."""
+    loi = ""
+    try:
+        resp = requests.get(WEBHOOK_URL, params={"sheet": sheet_name}, timeout=25)
+        data = resp.json()
+        if data.get("status") == "ok":
+            return pd.DataFrame(data.get("data", []))
+        loi = data.get("message", "")
+    except Exception as e:
+        loi = str(e)
+    try:
+        url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={quote(sheet_name)}"
+        return pd.read_csv(url)
+    except Exception as e:
+        raise RuntimeError(f"Không đọc được trang tính '{sheet_name}': {loi or e}")
+
+
+def them_cot_phu(df: pd.DataFrame) -> pd.DataFrame:
+    df = chuan_hoa_cot(df)
+    df["Họ và tên"] = df["Họ và tên"].astype(str).str.strip().str.replace(r"\s+", " ", regex=True)
+    df = df[df["Họ và tên"].str.len() > 0].copy()
+    df["_ten"] = df["Họ và tên"].map(bo_dau)
+    df["_lop"] = df["Lớp"].map(chuan_lop)
+    df["_diem"] = df["Điểm số"].map(doc_so)
+    df["_tg"] = pd.to_datetime(df["Thời gian"].map(doc_thoi_gian), errors="coerce")
+    return df
+
+
+def tach_bai_tap_game(df: pd.DataFrame):
+    """Tách bảng thành (bài tập, minigame) dựa vào cột Bài tập/Hoạt động."""
+    la_game = df["Bài tập"].astype(str).str.contains("Minigame", case=False, na=False)
+    return df[~la_game].copy(), df[la_game].copy()
+
+
+def loc_luot_game_trung(df_gm: pd.DataFrame, giay=120) -> pd.DataFrame:
+    """Bỏ lượt gửi trùng: cùng HS, cùng lớp, cùng điểm, cách nhau <= 2 phút."""
+    if df_gm.empty:
+        return df_gm
+    df_gm = df_gm.sort_values("_tg", kind="stable")
+    giu, lan_cuoi = [], {}
+    for idx, r in df_gm.iterrows():
+        k = (r["_ten"], r["_lop"], r["_diem"])
+        t = r["_tg"]
+        if k in lan_cuoi:
+            t0 = lan_cuoi[k]
+            if pd.isna(t) or pd.isna(t0) or abs((t - t0).total_seconds()) <= giay:
+                continue
+        lan_cuoi[k] = t
+        giu.append(idx)
+    return df_gm.loc[giu].copy()
+
+
+def lay_du_lieu_lop():
+    """Trả về (bảng bài tập, bảng minigame) đã chuẩn hóa từ 2 trang tính."""
+    bt = them_cot_phu(doc_sheet(SHEET_BAITAP))
+    gm = them_cot_phu(doc_sheet(SHEET_GAME))
+    bt, gm_lac = tach_bai_tap_game(bt)          # lượt game cũ lỡ ghi vào Bảng điểm
+    gm = pd.concat([gm, gm_lac], ignore_index=True)
+    gm["_win"] = gm["Nhận xét của AI"].astype(str).str.contains("Hạ gục", case=False, na=False)
+    # Thống nhất cách viết tên: "phung thị tuyêt anh" và "Phùng Thị Tuyết Anh" là một người
+    tat_ca = pd.concat([bt[["_ten", "Họ và tên"]], gm[["_ten", "Họ và tên"]]])
+    ten_chuan = tat_ca.groupby("_ten")["Họ và tên"].agg(ten_hien_thi).to_dict()
+    bt["Họ và tên"] = bt["_ten"].map(ten_chuan)
+    gm["Họ và tên"] = gm["_ten"].map(ten_chuan)
+    bt["Lớp"] = bt["_lop"]
+    gm["Lớp"] = gm["_lop"]
+    return bt, loc_luot_game_trung(gm)
+
+
+def ten_hien_thi(series: pd.Series) -> str:
+    """Trong các cách viết của cùng một tên, lấy cách có dấu đầy đủ nhất."""
+    ds = [str(x) for x in series if str(x).strip()]
+    if not ds:
+        return ""
+    tot = max(ds, key=lambda x: sum(1 for ch in x if ord(ch) > 127))
+    return " ".join(w[:1].upper() + w[1:].lower() for w in tot.split())
+
+
+def bang_vang_game(gm: pd.DataFrame) -> pd.DataFrame:
+    if gm.empty:
+        return pd.DataFrame(columns=["Họ và tên", "Lớp", "Điểm cao nhất", "Lượt chơi", "Số lần hạ Boss", "Tổng điểm game"])
+    g = gm.groupby(["_ten", "_lop"])
+    out = pd.DataFrame({
+        "Họ và tên": g["Họ và tên"].agg(ten_hien_thi),
+        "Lớp": g["_lop"].first(),
+        "Điểm cao nhất": g["_diem"].max(),
+        "Lượt chơi": g.size(),
+        "Số lần hạ Boss": g["_win"].sum(),
+        "Tổng điểm game": g["_diem"].sum(),
+    }).reset_index(drop=True)
+    for c in ["Điểm cao nhất", "Lượt chơi", "Số lần hạ Boss", "Tổng điểm game"]:
+        out[c] = out[c].fillna(0).astype(int)
+    return out
+
+
+def tong_hop_hoc_sinh(bt: pd.DataFrame, gm: pd.DataFrame) -> pd.DataFrame:
+    """Bảng tổng hợp từng học sinh: bài tập + minigame."""
+    if bt.empty:
+        bt_sum = pd.DataFrame(columns=["_ten", "_lop", "Tên BT", "Số bài nộp", "Điểm TB bài tập", "Điểm BT cao nhất"])
+    else:
+        g = bt.groupby(["_ten", "_lop"])
+        bt_sum = pd.DataFrame({
+            "Tên BT": g["Họ và tên"].agg(ten_hien_thi),
+            "Số bài nộp": g.size(),
+            "Điểm TB bài tập": g["_diem"].mean().round(2),
+            "Điểm BT cao nhất": g["_diem"].max(),
+        }).reset_index()
+    gv = bang_vang_game(gm)
+    gv["_ten"] = gv["Họ và tên"].map(bo_dau)
+    gv["_lop"] = gv["Lớp"]
+    out = pd.merge(bt_sum, gv, on=["_ten", "_lop"], how="outer")
+    out["Họ và tên"] = out["Họ và tên"].fillna(out["Tên BT"]) if "Tên BT" in out else out["Họ và tên"]
+    out["Lớp"] = out["_lop"]
+    for c in ["Số bài nộp", "Lượt chơi", "Số lần hạ Boss", "Tổng điểm game", "Điểm cao nhất"]:
+        out[c] = out[c].fillna(0).astype(int)
+    out = out.rename(columns={"Điểm cao nhất": "Điểm game cao nhất"})
+    cols = ["Họ và tên", "Lớp", "Số bài nộp", "Điểm TB bài tập", "Điểm BT cao nhất",
+            "Lượt chơi", "Điểm game cao nhất", "Số lần hạ Boss", "Tổng điểm game"]
+    return out[cols]
+
+
+def html_bang_xep_hang(dong_du_lieu, don_vi: str, mau: str) -> str:
+    """Danh sách xếp hạng dạng HTML. dong_du_lieu: list (họ tên, lớp, giá trị)."""
+    huy_chuong = {1: "#facc15", 2: "#cbd5e1", 3: "#f59e0b"}
+    dong = []
+    for i, (ten, lop, gia_tri) in enumerate(dong_du_lieu, start=1):
+        nen = huy_chuong.get(i, "rgba(56,189,248,0.25)")
+        mau_chu = "#0f172a" if i <= 3 else "#e0f2fe"
+        dong.append(f"""
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;border-radius:12px;
+                    background:rgba(15,23,42,0.85);border:1px solid rgba(56,189,248,0.25);">
+          <span style="min-width:28px;height:28px;border-radius:50%;background:{nen};color:{mau_chu};
+                       display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;">{i}</span>
+          <span style="flex:1;color:#f8fafc;font-weight:700;font-size:14px;">{html.escape(str(ten))}
+            <span style="color:#94a3b8;font-weight:600;font-size:12px;"> · {html.escape(str(lop))}</span></span>
+          <span style="color:{mau};font-weight:800;font-size:15px;white-space:nowrap;">{gia_tri} {don_vi}</span>
+        </div>""")
+    return "".join(dong) or '<p style="color:#cbd5e1;">Chưa có dữ liệu.</p>'
+
+
+# ================= HỒ SƠ PHI HÀNH GIA: BẢN ĐỒ 6 CHƯƠNG TOÁN 8 =================
+# Thứ tự so khớp quan trọng: mục cụ thể đứng trước mục chung
+CHUYEN_DE_MAP = [
+    ("Phương trình bậc nhất", "Giải bài toán bằng cách lập phương trình", ["lap phuong trinh"]),
+    ("Phương trình bậc nhất", "Phương trình bậc nhất một ẩn", ["phuong trinh bac nhat"]),
+    ("Hàm số", "Hàm số bậc nhất và đồ thị", ["ham so"]),
+    ("Phân thức", "Phân thức đại số", ["phan thuc"]),
+    ("Đa thức", "Phân tích đa thức thành nhân tử", ["nhan tu"]),
+    ("Đa thức", "Hằng đẳng thức đáng nhớ", ["hang dang thuc"]),
+    ("Đa thức", "Đơn thức và đa thức nhiều biến", ["don thuc", "da thuc"]),
+    ("Định lý Thalès", "Định lý Thalès trong tam giác", ["thal"]),
+    ("Tứ giác", "Hình thoi và hình vuông", ["hinh thoi", "hinh vuong"]),
+    ("Tứ giác", "Hình bình hành và hình chữ nhật", ["binh hanh", "chu nhat"]),
+    ("Tứ giác", "Tứ giác và hình thang cân", ["hinh thang", "tu giac"]),
+]
+# Thứ tự chuyên đề trong mỗi chương theo tiến độ SGK (dùng để gợi ý bài nên làm tiếp)
+THU_TU_CHUYEN_DE = [
+    "Đơn thức và đa thức nhiều biến", "Hằng đẳng thức đáng nhớ", "Phân tích đa thức thành nhân tử",
+    "Tứ giác và hình thang cân", "Hình bình hành và hình chữ nhật", "Hình thoi và hình vuông",
+    "Định lý Thalès trong tam giác", "Phân thức đại số",
+    "Phương trình bậc nhất một ẩn", "Giải bài toán bằng cách lập phương trình", "Hàm số bậc nhất và đồ thị",
+]
+# Thứ tự hành tinh theo tiến độ SGK Kết nối tri thức
+CAC_CHUONG = ["Đa thức", "Tứ giác", "Định lý Thalès", "Phân thức", "Phương trình bậc nhất", "Hàm số"]
+MAU_HANH_TINH = {
+    "Đa thức": ("#a78bfa", "#6d28d9"), "Tứ giác": ("#38bdf8", "#0369a1"),
+    "Định lý Thalès": ("#fbbf24", "#b45309"), "Phân thức": ("#f472b6", "#be185d"),
+    "Phương trình bậc nhất": ("#34d399", "#047857"), "Hàm số": ("#fb923c", "#c2410c"),
+}
+
+
+def xac_dinh_chuyen_de(bai_tap: str):
+    t = bo_dau(bai_tap)
+    for chuong, chuyen_de, tu_khoa in CHUYEN_DE_MAP:
+        if any(k in t for k in tu_khoa):
+            return chuong, chuyen_de
+    return None, None
+
+
+def tinh_ho_so(bt_hs: pd.DataFrame):
+    """Độ thành thạo mỗi chương = tổng điểm cao nhất của từng chuyên đề / (10 x số chuyên đề của chương)."""
+    ket_qua = {}
+    for chuong in CAC_CHUONG:
+        ds_cd = sorted([cd for c, cd, _ in CHUYEN_DE_MAP if c == chuong], key=THU_TU_CHUYEN_DE.index)
+        ket_qua[chuong] = {"cd": {cd: None for cd in ds_cd}, "so_bai": 0}
+    for _, r in bt_hs.iterrows():
+        chuong, cd = xac_dinh_chuyen_de(r["Bài tập"])
+        if not chuong or pd.isna(r["_diem"]):
+            continue
+        muc = ket_qua[chuong]
+        muc["so_bai"] += 1
+        cu = muc["cd"][cd]
+        muc["cd"][cd] = r["_diem"] if cu is None else max(cu, r["_diem"])
+    for chuong, muc in ket_qua.items():
+        diem = [d if d is not None else 0 for d in muc["cd"].values()]
+        muc["mo_khoa"] = muc["so_bai"] > 0
+        muc["phan_tram"] = round(100 * sum(diem) / (10 * len(diem))) if diem else 0
+    return ket_qua
+
+
+def goi_y_lo_trinh(ket_qua) -> str:
+    dang_hoc = [(c, m) for c, m in ket_qua.items() if m["mo_khoa"] and m["phan_tram"] < 80]
+    if dang_hoc:
+        chuong, muc = min(dang_hoc, key=lambda x: x[1]["phan_tram"])
+        chua_lam = [cd for cd, d in muc["cd"].items() if d is None]
+        yeu = [cd for cd, d in muc["cd"].items() if d is not None and d < 8]
+        if chua_lam:
+            return f"Hành tinh **{chuong}** mới đạt {muc['phan_tram']}%. Em hãy làm thêm bài chuyên đề **{chua_lam[0]}** để thắp sáng phần còn tối."
+        if yeu:
+            return f"Hành tinh **{chuong}** mới đạt {muc['phan_tram']}%. Em hãy làm lại chuyên đề **{yeu[0]}** và cố gắng đạt từ 8 điểm."
+        return f"Hành tinh **{chuong}** mới đạt {muc['phan_tram']}%. Em hãy luyện thêm một bài để nâng độ thành thạo."
+    chua_mo = [c for c in CAC_CHUONG if not ket_qua[c]["mo_khoa"]]
+    if chua_mo:
+        return f"Các hành tinh đã mở đều vững vàng. Chặng tiếp theo: hành tinh **{chua_mo[0]}**."
+    return "Em đã chinh phục cả 6 hành tinh với độ thành thạo từ 80% trở lên. Xuất sắc!"
+
+
+def html_ban_do_sao(ket_qua) -> str:
+    the = []
+    for chuong in CAC_CHUONG:
+        muc = ket_qua[chuong]
+        sang, toi = MAU_HANH_TINH[chuong]
+        pt = muc["phan_tram"]
+        if muc["mo_khoa"]:
+            hanh_tinh = f"background:radial-gradient(circle at 30% 30%, #ffffff 0%, {sang} 35%, {toi} 100%);"
+            hanh_tinh += f"box-shadow:0 0 {12 + pt // 4}px {sang};"
+            trang_thai = f"{pt}% thành thạo"
+            mau_chu = "#f8fafc"
+        else:
+            hanh_tinh = "background:radial-gradient(circle at 30% 30%, #64748b 0%, #1e293b 100%);opacity:0.55;"
+            trang_thai = "Chưa mở khóa"
+            mau_chu = "#94a3b8"
+        sao = '<div style="position:absolute;top:-6px;right:-6px;color:#facc15;font-size:18px;">★</div>' if pt >= 80 else ""
+        the.append(f"""
+        <div style="text-align:center;padding:10px 6px;">
+          <div style="position:relative;width:64px;height:64px;margin:0 auto 8px auto;border-radius:50%;{hanh_tinh}">{sao}</div>
+          <div style="color:{mau_chu};font-weight:800;font-size:13px;line-height:1.2;">{chuong}</div>
+          <div style="height:6px;background:rgba(148,163,184,0.25);border-radius:99px;margin:6px 8px 4px 8px;overflow:hidden;">
+            <div style="width:{pt}%;height:100%;background:{sang};"></div></div>
+          <div style="color:#cbd5e1;font-size:11px;font-weight:600;">{trang_thai}</div>
+        </div>""")
+    return f"""
+    <div style="background:radial-gradient(ellipse at top, rgba(49,46,129,0.55), rgba(2,6,23,0.9));
+                border:1px solid rgba(56,189,248,0.4);border-radius:18px;padding:12px;
+                display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:4px;">
+      {''.join(the)}
+    </div>"""
+
+
+# ================= THỐNG KÊ LỖI SAI TỰ ĐỘNG (KHÔNG CẦN AI) =================
+NHOM_LOI = [
+    # (tên lỗi, phân loại, các cụm từ khóa không dấu)
+    ("Sai dấu khi biến đổi", "Đại số", ["sai dau", "nham dau", "quen doi dau"]),
+    ("Thiếu / sai dấu ngoặc", "Đại số", ["thieu ngoac", "dau ngoac", "bo ngoac"]),
+    ("Sót hạng tử", "Đại số", ["sot hang tu", "thieu hang tu"]),
+    ("Thiếu / nhầm số mũ", "Đại số", ["so mu", "thieu mu", "nham mu"]),
+    ("Sai hệ số", "Đại số", ["he so"]),
+    ("Khai triển sai hằng đẳng thức", "Đại số", ["hang dang thuc"]),
+    ("Quên / sai điều kiện xác định", "Đại số", ["dieu kien xac dinh", "dkxd"]),
+    ("Không vẽ hình", "Hình học", ["khong co hinh ve", "khong ve hinh", "thieu hinh ve", "chua ve hinh", "khong co hinh"]),
+    ("Thiếu ký hiệu trên hình", "Hình học", ["ky hieu goc vuong", "chua danh dau", "thieu ky hieu", "chua ky hieu"]),
+    ("Gọi tên góc chưa chuẩn", "Hình học", ["ten goc", "3 chu cai", "1 chu cai"]),
+    ("Sai thứ tự đỉnh tứ giác", "Hình học", ["thu tu dinh"]),
+    ("Ngộ nhận / lập luận vòng quanh", "Hình học", ["ngo nhan", "vong luan", "luan quan"]),
+    ("Nhầm trường hợp bằng nhau / dấu hiệu nhận biết", "Hình học", ["truong hop", "dau hieu nhan biet"]),
+    ("Lập luận tắt, thiếu căn cứ", "Lập luận", ["thieu can cu", "chua giai thich", "qua tat", "nhay buoc", "nhay coc", "thieu buoc", "lam tat", "van tat"]),
+    ("Thiếu câu dẫn \"Xét ...\"", "Trình bày", ["xet tu giac", "xet tam giac", "cau dan", "buoc mo dau"]),
+    ("Thiếu kết luận", "Trình bày", ["thieu ket luan", "chua co ket luan", "chua ket luan", "chua co cau ket luan"]),
+    ("Viết tắt, ký hiệu tùy tiện", "Trình bày", ["viet tat", "ky hieu suy ra"]),
+    ("Tẩy xóa, trình bày cẩu thả", "Trình bày", ["tay xoa", "gach xoa", "viet de", "cau tha"]),
+    ("Bỏ dở / chưa làm bài", "Trình bày", ["bo do", "bo trong", "chi chep lai de", "chua co loi giai", "chua co phan chung minh"]),
+]
+_RE_HAN_CHE = re.compile(
+    r"han che[^:]*:(.*?)(?=uu diem|\d\.\s*(?:ky nang|hinh ve|qua trinh|lap luan|trinh bay)|goi y cach|$)", re.S)
+
+
+def doan_han_che(nhan_xet: str) -> str:
+    """Chỉ lấy phần 'Hạn chế' để không đếm nhầm các ý khen ở phần 'Ưu điểm'."""
+    return " ".join(_RE_HAN_CHE.findall(bo_dau(nhan_xet)))
+
+
+def thong_ke_loi(bt: pd.DataFrame) -> pd.DataFrame:
+    dong = []
+    co_nx = bt[bt["Nhận xét của AI"].astype(str).str.len() > 20]
+    tong = len(co_nx)
+    if tong == 0:
+        return pd.DataFrame()
+    han_che = co_nx["Nhận xét của AI"].astype(str).map(doan_han_che)
+    for ten, loai, tu_khoa in NHOM_LOI:
+        mask = han_che.map(lambda t: any(k in t for k in tu_khoa))
+        so_bai = int(mask.sum())
+        if so_bai == 0:
+            continue
+        hs = co_nx.loc[mask[mask].index]
+        dong.append({
+            "Nhóm lỗi": ten, "Phân loại": loai, "Số bài mắc": so_bai,
+            "Tỷ lệ (%)": round(100 * so_bai / tong), "Số HS mắc": hs["_ten"].nunique() if "_ten" in hs else so_bai,
+            "Ví dụ HS": ", ".join(list(dict.fromkeys(hs["Họ và tên"].astype(str)))[:4]),
+        })
+    return pd.DataFrame(dong).sort_values("Số bài mắc", ascending=False).reset_index(drop=True) if dong else pd.DataFrame()
+
 
 # ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC TOÁN 8 =================
 def format_math(text: str) -> str:
@@ -458,6 +892,59 @@ st.markdown("""
 
 if client is None:
     st.error("Chưa cấu hình biến GEMINI_API_KEY trong Secrets của Streamlit! Tab 1 và Tab 2 tạm thời không dùng được; game Vượt Ải Không Gian vẫn chơi bình thường.")
+
+
+# ================= HỒ SƠ PHI HÀNH GIA (BẢN ĐỒ NĂNG LỰC & LỘ TRÌNH CÁ NHÂN) =================
+with st.expander("🧑‍🚀 Hồ sơ Phi hành gia: Bản đồ năng lực 6 hành tinh Toán 8 của em", expanded=False):
+    hs1, hs2 = st.columns([2, 1])
+    with hs1:
+        ten_tra_cuu = st.text_input("Họ và tên (ghi đúng như khi nộp bài):", key="hoso_ten")
+    with hs2:
+        lop_tra_cuu = st.selectbox("Lớp:", ["8A13", "8A18"], key="hoso_lop")
+
+    if st.button("🔭 Mở hồ sơ của em", use_container_width=True, key="btn_hoso"):
+        st.session_state.hoso_query = (ten_tra_cuu.strip(), lop_tra_cuu)
+
+    hoso_query = st.session_state.get("hoso_query")
+    if hoso_query and hoso_query[0]:
+        try:
+            with st.spinner("Đang tải dữ liệu học tập của em từ trạm điều khiển..."):
+                bt_all, gm_all = lay_du_lieu_lop()
+            k_ten, k_lop = bo_dau(hoso_query[0]), chuan_lop(hoso_query[1])
+            bt_hs = bt_all[(bt_all["_ten"] == k_ten) & (bt_all["_lop"] == k_lop)]
+            gm_hs = gm_all[(gm_all["_ten"] == k_ten) & (gm_all["_lop"] == k_lop)]
+
+            if bt_hs.empty and gm_hs.empty:
+                st.info("Chưa tìm thấy bài nộp hoặc lượt chơi nào với họ tên và lớp này. Em kiểm tra lại họ tên đầy đủ đã dùng khi nộp bài nhé!")
+            else:
+                ten_hs = (bt_hs["Họ và tên"].tolist() + gm_hs["Họ và tên"].tolist())[0]
+                ket_qua = tinh_ho_so(bt_hs)
+                st.markdown(f"##### Hồ sơ phi hành gia **{ten_hs}** - Hạm đội **{k_lop}**")
+
+                m1, m2, m3, m4 = st.columns(4)
+                diem_tb = bt_hs["_diem"].mean()
+                m1.metric("Bài đã nộp", len(bt_hs))
+                m2.metric("Điểm TB bài tập", "-" if pd.isna(diem_tb) else f"{diem_tb:.1f}")
+                m3.metric("Lượt chơi game", len(gm_hs))
+                m4.metric("Lần hạ Boss", int(gm_hs["_win"].sum()) if not gm_hs.empty else 0)
+
+                st.markdown(html_ban_do_sao(ket_qua), unsafe_allow_html=True)
+                st.caption("Hành tinh sáng đèn khi em đã nộp bài thuộc chương đó. Độ thành thạo tính theo điểm cao nhất của từng chuyên đề trong chương; đạt từ 80% được gắn sao vàng.")
+                st.success(f"🧭 **Lộ trình gợi ý cho em:** {goi_y_lo_trinh(ket_qua)}")
+
+                with st.expander("📜 Nhật ký các chuyên đề đã chinh phục"):
+                    for chuong in CAC_CHUONG:
+                        muc = ket_qua[chuong]
+                        if not muc["mo_khoa"]:
+                            continue
+                        st.markdown(f"**{chuong}** ({muc['phan_tram']}%)")
+                        for cd, d in muc["cd"].items():
+                            st.markdown(f"- {cd}: " + ("chưa làm" if d is None else f"điểm cao nhất **{d:g}**/10"))
+        except Exception as e:
+            st.warning("Trạm điều khiển đang bận, chưa tải được hồ sơ. Em thử lại sau ít phút nhé!")
+            with st.expander("Chi tiết lỗi (dành cho cô)"):
+                st.code(str(e))
+
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🪐 Thử Thách Tương Tác",
@@ -705,13 +1192,25 @@ with tab2:
         elif not up_hw:
             st.warning("Bạn chưa đính kèm ảnh nhật ký bài làm!")
         else:
-            with st.spinner("Trạm AI đang quét và chấm điểm chi tiết theo Rubric Vũ trụ Toán..."):
+            with st.spinner("Trạm AI đang kiểm tra độ rõ của ảnh và chấm điểm theo Rubric Vũ trụ Toán..."):
                 try:
                     hw_img = Image.open(up_hw)
+                    hw_img.load()
                     RUBRIC = f"""
 Bạn là Giám khảo chấm thi môn Toán THCS tại Việt Nam.
 Chuyên đề nộp: "{topic}".
-Đọc ảnh bài làm viết tay của học sinh và đánh giá theo Rubric thang điểm 10 đúng chuẩn chương trình KNTT SGK 8 (TUYỆT ĐỐI KHÔNG dùng đường tròn).
+
+BƯỚC 0 - KIỂM TRA ẢNH (BẮT BUỘC LÀM TRƯỚC KHI CHẤM):
+Nếu ảnh bị mờ, rung, quá tối, lóa sáng, chụp nghiêng/ngược, bị cắt mất một phần bài làm, có chỗ chữ hoặc hình không đọc được,
+hoặc ảnh không phải bài làm viết tay của học sinh (ví dụ chỉ chụp đề bài, trang sách) thì KHÔNG chấm điểm,
+KHÔNG đoán nội dung, chỉ trả về đúng 1 dòng theo mẫu:
+ANH_CHUA_DAT: <mô tả cụ thể chỗ chưa đọc được, ví dụ: chữ ở bước lập luận thứ 2 bị mờ; góc phải ảnh bị lóa>
+
+Nếu ảnh đạt yêu cầu thì đánh giá theo Rubric thang điểm 10 đúng chuẩn chương trình KNTT SGK 8 (TUYỆT ĐỐI KHÔNG dùng đường tròn).
+QUY TẮC CHẤM NHẤT QUÁN:
+- Bài hình học không có hình vẽ thì mục 1 được 0 điểm.
+- Chỉ trừ điểm cho lỗi thực sự nhìn thấy trong ảnh, mỗi lỗi ghi rõ số điểm bị trừ.
+- Lời giải gợi ý (nếu có) không được dùng chính điều cần chứng minh làm căn cứ.
 KHÔNG dùng LaTeX, viết ký hiệu Unicode.
 
 ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ:
@@ -728,57 +1227,145 @@ KHÔNG dùng LaTeX, viết ký hiệu Unicode.
 """
                     score_res = execute_gemini_request([hw_img, RUBRIC])
                     score_res_clean = format_math(score_res)
+                    st.session_state.hw_chat = []
 
-                    # Ưu tiên số sau chữ "Tổng điểm"; không có thì lấy số đầu tiên dạng x/10
-                    score_match = (re.search(r"Tổng điểm\W*(\d+(?:[.,]\d+)?)\s*/\s*10", score_res_clean, flags=re.IGNORECASE)
-                                   or re.search(r"(\d+(?:[.,]\d+)?)\s*/\s*10(?!\d)", score_res_clean))
-                    extracted_score = score_match.group(1).replace(",", ".") if score_match else "Chưa xác định"
-
-                    sub_record = {
-                        "Thời gian": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                        "Họ và tên": s_name,
-                        "Lớp": s_class,
-                        "Bài tập": topic,
-                        "Điểm số": extracted_score,
-                        "Nhận xét của AI": score_res_clean.replace("\n", " ")
-                    }
-                    submission_history.append(sub_record)
-
-                    webhook_url = get_secret("GOOGLE_SHEET_WEBHOOK_URL", DEFAULT_WEBHOOK) or DEFAULT_WEBHOOK
-                    sheet_ok = False
-                    sheet_err = ""
-                    if not webhook_url or "EXAMPLE_REPLACE" in webhook_url:
-                        sheet_err = "Chưa cấu hình GOOGLE_SHEET_WEBHOOK_URL trong Secrets của Streamlit"
+                    anh_loi = re.search(r"ANH_CHUA_DAT\s*:?\s*(.*)", score_res_clean)
+                    if anh_loi:
+                        # Ảnh chưa đạt: không chấm, không gửi điểm về Google Sheets
+                        st.session_state.hw_result = {"anh_chua_dat": anh_loi.group(1).strip() or "Ảnh chưa đủ rõ để chấm."}
                     else:
-                        payload = {
-                            "time": sub_record["Thời gian"],
-                            "name": s_name,
-                            "student_class": s_class,
-                            "topic": topic,
-                            "score": extracted_score,
-                            "feedback": sub_record["Nhận xét của AI"]
+                        # Ưu tiên số sau chữ "Tổng điểm"; không có thì lấy số đầu tiên dạng x/10
+                        score_match = (re.search(r"Tổng điểm\W*(\d+(?:[.,]\d+)?)\s*/\s*10", score_res_clean, flags=re.IGNORECASE)
+                                       or re.search(r"(\d+(?:[.,]\d+)?)\s*/\s*10(?!\d)", score_res_clean))
+                        extracted_score = score_match.group(1).replace(",", ".") if score_match else "Chưa xác định"
+
+                        sub_record = {
+                            "Thời gian": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                            "Họ và tên": s_name,
+                            "Lớp": s_class,
+                            "Bài tập": topic,
+                            "Điểm số": extracted_score,
+                            "Nhận xét của AI": score_res_clean.replace("\n", " ")
                         }
-                        try:
-                            # Gửi dạng text/plain giống game Vượt Ải Không Gian; Apps Script đọc bằng e.postData.contents
-                            resp = requests.post(webhook_url, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-                                                 headers={"Content-Type": "text/plain;charset=utf-8"}, timeout=15)
-                            # Apps Script trả mã 200 cả khi lỗi hoặc bắt đăng nhập, nên phải đọc nội dung trả về
-                            sheet_ok = resp.ok and '"ok"' in resp.text
-                            if not sheet_ok:
-                                sheet_err = f"HTTP {resp.status_code}: {resp.text[:300]}"
-                        except Exception as e:
-                            sheet_err = str(e)
+                        submission_history.append(sub_record)
 
-                    if sheet_ok:
-                        st.success("🎉 Tín hiệu đã truyền thành công! Điểm số tự động cập nhật về hạm đội của cô!")
-                    else:
-                        st.warning("⚠️ Đã chấm xong nhưng chưa gửi được điểm về Google Sheets. Em hãy chụp màn hình kết quả gửi cô nhé!")
-                        with st.expander("Chi tiết lỗi (dành cho cô)"):
-                            st.code(sheet_err)
-                    st.markdown(f"### Kết quả của phi hành gia: **{s_name}** - Hạm đội **{s_class}**")
-                    st.markdown(score_res_clean)
+                        sheet_ok = False
+                        sheet_err = ""
+                        if not WEBHOOK_URL or "EXAMPLE_REPLACE" in WEBHOOK_URL:
+                            sheet_err = "Chưa cấu hình GOOGLE_SHEET_WEBHOOK_URL trong Secrets của Streamlit"
+                        else:
+                            payload = {
+                                "time": sub_record["Thời gian"],
+                                "name": s_name,
+                                "student_class": s_class,
+                                "topic": topic,
+                                "score": extracted_score,
+                                "feedback": sub_record["Nhận xét của AI"]
+                            }
+                            try:
+                                # Gửi dạng text/plain giống game Vượt Ải Không Gian; Apps Script đọc bằng e.postData.contents
+                                resp = requests.post(WEBHOOK_URL, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+                                                     headers={"Content-Type": "text/plain;charset=utf-8"}, timeout=15)
+                                # Apps Script trả mã 200 cả khi lỗi hoặc bắt đăng nhập, nên phải đọc nội dung trả về
+                                sheet_ok = resp.ok and '"ok"' in resp.text
+                                if not sheet_ok:
+                                    sheet_err = f"HTTP {resp.status_code}: {resp.text[:300]}"
+                            except Exception as e:
+                                sheet_err = str(e)
+                        if sheet_ok:
+                            doc_sheet.clear()   # để Hồ sơ Phi hành gia và Bảng vàng thấy bài mới ngay
+
+                        # Lưu ảnh thu nhỏ để trợ lý đàm thoại đọc lại đúng bài vừa chấm
+                        img_nho = hw_img.copy()
+                        if img_nho.mode != "RGB":
+                            img_nho = img_nho.convert("RGB")
+                        img_nho.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
+                        st.session_state.hw_result = {
+                            "name": s_name, "class": s_class, "topic": topic, "score": extracted_score,
+                            "text": score_res_clean, "img": img_nho, "sheet_ok": sheet_ok, "sheet_err": sheet_err,
+                        }
                 except Exception as err:
                     st.error(f"Lỗi truyền tín hiệu: {err}")
+
+    # ---------- HIỂN THỊ KẾT QUẢ (giữ lại khi học sinh đặt câu hỏi cho trợ lý) ----------
+    hw_res = st.session_state.get("hw_result")
+    if hw_res and hw_res.get("anh_chua_dat"):
+        st.markdown(f"""
+        <div style="background:rgba(120,53,15,0.85);border:2px solid #f59e0b;border-radius:16px;padding:16px;margin-top:12px;">
+          <div style="color:#fde68a;font-weight:800;font-size:16px;margin-bottom:6px;">Ảnh chụp chưa đủ rõ để cô chấm chuẩn xác</div>
+          <div style="color:#fef3c7;font-size:14px;margin-bottom:10px;">{html.escape(hw_res['anh_chua_dat'])}</div>
+          <div style="color:#fef3c7;font-size:13px;line-height:1.6;">
+            Em hãy chụp lại theo hướng dẫn:<br>
+            1. Đặt vở trên mặt phẳng, điện thoại song song với trang vở (chụp thẳng góc, không nghiêng).<br>
+            2. Chụp nơi đủ sáng, tránh bóng tay và đèn lóa.<br>
+            3. Lấy trọn bài làm và hình vẽ trong khung, chạm vào màn hình để lấy nét trước khi chụp.<br>
+            Bài này <b>chưa được ghi điểm</b>. Chụp lại xong em bấm nộp lần nữa nhé!
+          </div>
+        </div>""", unsafe_allow_html=True)
+    elif hw_res:
+        if hw_res["sheet_ok"]:
+            st.success("🎉 Tín hiệu đã truyền thành công! Điểm số tự động cập nhật về hạm đội của cô!")
+        else:
+            st.warning("⚠️ Đã chấm xong nhưng chưa gửi được điểm về Google Sheets. Em hãy chụp màn hình kết quả gửi cô nhé!")
+            with st.expander("Chi tiết lỗi (dành cho cô)"):
+                st.code(hw_res["sheet_err"])
+        st.markdown(f"### Kết quả của phi hành gia: **{hw_res['name']}** - Hạm đội **{hw_res['class']}**")
+        st.markdown(hw_res["text"])
+
+        # ---------- TRẠM ĐÀM THOẠI: HỎI LẠI CÔ VỀ BÀI VỪA CHẤM ----------
+        st.write("---")
+        st.markdown("#### 💬 Trạm Đàm Thoại Cùng Cô Mai Phương AI")
+        st.caption("Em chưa hiểu vì sao bị trừ điểm, hay muốn biết cách giải khác có được điểm tối đa không? Hỏi cô ngay bên dưới nhé.")
+
+        if "hw_chat" not in st.session_state:
+            st.session_state.hw_chat = []
+        for msg in st.session_state.hw_chat:
+            with st.chat_message("user" if msg["role"] == "hs" else "assistant", avatar="🧑‍🚀" if msg["role"] == "hs" else "👩‍🏫"):
+                st.markdown(msg["text"])
+
+        SO_CAU_TOI_DA = 8
+        so_cau_da_hoi = sum(1 for m in st.session_state.hw_chat if m["role"] == "hs")
+        if so_cau_da_hoi >= SO_CAU_TOI_DA:
+            st.info("Em đã hỏi đủ 8 câu cho bài này. Những thắc mắc còn lại em ghi vào vở để hỏi trực tiếp cô trên lớp nhé!")
+        else:
+            with st.form("hw_chat_form", clear_on_submit=True):
+                cau_hoi = st.text_input("Câu hỏi của em:", placeholder="Ví dụ: Cô ơi vì sao chỗ này em bị trừ 1 điểm hình vẽ?")
+                gui = st.form_submit_button("📨 Gửi câu hỏi cho cô", use_container_width=True)
+            if gui and cau_hoi.strip():
+                lich_su = "\n".join(
+                    f"{'Học sinh' if m['role'] == 'hs' else 'Cô'}: {m['text']}" for m in st.session_state.hw_chat[-6:]
+                )
+                CHAT_PROMPT = f"""
+Bạn là cô Mai Phương, giáo viên Toán 8 (SGK Kết nối tri thức, chương trình GDPT 2018), đang trò chuyện với học sinh {hw_res['name']} về bài làm trong ảnh.
+Chuyên đề: {hw_res['topic']}.
+Kết quả chấm AI vừa trả cho em (điểm {hw_res['score']}/10):
+<<<
+{hw_res['text']}
+>>>
+Lịch sử trò chuyện gần đây:
+{lich_su or '(chưa có)'}
+
+Câu hỏi mới của học sinh: "{cau_hoi.strip()}"
+
+YÊU CẦU TRẢ LỜI:
+- Xưng "cô", gọi "em". Thân thiện, ngắn gọn (tối đa khoảng 150 chữ).
+- Chỉ dựa trên đúng bài làm trong ảnh và kết quả chấm ở trên; chỉ ra cụ thể dòng/bước nào trong bài của em.
+- Khi em hỏi vì sao bị trừ điểm: giải thích lý do theo Rubric và chỉ cách viết lại cho đúng.
+- Khi em hỏi về cách giải khác: đánh giá cách đó có đúng và được điểm tối đa không, chỉ dùng kiến thức trong chương trình Toán 8 (không dùng đường tròn hay kiến thức lớp 9).
+- Không tự thay đổi điểm đã chấm. Nếu thấy kết quả chấm có thể chưa chính xác, nói rõ và dặn em báo cô Mai Phương kiểm tra lại.
+- Nếu ảnh không đọc rõ chỗ em hỏi, nói thật là cô chưa đọc rõ, không đoán.
+- Kết thúc bằng 1 câu hỏi gợi mở ngắn để em tự kiểm tra lại hiểu biết.
+- Câu hỏi không liên quan đến bài: nhẹ nhàng hướng em quay lại bài làm.
+- KHÔNG dùng LaTeX, viết ký hiệu Unicode: ∠A, Δ ABC, ⊥, //, °, ².
+"""
+                with st.spinner("Cô đang đọc lại bài của em..."):
+                    try:
+                        tra_loi = format_math(execute_gemini_request([hw_res["img"], CHAT_PROMPT]))
+                    except Exception as e:
+                        tra_loi = f"Trạm đàm thoại đang bận, em thử lại sau ít phút nhé. ({e})"
+                st.session_state.hw_chat.append({"role": "hs", "text": cau_hoi.strip()})
+                st.session_state.hw_chat.append({"role": "co", "text": tra_loi})
+                st.rerun()
 
 
 # ================= TAB 3: MINIGAME VƯỢT ẢI KHÔNG GIAN (TỨ GIÁC) =================
@@ -2272,9 +2859,42 @@ with tab3:
     st.subheader("🚀 Phi Hành Gia Toán Học: Vượt Ải Không Gian")
     st.caption("Cùng cô Mai Phương giải mã hạm đội UFO, hạ Quái Thú Tứ Giác và cắm cờ Việt Nam lên Mặt Trăng! Cẩn thận các hố sâu có cột laser cảnh báo nha!")
 
-    sheet_webhook = get_secret("GOOGLE_SHEET_WEBHOOK_URL", DEFAULT_WEBHOOK) or DEFAULT_WEBHOOK
-    game_html = SPACE_GAME_HTML.replace('"WEBHOOK_URL_PLACEHOLDER"', json.dumps(sheet_webhook))
+    game_html = SPACE_GAME_HTML.replace('"WEBHOOK_URL_PLACEHOLDER"', json.dumps(WEBHOOK_URL))
     components.html(game_html, height=820, scrolling=True)
+
+    # ---------- BẢNG VÀNG MINIGAME (CÔNG KHAI CHO HỌC SINH) ----------
+    st.write("---")
+    st.markdown("### 🏆 Bảng Vàng Phi Hành Gia")
+    bv1, bv2 = st.columns([2, 1])
+    with bv1:
+        lop_bv = st.selectbox("Xem bảng vàng của:", ["Cả khối", "8A13", "8A18"], key="bv_lop")
+    with bv2:
+        st.write("")
+        if st.button("🔄 Cập nhật", use_container_width=True, key="bv_refresh"):
+            doc_sheet.clear()
+    try:
+        _, gm_bv = lay_du_lieu_lop()
+        if lop_bv != "Cả khối":
+            gm_bv = gm_bv[gm_bv["_lop"] == lop_bv]
+        bang = bang_vang_game(gm_bv)
+        if bang.empty:
+            st.info("Chưa có lượt chơi nào được ghi nhận. Hãy là phi hành gia đầu tiên lên bảng vàng!")
+        else:
+            c_top, c_cham = st.columns(2)
+            with c_top:
+                st.markdown("**⭐ Điểm cao nhất**")
+                top = bang.sort_values(["Điểm cao nhất", "Số lần hạ Boss"], ascending=False).head(10)
+                st.markdown(html_bang_xep_hang(top[["Họ và tên", "Lớp", "Điểm cao nhất"]].values.tolist(), "điểm", "#facc15"),
+                            unsafe_allow_html=True)
+            with c_cham:
+                st.markdown("**🚀 Chăm chỉ nhất (số lượt chơi)**")
+                cham = bang.sort_values(["Lượt chơi", "Điểm cao nhất"], ascending=False).head(10)
+                st.markdown(html_bang_xep_hang(cham[["Họ và tên", "Lớp", "Lượt chơi"]].values.tolist(), "lượt", "#34d399"),
+                            unsafe_allow_html=True)
+            st.caption("Bảng vàng tự cập nhật khoảng 1 phút một lần. Các lượt gửi trùng trong 2 phút chỉ tính 1 lần.")
+    except Exception:
+        st.caption("Bảng vàng tạm thời chưa tải được, em thử bấm Cập nhật sau ít phút nhé.")
+
 
 # ================= HÀM NÉN ẢNH SIÊU NHẸ RAM =================
 def compress_image_to_base64(uploaded_file, max_size=(800, 800), quality=75):
@@ -2648,6 +3268,8 @@ with tab4:
 
         st.write("")
 # ================= TAB 5: BẢNG ĐIỂM LỚP & CHẨN ĐOÁN LỖI SAI TOÀN DIỆN =================
+COT_HIEN_THI = ["Thời gian", "Họ và tên", "Lớp", "Bài tập", "Điểm số", "Nhận xét của AI"]
+
 with tab5:
     st.markdown("### 🔒 Trạm Bảo Mật Sổ Điểm & Chẩn Đoán Lỗi Sai Toàn Lớp")
     st.caption("Khu vực quản trị dành riêng cho Giáo viên - Phân tích dữ liệu học tập chuyên sâu.")
@@ -2661,200 +3283,228 @@ with tab5:
 
             st.write("---")
             st.markdown("#### 📥 NGUỒN DỮ LIỆU ĐỂ PHÂN TÍCH TOÀN BỘ HỌC SINH")
-            
+
             data_source_opt = st.radio(
-                "Chọn nguồn nạp dữ liệu bài nộp:",
-                ["Kết nối Google Sheet trực tiếp", "Tải file dữ liệu lên (.csv hoặc .xlsx)", "Dùng dữ liệu phiên hiện tại"],
+                "Chọn nguồn nạp dữ liệu:",
+                ["Google Sheet của cô (tự động)", "Tải file dữ liệu lên (.csv hoặc .xlsx)", "Dùng dữ liệu phiên hiện tại"],
                 horizontal=True
             )
 
-            df_all = pd.DataFrame()
+            bt_all, gm_all = pd.DataFrame(), pd.DataFrame()
 
-            if data_source_opt == "Kết nối Google Sheet trực tiếp":
-                default_sheet_id = get_secret("GOOGLE_SHEET_ID", "1lYGh3jYv5XfpghUOSGXz92UM4fLarD_0xhP0Gyi6AMw")
-                sheet_id_input = st.text_input("ID Google Sheet của cô:", value=default_sheet_id)
-                sheet_sub_name = st.selectbox("Chọn trang tính cần đọc:", ["BaiTap", "Minigame", "Bảng điểm"])
-                st.caption("💡 *Lưu ý: File Google Sheet cần được bật quyền chia sẻ 'Bất kỳ ai có đường liên kết đều có thể Xem'.*")
-                
-                if sheet_id_input.strip():
-                    try:
-                        csv_export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id_input.strip()}/gviz/tq?tqx=out:csv&sheet={sheet_sub_name}"
-                        df_all = pd.read_csv(csv_export_url)
-                        st.success(f"✅ Đã kết nối và đọc thành công **{len(df_all)} dòng dữ liệu** từ trang tính **{sheet_sub_name}**!")
-                    except Exception as e:
-                        st.error(f"Chưa đọc được dữ liệu: {e}. Cô hãy kiểm tra quyền 'Người xem' trên file Sheet nhé.")
-
-            elif data_source_opt == "Tải file dữ liệu lên (.csv hoặc .xlsx)":
-                uploaded_sheet_file = st.file_uploader("Tải file bảng điểm xuất từ Google Sheets:", type=["csv", "xlsx"])
-                if uploaded_sheet_file:
-                    try:
-                        if uploaded_sheet_file.name.endswith(".csv"):
-                            df_all = pd.read_csv(uploaded_sheet_file)
-                        else:
-                            df_all = pd.read_excel(uploaded_sheet_file)
-                        st.success(f"✅ Đã đọc thành công **{len(df_all)} dòng dữ liệu** từ file!")
-                    except Exception as e:
-                        st.error(f"Lỗi đọc file: {e}")
+            if data_source_opt == "Google Sheet của cô (tự động)":
+                c_ns1, c_ns2 = st.columns([3, 1])
+                with c_ns2:
+                    if st.button("🔄 Tải lại", use_container_width=True, key="tab5_refresh"):
+                        doc_sheet.clear()
+                try:
+                    with st.spinner("Đang đọc trang tính Bảng điểm và Minigame..."):
+                        bt_all, gm_all = lay_du_lieu_lop()
+                    with c_ns1:
+                        st.success(f"✅ Đã đọc **{len(bt_all)} bài nộp** (sheet {SHEET_BAITAP}) và **{len(gm_all)} lượt chơi** (sheet {SHEET_GAME}).")
+                except Exception as e:
+                    st.error(f"Chưa đọc được dữ liệu: {e}")
 
             else:
-                if len(submission_history) > 0:
-                    df_all = pd.DataFrame(list(submission_history))
+                df_raw = pd.DataFrame()
+                if data_source_opt == "Tải file dữ liệu lên (.csv hoặc .xlsx)":
+                    uploaded_sheet_file = st.file_uploader("Tải file bảng điểm xuất từ Google Sheets:", type=["csv", "xlsx"])
+                    if uploaded_sheet_file:
+                        try:
+                            if uploaded_sheet_file.name.endswith(".csv"):
+                                df_raw = pd.read_csv(uploaded_sheet_file)
+                            else:
+                                df_raw = pd.read_excel(uploaded_sheet_file)
+                            st.success(f"✅ Đã đọc thành công **{len(df_raw)} dòng dữ liệu** từ file!")
+                        except Exception as e:
+                            st.error(f"Lỗi đọc file: {e}")
                 else:
-                    st.info("Chưa có bài nộp nào trong phiên chạy hiện tại.")
+                    if len(submission_history) > 0:
+                        df_raw = pd.DataFrame(list(submission_history))
+                    else:
+                        st.info("Chưa có bài nộp nào trong phiên chạy hiện tại.")
+                if not df_raw.empty:
+                    bt_all, gm_all = tach_bai_tap_game(them_cot_phu(df_raw))
+                    gm_all["_win"] = gm_all["Nhận xét của AI"].astype(str).str.contains("Hạ gục", case=False, na=False)
+                    gm_all = loc_luot_game_trung(gm_all)
 
-            # Chuẩn hóa cột dữ liệu
-            if not df_all.empty:
-                col_map = {}
-                for c in df_all.columns:
-                    c_clean = str(c).strip().lower()
-                    if "tên" in c_clean or "name" in c_clean: col_map[c] = "Họ và tên"
-                    elif "lớp" in c_clean or "class" in c_clean: col_map[c] = "Lớp"
-                    elif "bài" in c_clean or "topic" in c_clean or "hoạt động" in c_clean or "chuyên đề" in c_clean: col_map[c] = "Bài tập"
-                    elif "điểm" in c_clean or "score" in c_clean: col_map[c] = "Điểm số"
-                    elif "nhận xét" in c_clean or "feedback" in c_clean or "kết quả" in c_clean: col_map[c] = "Nhận xét của AI"
-                    elif "thời gian" in c_clean or "time" in c_clean: col_map[c] = "Thời gian"
-                df_all.rename(columns=col_map, inplace=True)
+            if bt_all.empty and gm_all.empty:
+                st.warning("Chưa có dữ liệu bài nộp để hiển thị.")
+            else:
+                tab_sub_bt, tab_sub_gm, tab_sub_bv = st.tabs(
+                    ["📝 Bài Tập & Chẩn Đoán Lỗi", "👾 Điểm Minigame", "🏅 Bảng Vàng Tổng Hợp"])
 
-                tab_sub_bt, tab_sub_gm = st.tabs(["📝 Danh Sách Bài Tập & Chẩn Đoán Lỗi", "👾 Điểm Minigame Vượt Ải"])
-
+                # ---------- BÀI TẬP & CHẨN ĐOÁN LỖI ----------
                 with tab_sub_bt:
-                    df_bt = df_all[~df_all["Bài tập"].astype(str).str.contains("Minigame", case=False, na=False)].copy()
-                    st.dataframe(df_bt, use_container_width=True)
-
-                    csv_bt = df_bt.to_csv(index=False).encode("utf-8-sig")
-                    st.download_button(
-                        label="📗 Tải bảng điểm bài tập (.CSV)",
-                        data=csv_bt,
-                        file_name=f"Diem_BaiTap_Toan8_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                        mime="text/csv",
-                        use_container_width=True
-                    )
-
-                    st.write("---")
-                    st.markdown("### 🧠 Trạm Chẩn Đoán Lỗ Hổng Kiến Thức & Lỗi Sai Cả Lớp")
-                    st.caption("AI tự động quét toàn bộ nhật ký bài chấm, gom cụm các lỗi sai và đưa ra giải pháp sư phạm.")
-
                     c_f1, c_f2 = st.columns(2)
                     with c_f1:
-                        class_vals = ["Tất cả"] + sorted([str(x) for x in df_bt["Lớp"].dropna().unique() if str(x).strip()]) if "Lớp" in df_bt else ["Tất cả"]
+                        class_vals = ["Tất cả"] + sorted([x for x in bt_all["_lop"].unique() if x]) if not bt_all.empty else ["Tất cả"]
                         filter_class = st.selectbox("Lọc theo lớp:", class_vals, key="sb_bt_class")
                     with c_f2:
-                        topic_vals = ["Tất cả"] + sorted([str(x) for x in df_bt["Bài tập"].dropna().unique() if str(x).strip()]) if "Bài tập" in df_bt else ["Tất cả"]
+                        topic_vals = ["Tất cả"] + sorted([str(x) for x in bt_all["Bài tập"].dropna().unique() if str(x).strip()]) if not bt_all.empty else ["Tất cả"]
                         filter_topic = st.selectbox("Lọc theo chuyên đề:", topic_vals, key="sb_bt_topic")
 
-                    df_filtered = df_bt.copy()
-                    if filter_class != "Tất cả" and "Lớp" in df_filtered:
-                        df_filtered = df_filtered[df_filtered["Lớp"].astype(str) == filter_class]
-                    if filter_topic != "Tất cả" and "Bài tập" in df_filtered:
+                    df_filtered = bt_all.copy()
+                    if filter_class != "Tất cả" and not df_filtered.empty:
+                        df_filtered = df_filtered[df_filtered["_lop"] == filter_class]
+                    if filter_topic != "Tất cả" and not df_filtered.empty:
                         df_filtered = df_filtered[df_filtered["Bài tập"].astype(str) == filter_topic]
 
-                    st.info(f"📊 Đang sẵn sàng phân tích trên **{len(df_filtered)} bài nộp**.")
+                    if df_filtered.empty:
+                        st.info("Không có bài nộp nào khớp bộ lọc.")
+                    else:
+                        st.dataframe(df_filtered[COT_HIEN_THI], use_container_width=True, hide_index=True)
+                        st.download_button(
+                            label="📗 Tải bảng điểm bài tập (.CSV)",
+                            data=df_filtered[COT_HIEN_THI].to_csv(index=False).encode("utf-8-sig"),
+                            file_name=f"Diem_BaiTap_Toan8_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                            mime="text/csv",
+                            use_container_width=True
+                        )
 
-                    if st.button("🚀 Khởi động AI phân tích lỗi sai toàn lớp", type="primary", use_container_width=True):
-                        with st.spinner("Phi hành đoàn AI đang tổng hợp toàn bộ bài nộp và phân loại lỗi sai chi tiết..."):
-                            try:
-                                feedbacks_corpus = []
-                                for _, row in df_filtered.iterrows():
-                                    name = row.get("Họ và tên", "HS")
-                                    s_class = row.get("Lớp", "")
-                                    score = row.get("Điểm số", "")
-                                    topic = row.get("Bài tập", "")
-                                    fb = str(row.get("Nhận xét của AI", "")).strip()
-                                    if fb:
-                                        feedbacks_corpus.append(f"- HS {name} ({s_class}, {score}đ) - {topic}: {fb}")
-                                
-                                corpus_text = "\n".join(feedbacks_corpus[:100])
+                        st.write("---")
+                        st.markdown("### 🧠 Trạm Chẩn Đoán Lỗ Hổng Kiến Thức & Lỗi Sai Cả Lớp")
 
-                                DIAGNOSIS_PROMPT = """
+                        # 1. Thống kê tự động: chạy ngay, không tốn lượt gọi AI
+                        st.markdown("#### 📊 Thống kê lỗi sai phổ biến (tự động)")
+                        bang_loi = thong_ke_loi(df_filtered)
+                        if bang_loi.empty:
+                            st.info("Chưa nhận diện được lỗi nào từ phần Hạn chế trong các nhận xét.")
+                        else:
+                            so_bai_co_nx = int((df_filtered["Nhận xét của AI"].astype(str).str.len() > 20).sum())
+                            st.caption(f"Đếm từ phần **Hạn chế** trong nhận xét của {so_bai_co_nx} bài nộp, theo bộ từ khóa lỗi. "
+                                       "Đây là số liệu ước tính để cô định hướng; nhấn nút AI bên dưới để phân tích sâu hơn.")
+                            st.bar_chart(bang_loi.head(10).set_index("Nhóm lỗi")["Tỷ lệ (%)"])
+                            st.dataframe(bang_loi, use_container_width=True, hide_index=True)
+
+                        # 2. AI phân tích sâu, dựa trên số liệu thống kê thật ở trên
+                        st.info(f"📊 Đang sẵn sàng phân tích sâu trên **{len(df_filtered)} bài nộp**.")
+                        if st.button("🔍 Khởi động AI phân tích lỗi sai toàn lớp", type="primary", use_container_width=True):
+                            with st.spinner("Phi hành đoàn AI đang tổng hợp toàn bộ bài nộp và phân loại lỗi sai chi tiết..."):
+                                try:
+                                    feedbacks_corpus = []
+                                    for _, row in df_filtered.iterrows():
+                                        fb = str(row.get("Nhận xét của AI", "")).strip()
+                                        if fb:
+                                            feedbacks_corpus.append(
+                                                f"- HS {row['Họ và tên']} ({row['_lop']}, {row['Điểm số']}đ) - {row['Bài tập']}: {fb[:1500]}")
+                                    corpus_text = "\n".join(feedbacks_corpus[:100])
+                                    thong_ke_text = bang_loi.to_csv(index=False) if not bang_loi.empty else "(chưa có)"
+
+                                    DIAGNOSIS_PROMPT = f"""
 Bạn là Chuyên gia Đánh giá Đo lường Giáo dục môn Toán THCS (Chương trình GDPT 2018).
-Dưới đây là tập hợp toàn bộ nhật ký bài chấm và nhận xét chi tiết của học sinh:
+Dữ liệu gồm {len(feedbacks_corpus[:100])} nhận xét bài chấm của học sinh (ở trên) và bảng thống kê lỗi đã đếm tự động từ phần Hạn chế:
+{thong_ke_text}
 
 HÃY QUÉT VÀ TỔNG HỢP CÁC LỖI SAI PHỔ BIẾN, ĐẶC BIỆT CHÚ Ý CÁC LỖI:
-1. ĐẠI SỐ (TOÁN SỐ):
-   - Sai dấu (khi chuyển vế, bỏ ngoặc có dấu trừ đằng trước, nhân chia số âm)
-   - Thiếu dấu ngoặc (khi nhân đa thức với đa thức, nâng lên lũy thừa, đặt dấu trừ trước phân thức)
-   - Sót hạng tử (khi nhân phân phối, khi thu gọn các đơn thức đồng dạng)
-   - Thiếu mũ / nhầm số mũ (khi nhân chia lũy thừa cùng cơ số, tính bậc của đa thức)
-   - Sai hệ số (cộng trừ nhầm hệ số tự do, nhân sai hệ số đơn thức)
-   - Khai triển sai hằng đẳng thức đáng nhớ (nhầm dấu, thiếu số 2ab, nhầm hằng đẳng thức bậc 3)
-   - Quên hoặc sai điều kiện xác định (mẫu thức khác 0, điều kiện ẩn bài toán thực tế)
-2. HÌNH HỌC (TOÁN HÌNH):
-   - Vẽ hình sai / thiếu ký hiệu góc vuông, ký hiệu cạnh bằng nhau
-   - Lập luận thiếu bước, ngộ nhận tính chất khi chưa chứng minh
-   - Nhầm lẫn giữa dấu hiệu nhận biết và tính chất của các tứ giác (hình thang cân, bình hành, chữ nhật, thoi, vuông)
+1. ĐẠI SỐ: sai dấu (chuyển vế, bỏ ngoặc có dấu trừ), thiếu dấu ngoặc, sót hạng tử, thiếu/nhầm số mũ, sai hệ số,
+   khai triển sai hằng đẳng thức đáng nhớ, quên hoặc sai điều kiện xác định.
+2. HÌNH HỌC: vẽ hình sai/thiếu ký hiệu, lập luận thiếu bước, ngộ nhận tính chất khi chưa chứng minh,
+   nhầm dấu hiệu nhận biết và tính chất các tứ giác.
+
+QUY TẮC SỐ LIỆU: "count" và "percentage" phải lấy từ bảng thống kê tự động nếu nhóm lỗi có trong bảng;
+nhóm lỗi mới thì đếm đúng số bài trong dữ liệu, không ước đoán. Không bịa tên học sinh hay câu trích dẫn.
 
 TRẢ VỀ KẾT QUẢ ĐÚNG ĐỊNH DẠNG JSON:
-{
+{{
   "total_analyzed": [Số bài nộp đã phân tích],
   "common_errors": [
-    {
-      "error_group": "Tên nhóm lỗi ngắn gọn (ví dụ: Sai dấu khi bỏ ngoặc, Khai triển sai HĐT, Thiếu điều kiện xác định...)",
+    {{
+      "error_group": "Tên nhóm lỗi ngắn gọn",
       "category": "Toán Số (Đại số)" HOẶC "Toán Hình (Hình học)" HOẶC "Kỹ năng Trình bày",
-      "count": [Ước lượng số HS mắc lỗi],
-      "percentage": [Tỷ lệ % HS mắc lỗi, từ 1 đến 100],
+      "count": [Số bài mắc lỗi],
+      "percentage": [Tỷ lệ % bài mắc lỗi, từ 1 đến 100],
       "severity": "Nghiêm trọng" HOẶC "Trung bình" HOẶC "Nhẹ",
-      "example_mistake": "Trích dẫn 1 câu lỗi sai cụ thể của học sinh",
+      "example_mistake": "Trích 1 câu nhận xét lỗi có thật trong dữ liệu",
       "remedy": "Lời khuyên sư phạm cụ thể để cô Mai Phương giảng chữa trên lớp"
-    }
+    }}
   ],
-  "teacher_recommendation": "Đoạn văn 2-3 câu tổng kết mức độ hiểu bài của cả lớp và lưu ý giảng dạy tiếp theo."
-}
+  "teacher_recommendation": "Đoạn văn 2-3 câu tổng kết mức độ hiểu bài của cả lớp và đề xuất nội dung chữa bài cho tiết học tiếp theo."
+}}
 Quy tắc: Không dùng mã LaTeX. Dùng ký hiệu Unicode: ², ³, ∛, √, ∠, ⊥, //, Δ, °.
 """
-                                analysis_result = execute_gemini_request([corpus_text, DIAGNOSIS_PROMPT], is_json=True)
-                                st.session_state["last_analysis"] = analysis_result
-                                st.success("✅ Đã hoàn tất chẩn đoán dữ liệu toàn bộ học sinh!")
-                            except Exception as e:
-                                st.error(f"Lỗi trong quá trình phân tích: {e}")
+                                    analysis_result = execute_gemini_request([corpus_text, DIAGNOSIS_PROMPT], is_json=True)
+                                    st.session_state["last_analysis"] = analysis_result
+                                    st.success("✅ Đã hoàn tất chẩn đoán dữ liệu toàn bộ học sinh!")
+                                except Exception as e:
+                                    st.error(f"Lỗi trong quá trình phân tích: {e}")
 
-                    if "last_analysis" in st.session_state and st.session_state["last_analysis"]:
-                        res = st.session_state["last_analysis"]
-                        st.markdown("#### 📑 BẢNG CHẨN ĐOÁN LỖI SAI PHỔ BIẾN TOÀN DIỆN")
+                        if st.session_state.get("last_analysis"):
+                            res = st.session_state["last_analysis"]
+                            st.markdown("#### 📑 BẢNG CHẨN ĐOÁN LỖI SAI PHỔ BIẾN TOÀN DIỆN")
+                            errors = res.get("common_errors", [])
+                            if errors:
+                                chart_df = pd.DataFrame([
+                                    {"Nhóm lỗi": e.get("error_group", ""), "Tỷ lệ (%)": to_int(e.get("percentage", 0), 0)}
+                                    for e in errors
+                                ]).set_index("Nhóm lỗi")
+                                st.bar_chart(chart_df)
 
-                        errors = res.get("common_errors", [])
-                        if errors:
-                            chart_df = pd.DataFrame([
-                                {"Nhóm lỗi": e["error_group"], "Tỷ lệ (%)": to_int(e.get("percentage", 0), 0)}
-                                for e in errors
-                            ]).set_index("Nhóm lỗi")
-
-                            st.bar_chart(chart_df)
-
-                            for e in errors:
-                                sev = e.get("severity", "Trung bình")
-                                color = "#ef4444" if sev == "Nghiêm trọng" else ("#f59e0b" if sev == "Trung bình" else "#38bdf8")
-                                st.markdown(f"""
-                                <div style="background: rgba(15, 23, 42, 0.85); border-left: 4px solid {color}; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-top: 1px solid rgba(255,255,255,0.08); border-right: 1px solid rgba(255,255,255,0.08); border-bottom: 1px solid rgba(255,255,255,0.08);">
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <span style="color: #fef08a; font-weight: 800; font-size: 14px;">⚠️ {e.get('error_group')}</span>
-                                        <span style="background: rgba(255,255,255,0.1); color: {color}; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700;">{e.get('percentage')}% HS mắc lỗi</span>
+                                for e in errors:
+                                    sev = e.get("severity", "Trung bình")
+                                    color = "#ef4444" if sev == "Nghiêm trọng" else ("#f59e0b" if sev == "Trung bình" else "#38bdf8")
+                                    st.markdown(f"""
+                                    <div style="background: rgba(15, 23, 42, 0.85); border-left: 4px solid {color}; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-top: 1px solid rgba(255,255,255,0.08); border-right: 1px solid rgba(255,255,255,0.08); border-bottom: 1px solid rgba(255,255,255,0.08);">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                                            <span style="color: #fef08a; font-weight: 800; font-size: 14px;">⚠️ {html.escape(str(e.get('error_group', '')))}</span>
+                                            <span style="background: rgba(255,255,255,0.1); color: {color}; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; white-space: nowrap;">{e.get('percentage')}% bài mắc lỗi</span>
+                                        </div>
+                                        <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1;"><b>Phân loại:</b> {html.escape(str(e.get('category', '')))} | <b>Mức độ:</b> {html.escape(str(sev))}</p>
+                                        <p style="margin: 3px 0; font-size: 11px; color: #fda4af;"><i>"Ví dụ: {html.escape(str(e.get('example_mistake', '')))}"</i></p>
+                                        <p style="margin: 6px 0 0 0; font-size: 11px; color: #6ee7b7; background: rgba(16, 185, 129, 0.1); padding: 6px 10px; border-radius: 6px;">💡 <b>Hướng can thiệp cho cô:</b> {html.escape(str(e.get('remedy', '')))}</p>
                                     </div>
-                                    <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1;"><b>Phân loại:</b> {e.get('category')} | <b>Mức độ:</b> {e.get('severity')}</p>
-                                    <p style="margin: 3px 0; font-size: 11px; color: #fda4af;"><i>"Ví dụ: {e.get('example_mistake')}"</i></p>
-                                    <p style="margin: 6px 0 0 0; font-size: 11px; color: #6ee7b7; background: rgba(16, 185, 129, 0.1); padding: 6px 10px; border-radius: 6px;">💡 <b>Hướng can thiệp cho cô:</b> {e.get('remedy')}</p>
-                                </div>
-                                """, unsafe_allow_html=True)
+                                    """, unsafe_allow_html=True)
 
                             rec = res.get("teacher_recommendation", "")
                             if rec:
                                 st.info(f"👩‍🏫 **Đánh giá tổng quan từ Trợ lý Sư phạm:**\n\n{rec}")
 
+                # ---------- ĐIỂM MINIGAME ----------
                 with tab_sub_gm:
-                    df_gm = df_all[df_all["Bài tập"].astype(str).str.contains("Minigame", case=False, na=False)].copy()
-                    if df_gm.empty:
+                    if gm_all.empty:
                         st.info("Chưa có lượt chơi game nào được ghi nhận.")
                     else:
-                        st.dataframe(df_gm, use_container_width=True)
-                        csv_gm = df_gm.to_csv(index=False).encode("utf-8-sig")
+                        gm_show = gm_all.sort_values("_tg", ascending=False)[["Thời gian", "Mã đề", "Họ và tên", "Lớp", "Điểm số", "Bài tập", "Nhận xét của AI"]]
+                        gm_show = gm_show.rename(columns={"Điểm số": "Điểm game", "Bài tập": "Hoạt động", "Nhận xét của AI": "Kết quả / Danh hiệu"})
+                        st.caption("Đã bỏ các lượt gửi trùng (cùng học sinh, cùng điểm trong 2 phút).")
+                        st.dataframe(gm_show, use_container_width=True, hide_index=True)
                         st.download_button(
                             label="👾 Tải bảng điểm Minigame (.CSV)",
-                            data=csv_gm,
+                            data=gm_show.to_csv(index=False).encode("utf-8-sig"),
                             file_name=f"Diem_Minigame_Toan8_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                             mime="text/csv",
                             use_container_width=True
                         )
-            else:
-                st.warning("Chưa có dữ liệu bài nộp để hiển thị.")
+
+                # ---------- BẢNG VÀNG TỔNG HỢP ----------
+                with tab_sub_bv:
+                    tong = tong_hop_hoc_sinh(bt_all, gm_all)
+                    c_b1, c_b2 = st.columns(2)
+                    with c_b1:
+                        lop_vals = ["Tất cả"] + sorted([x for x in tong["Lớp"].dropna().unique() if x])
+                        lop_bv5 = st.selectbox("Lớp:", lop_vals, key="bv5_lop")
+                    with c_b2:
+                        tieu_chi = st.selectbox("Xếp hạng theo:", [
+                            "Tổng điểm game", "Điểm game cao nhất", "Số lần hạ Boss", "Lượt chơi",
+                            "Điểm TB bài tập", "Điểm BT cao nhất", "Số bài nộp"], key="bv5_tieuchi")
+                    if lop_bv5 != "Tất cả":
+                        tong = tong[tong["Lớp"] == lop_bv5]
+                    tong = tong.sort_values([tieu_chi, "Số bài nộp"], ascending=False, na_position="last").reset_index(drop=True)
+
+                    st.markdown(f"**Top 10 theo {tieu_chi.lower()}**")
+                    top10 = tong.dropna(subset=[tieu_chi]).head(10)
+                    st.markdown(html_bang_xep_hang(
+                        [(r["Họ và tên"], r["Lớp"], f"{r[tieu_chi]:g}") for _, r in top10.iterrows()], "", "#facc15"),
+                        unsafe_allow_html=True)
+                    st.markdown("**Bảng tổng hợp đầy đủ**")
+                    st.dataframe(tong, use_container_width=True, hide_index=True)
+                    st.download_button(
+                        label="🏅 Tải bảng tổng hợp (.CSV)",
+                        data=tong.to_csv(index=False).encode("utf-8-sig"),
+                        file_name=f"TongHop_Toan8_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                        mime="text/csv",
+                        use_container_width=True
+                    )
         else:
             st.error("⛔ Mật khẩu không chính xác! Khu vực hạn chế truy cập.")
     else:
