@@ -26,30 +26,45 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
 
-    /* NỀN TOÀN TRANG: Đẩy hẳn hình ảnh sang bên trái màn hình */
-    .stApp {
-        background: linear-gradient(rgba(11, 15, 25, 0.2), rgba(11, 15, 25, 0.35)),
-                    url('https://raw.githubusercontent.com/dophuong1795-hub/socratic-toan8/main/teacher_bg.jpg.jpg');
-        background-size: cover;
-        background-position: left center; /* Đẩy hẳn hình sang trái */
-        background-attachment: fixed;
-        font-family: 'Plus Jakarta Sans', sans-serif;
-        color: #ffffff;
+  /* ===== SỬA LỖI NỀN TRẮNG CHỮ TRẮNG CHO NÚT VÀ POPOVER (XEM LỚN, QUẢN LÝ) ===== */
+    div[data-testid="stButton"] button, 
+    div[data-testid="stPopover"] button,
+    [data-testid="stPopoverButton"],
+    [data-testid="stBaseButton-secondary"] {
+        border-radius: 14px !important;
+        border: 1px solid rgba(56, 189, 248, 0.6) !important;
+        font-size: 14px !important;
+        font-weight: 700 !important;
+        padding: 8px 16px !important;
+        background-color: rgba(30, 41, 59, 0.95) !important; /* Nền xanh đêm đậm */
+        color: #38bdf8 !important; /* Chữ xanh dạ quang dễ đọc */
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
+        transition: all 0.25s ease !important;
     }
 
-    /* KHUNG NỘI DUNG CHÍNH: Kính mờ cao cấp */
-    .block-container {
-        padding-top: 1.5rem !important;
-        padding-bottom: 3rem !important;
-        max-width: 780px !important;
-        background: rgba(11, 15, 25, 0.82) !important;
-        backdrop-filter: blur(14px);
-        -webkit-backdrop-filter: blur(14px);
-        border-radius: 24px;
-        border: 1px solid rgba(56, 189, 248, 0.4);
-        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7);
-        margin-top: 2rem;
-        margin-bottom: 2rem;
+    div[data-testid="stButton"] button:hover, 
+    div[data-testid="stPopover"] button:hover,
+    [data-testid="stPopoverButton"]:hover {
+        background-color: rgba(67, 56, 202, 0.95) !important;
+        border-color: #38bdf8 !important;
+        color: #ffffff !important;
+        transform: translateY(-2px) !important;
+    }
+
+    /* Ép chữ và icon bên trong nút nhận đúng màu của nút, không bị trắng đè trắng */
+    div[data-testid="stButton"] button *,
+    div[data-testid="stPopover"] button *,
+    [data-testid="stPopoverButton"] * {
+        color: inherit !important;
+    }
+
+    /* Khung nội dung khi bấm vào 'Xem lớn' hoặc 'Quản lý' xổ ra */
+    [data-testid="stPopoverBody"] {
+        background-color: rgba(15, 23, 42, 0.98) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(56, 189, 248, 0.6) !important;
+        border-radius: 16px !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8) !important;
     }
 
     /* Ô NHẬP LIỆU VÀ SELECTBOX TỐI MÀU DỄ ĐỌC */
