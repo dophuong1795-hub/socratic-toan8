@@ -559,6 +559,8 @@ CHUYEN_DE_MAP = [
     ("Tứ giác", "Hình bình hành và hình chữ nhật", ["binh hanh", "chu nhat"]),
     ("Tứ giác", "Tứ giác và hình thang cân", ["hinh thang", "tu giac"]),
 ]
+SO_BAI_TOI_THIEU = 3   # mỗi hành tinh cần ít nhất 3 bài mới được phát sáng / gắn sao
+
 # Thứ tự chuyên đề trong mỗi chương theo tiến độ SGK (dùng để gợi ý bài nên làm tiếp)
 THU_TU_CHUYEN_DE = [
     "Đơn thức và đa thức nhiều biến", "Hằng đẳng thức đáng nhớ", "Phân tích đa thức thành nhân tử",
@@ -577,6 +579,9 @@ MAU_HANH_TINH = {
 
 def xac_dinh_chuyen_de(bai_tap: str):
     t = bo_dau(bai_tap)
+    # Các chuyên đề ngoài 6 hành tinh (tên có chữ "tứ giác" nhưng không thuộc chương Tứ giác)
+    if any(k in t for k in ("hinh chop", "dong dang", "tong hop", "minigame")):
+        return None, None
     for chuong, chuyen_de, tu_khoa in CHUYEN_DE_MAP:
         if any(k in t for k in tu_khoa):
             return chuong, chuyen_de
@@ -605,6 +610,13 @@ def tinh_ho_so(bt_hs: pd.DataFrame):
 
 
 def goi_y_lo_trinh(ket_qua) -> str:
+    thieu_bai = [(c, m) for c, m in ket_qua.items() if m["mo_khoa"] and m["so_bai"] < SO_BAI_TOI_THIEU]
+    if thieu_bai:
+        chuong, muc = thieu_bai[0]
+        con = SO_BAI_TOI_THIEU - muc["so_bai"]
+        chua_lam = [cd for cd, d in muc["cd"].items() if d is None]
+        goi_y_cd = f" Nên chọn chuyên đề **{chua_lam[0]}** em chưa làm." if chua_lam else ""
+        return f"Hành tinh **{chuong}** mới có {muc['so_bai']}/{SO_BAI_TOI_THIEU} bài. Em nộp thêm {con} bài nữa để hành tinh đủ điều kiện phát sáng.{goi_y_cd}"
     dang_hoc = [(c, m) for c, m in ket_qua.items() if m["mo_khoa"] and m["phan_tram"] < 80]
     if dang_hoc:
         chuong, muc = min(dang_hoc, key=lambda x: x[1]["phan_tram"])
@@ -660,7 +672,8 @@ def html_ban_do_sao(ket_qua) -> str:
         muc = ket_qua[chuong]
         sang, toi = MAU_HANH_TINH[chuong]
         pt = muc["phan_tram"]
-        if muc["mo_khoa"] and pt >= 60:
+        du_bai = muc["so_bai"] >= SO_BAI_TOI_THIEU
+        if muc["mo_khoa"] and pt >= 60 and du_bai:
             # Từ 60%: màu riêng sáng rực, phát sáng càng mạnh khi điểm càng cao
             hanh_tinh = f"background:radial-gradient(circle at 30% 30%, #ffffff 0%, {sang} 35%, {toi} 100%);"
             hanh_tinh += f"box-shadow:0 0 {12 + pt // 4}px {sang};"
@@ -669,14 +682,14 @@ def html_ban_do_sao(ket_qua) -> str:
         elif muc["mo_khoa"]:
             # Đã mở khóa nhưng dưới 60%: màu riêng, tối mờ, chưa phát sáng
             hanh_tinh = f"background:radial-gradient(circle at 30% 30%, {sang} 0%, {toi} 70%, #0f172a 100%);opacity:0.6;"
-            trang_thai = f"{pt}% thành thạo"
+            trang_thai = f"{pt}% thành thạo" + ("" if du_bai else f" · {muc['so_bai']}/{SO_BAI_TOI_THIEU} bài")
             mau_chu = "#e2e8f0"
         else:
             # Chưa mở khóa: xám
             hanh_tinh = "background:radial-gradient(circle at 30% 30%, #64748b 0%, #1e293b 100%);opacity:0.55;"
             trang_thai = "Chưa mở khóa"
             mau_chu = "#94a3b8"
-        sao = '<div style="position:absolute;top:-6px;right:-6px;color:#facc15;font-size:18px;">★</div>' if pt >= 80 else ""
+        sao = '<div style="position:absolute;top:-6px;right:-6px;color:#facc15;font-size:18px;">★</div>' if pt >= 80 and du_bai else ""
         the.append(f"""
         <div style="text-align:center;padding:10px 6px;">
           <div style="position:relative;width:64px;height:64px;margin:0 auto 8px auto;border-radius:50%;{hanh_tinh}">
@@ -976,7 +989,7 @@ with st.expander("🧑‍🚀 Hồ sơ Phi hành gia: Bản đồ năng lực 6 
                 m4.metric("Lần hạ Boss", int(gm_hs["_win"].sum()) if not gm_hs.empty else 0)
 
                 st.markdown(html_ban_do_sao(ket_qua), unsafe_allow_html=True)
-                st.caption("Hành tinh mở khóa khi em có bài nộp thuộc chương đó, từ 60% thì phát sáng, từ 80% được gắn sao vàng. Độ thành thạo = điểm trung bình các bài của chương x 10 (trung bình 9,2 điểm là 92%).")
+                st.caption("Hành tinh mở khóa khi em có bài nộp thuộc chương đó. Khi đủ 3 bài: từ 60% thì phát sáng, từ 80% được gắn sao vàng. Độ thành thạo = điểm trung bình các bài của chương x 10 (trung bình 9,2 điểm là 92%).")
                 st.success(f"🧭 **Lộ trình gợi ý cho em:** {goi_y_lo_trinh(ket_qua)}")
 
                 with st.expander("📜 Nhật ký các chuyên đề đã chinh phục"):
@@ -1213,21 +1226,22 @@ with tab2:
     with c2:
         s_class = st.selectbox("Hạm đội lớp:", ["8A13", "8A18"])
 
+    # Tên chuyên đề gom theo 6 hành tinh trong Hồ sơ Phi hành gia (thứ tự theo SGK Kết nối tri thức)
     topic = st.selectbox("Chọn hành tinh chuyên đề:", [
-        "Đại số 8: Đơn thức và Đa thức nhiều biến",
-        "Đại số 8: Các hằng đẳng thức đáng nhớ",
-        "Đại số 8: Phân tích đa thức thành nhân tử",
-        "Đại số 8: Phân thức đại số và rút gọn phân thức",
-        "Đại số 8: Phương trình bậc nhất một ẩn",
-        "Đại số 8: Giải bài toán bằng cách lập phương trình",
-        "Đại số 8: Hàm số bậc nhất và đồ thị",
-        "Hình học 8: Tứ giác và Hình thang cân",
-        "Hình học 8: Hình bình hành và Hình chữ nhật",
-        "Hình học 8: Hình thoi và Hình vuông",
-        "Hình học 8: Định lý Thalès trong tam giác",
-        "Hình học 8: Tam giác đồng dạng và định lý liên quan",
-        "Hình học 8: Hình chóp tam giác đều & tứ giác đều",
-        "Bài kiểm tra tổng hợp vũ trụ (Số và Hình)"
+        "Hành tinh Đa thức: Đơn thức và đa thức nhiều biến",
+        "Hành tinh Đa thức: Hằng đẳng thức đáng nhớ",
+        "Hành tinh Đa thức: Phân tích đa thức thành nhân tử",
+        "Hành tinh Tứ giác: Tứ giác và hình thang cân",
+        "Hành tinh Tứ giác: Hình bình hành và hình chữ nhật",
+        "Hành tinh Tứ giác: Hình thoi và hình vuông",
+        "Hành tinh Định lý Thalès: Định lý Thalès trong tam giác",
+        "Hành tinh Phân thức: Phân thức đại số và rút gọn phân thức",
+        "Hành tinh Phương trình bậc nhất: Phương trình bậc nhất một ẩn",
+        "Hành tinh Phương trình bậc nhất: Giải bài toán bằng cách lập phương trình",
+        "Hành tinh Hàm số: Hàm số bậc nhất và đồ thị",
+        "Trạm ngoài hành tinh: Tam giác đồng dạng",
+        "Trạm ngoài hành tinh: Hình chóp tam giác đều và tứ giác đều",
+        "Trạm ngoài hành tinh: Bài kiểm tra tổng hợp (Số và Hình)",
     ])
 
     up_hw = st.file_uploader("📸 Truyền ảnh nhật ký bài giải viết tay trong vở:", type=["jpg", "png", "jpeg"], key="hw_submit_img")
