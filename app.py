@@ -337,6 +337,12 @@ SHEET_GAME = "Minigame"      # lượt chơi Tab 3
 WEBHOOK_URL = get_secret("GOOGLE_SHEET_WEBHOOK_URL", DEFAULT_WEBHOOK) or DEFAULT_WEBHOOK
 
 
+def gon_html(s: str) -> str:
+    """Bỏ xuống dòng và thụt lề trong HTML. Nếu để nguyên, Markdown hiểu dòng thụt lề là đoạn mã
+    và in cả thẻ HTML ra màn hình thay vì vẽ giao diện."""
+    return re.sub(r"\n\s*", "", s).strip()
+
+
 def bo_dau(s) -> str:
     """Bỏ dấu, viết thường, gọn khoảng trắng: dùng để so khớp tên và từ khóa."""
     s = unicodedata.normalize("NFD", str(s or ""))
@@ -535,7 +541,7 @@ def html_bang_xep_hang(dong_du_lieu, don_vi: str, mau: str) -> str:
             <span style="color:#94a3b8;font-weight:600;font-size:12px;"> · {html.escape(str(lop))}</span></span>
           <span style="color:{mau};font-weight:800;font-size:15px;white-space:nowrap;">{gia_tri} {don_vi}</span>
         </div>""")
-    return "".join(dong) or '<p style="color:#cbd5e1;">Chưa có dữ liệu.</p>'
+    return gon_html("".join(dong)) or '<p style="color:#cbd5e1;">Chưa có dữ liệu.</p>'
 
 
 # ================= HỒ SƠ PHI HÀNH GIA: BẢN ĐỒ 6 CHƯƠNG TOÁN 8 =================
@@ -639,12 +645,12 @@ def html_ban_do_sao(ket_qua) -> str:
             <div style="width:{pt}%;height:100%;background:{sang};"></div></div>
           <div style="color:#cbd5e1;font-size:11px;font-weight:600;">{trang_thai}</div>
         </div>""")
-    return f"""
+    return gon_html(f"""
     <div style="background:radial-gradient(ellipse at top, rgba(49,46,129,0.55), rgba(2,6,23,0.9));
                 border:1px solid rgba(56,189,248,0.4);border-radius:18px;padding:12px;
                 display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:4px;">
       {''.join(the)}
-    </div>"""
+    </div>""")
 
 
 # ================= THỐNG KÊ LỖI SAI TỰ ĐỘNG (KHÔNG CẦN AI) =================
@@ -1290,7 +1296,7 @@ KHÔNG dùng LaTeX, viết ký hiệu Unicode.
     # ---------- HIỂN THỊ KẾT QUẢ (giữ lại khi học sinh đặt câu hỏi cho trợ lý) ----------
     hw_res = st.session_state.get("hw_result")
     if hw_res and hw_res.get("anh_chua_dat"):
-        st.markdown(f"""
+        st.markdown(gon_html(f"""
         <div style="background:rgba(120,53,15,0.85);border:2px solid #f59e0b;border-radius:16px;padding:16px;margin-top:12px;">
           <div style="color:#fde68a;font-weight:800;font-size:16px;margin-bottom:6px;">Ảnh chụp chưa đủ rõ để cô chấm chuẩn xác</div>
           <div style="color:#fef3c7;font-size:14px;margin-bottom:10px;">{html.escape(hw_res['anh_chua_dat'])}</div>
@@ -1301,7 +1307,7 @@ KHÔNG dùng LaTeX, viết ký hiệu Unicode.
             3. Lấy trọn bài làm và hình vẽ trong khung, chạm vào màn hình để lấy nét trước khi chụp.<br>
             Bài này <b>chưa được ghi điểm</b>. Chụp lại xong em bấm nộp lần nữa nhé!
           </div>
-        </div>""", unsafe_allow_html=True)
+        </div>"""), unsafe_allow_html=True)
     elif hw_res:
         if hw_res["sheet_ok"]:
             st.success("🎉 Tín hiệu đã truyền thành công! Điểm số tự động cập nhật về hạm đội của cô!")
