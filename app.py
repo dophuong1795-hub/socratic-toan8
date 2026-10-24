@@ -584,23 +584,23 @@ def xac_dinh_chuyen_de(bai_tap: str):
 
 
 def tinh_ho_so(bt_hs: pd.DataFrame):
-    """Độ thành thạo mỗi chương = tổng điểm cao nhất của từng chuyên đề / (10 x số chuyên đề của chương)."""
+    """Độ thành thạo mỗi chương = điểm trung bình các bài đã nộp thuộc chương x 10 (TB 9,2 -> 92%)."""
     ket_qua = {}
     for chuong in CAC_CHUONG:
         ds_cd = sorted([cd for c, cd, _ in CHUYEN_DE_MAP if c == chuong], key=THU_TU_CHUYEN_DE.index)
-        ket_qua[chuong] = {"cd": {cd: None for cd in ds_cd}, "so_bai": 0}
+        ket_qua[chuong] = {"cd": {cd: None for cd in ds_cd}, "so_bai": 0, "tong_diem": 0.0}
     for _, r in bt_hs.iterrows():
         chuong, cd = xac_dinh_chuyen_de(r["Bài tập"])
         if not chuong or pd.isna(r["_diem"]):
             continue
         muc = ket_qua[chuong]
         muc["so_bai"] += 1
+        muc["tong_diem"] += float(r["_diem"])
         cu = muc["cd"][cd]
         muc["cd"][cd] = r["_diem"] if cu is None else max(cu, r["_diem"])
     for chuong, muc in ket_qua.items():
-        diem = [d if d is not None else 0 for d in muc["cd"].values()]
         muc["mo_khoa"] = muc["so_bai"] > 0
-        muc["phan_tram"] = round(100 * sum(diem) / (10 * len(diem))) if diem else 0
+        muc["phan_tram"] = min(100, round(10 * muc["tong_diem"] / muc["so_bai"])) if muc["so_bai"] else 0
     return ket_qua
 
 
@@ -660,12 +660,19 @@ def html_ban_do_sao(ket_qua) -> str:
         muc = ket_qua[chuong]
         sang, toi = MAU_HANH_TINH[chuong]
         pt = muc["phan_tram"]
-        if muc["mo_khoa"]:
+        if muc["mo_khoa"] and pt >= 60:
+            # Từ 60%: màu riêng sáng rực, phát sáng càng mạnh khi điểm càng cao
             hanh_tinh = f"background:radial-gradient(circle at 30% 30%, #ffffff 0%, {sang} 35%, {toi} 100%);"
             hanh_tinh += f"box-shadow:0 0 {12 + pt // 4}px {sang};"
             trang_thai = f"{pt}% thành thạo"
             mau_chu = "#f8fafc"
+        elif muc["mo_khoa"]:
+            # Đã mở khóa nhưng dưới 60%: màu riêng, tối mờ, chưa phát sáng
+            hanh_tinh = f"background:radial-gradient(circle at 30% 30%, {sang} 0%, {toi} 70%, #0f172a 100%);opacity:0.6;"
+            trang_thai = f"{pt}% thành thạo"
+            mau_chu = "#e2e8f0"
         else:
+            # Chưa mở khóa: xám
             hanh_tinh = "background:radial-gradient(circle at 30% 30%, #64748b 0%, #1e293b 100%);opacity:0.55;"
             trang_thai = "Chưa mở khóa"
             mau_chu = "#94a3b8"
@@ -969,7 +976,7 @@ with st.expander("🧑‍🚀 Hồ sơ Phi hành gia: Bản đồ năng lực 6 
                 m4.metric("Lần hạ Boss", int(gm_hs["_win"].sum()) if not gm_hs.empty else 0)
 
                 st.markdown(html_ban_do_sao(ket_qua), unsafe_allow_html=True)
-                st.caption("Hành tinh sáng đèn khi em đã nộp bài thuộc chương đó. Độ thành thạo tính theo điểm cao nhất của từng chuyên đề trong chương; đạt từ 80% được gắn sao vàng.")
+                st.caption("Hành tinh mở khóa khi em có bài nộp thuộc chương đó, từ 60% thì phát sáng, từ 80% được gắn sao vàng. Độ thành thạo = điểm trung bình các bài của chương x 10 (trung bình 9,2 điểm là 92%).")
                 st.success(f"🧭 **Lộ trình gợi ý cho em:** {goi_y_lo_trinh(ket_qua)}")
 
                 with st.expander("📜 Nhật ký các chuyên đề đã chinh phục"):
