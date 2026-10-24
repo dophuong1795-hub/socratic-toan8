@@ -620,6 +620,39 @@ def goi_y_lo_trinh(ket_qua) -> str:
         return f"Các hành tinh đã mở đều vững vàng. Chặng tiếp theo: hành tinh **{chua_mo[0]}**."
     return "Em đã chinh phục cả 6 hành tinh với độ thành thạo từ 80% trở lên. Xuất sắc!"
 
+# Biểu tượng vẽ bằng SVG cho từng hành tinh (nét trắng, đặt chồng lên quả cầu màu)
+_NET = 'fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"'
+ICON_CHUONG = {
+    # Đa thức: x² + y
+    "Đa thức": '<text x="24" y="31" text-anchor="middle" font-family="Georgia,serif" font-style="italic" '
+               'font-size="17" font-weight="700" fill="#ffffff">x²+y</text>',
+    # Tứ giác: hình bình hành có hai đường chéo
+    "Tứ giác": f'<path d="M10 34 L18 14 L39 14 L31 34 Z" {_NET}/><path d="M10 34 L39 14 M18 14 L31 34" '
+               'fill="none" stroke="#ffffff" stroke-width="1.6" stroke-dasharray="3 3"/>',
+    # Định lý Thalès: tam giác có một đường song song với đáy
+    "Định lý Thalès": f'<path d="M24 9 L8 38 L40 38 Z" {_NET}/><path d="M15 25 L33 25" {_NET}/>',
+    # Phân thức: a trên b
+    "Phân thức": '<text x="24" y="21" text-anchor="middle" font-family="Georgia,serif" font-style="italic" '
+                 'font-size="15" font-weight="700" fill="#ffffff">A</text>'
+                 '<line x1="13" y1="25" x2="35" y2="25" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>'
+                 '<text x="24" y="40" text-anchor="middle" font-family="Georgia,serif" font-style="italic" '
+                 'font-size="15" font-weight="700" fill="#ffffff">B</text>',
+    # Phương trình bậc nhất: cân thăng bằng
+    "Phương trình bậc nhất": f'<path d="M24 10 L24 38 M16 38 L32 38 M10 15 L38 15" {_NET}/>'
+                             f'<path d="M10 15 L5 27 L15 27 Z M38 15 L33 27 L43 27 Z" {_NET}/>',
+    # Hàm số: hệ trục và đồ thị đường thẳng
+    "Hàm số": f'<path d="M8 38 L42 38 M14 42 L14 7" {_NET}/>'
+              '<path d="M10 34 L40 11" fill="none" stroke="#fef08a" stroke-width="3" stroke-linecap="round"/>',
+}
+
+
+def icon_data_uri(chuong: str, mo_khoa: bool) -> str:
+    """SVG biểu tượng chương dạng data URI để dùng làm ảnh nền trong CSS."""
+    do_ro = "1" if mo_khoa else "0.7"
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" opacity="{do_ro}">'
+           f'{ICON_CHUONG.get(chuong, "")}</svg>')
+    return "data:image/svg+xml;utf8," + quote(svg)
+
 
 def html_ban_do_sao(ket_qua) -> str:
     the = []
@@ -639,7 +672,8 @@ def html_ban_do_sao(ket_qua) -> str:
         sao = '<div style="position:absolute;top:-6px;right:-6px;color:#facc15;font-size:18px;">★</div>' if pt >= 80 else ""
         the.append(f"""
         <div style="text-align:center;padding:10px 6px;">
-          <div style="position:relative;width:64px;height:64px;margin:0 auto 8px auto;border-radius:50%;{hanh_tinh}">{sao}</div>
+          <div style="position:relative;width:64px;height:64px;margin:0 auto 8px auto;border-radius:50%;{hanh_tinh}">
+            <div style="position:absolute;inset:10px;background:url('{icon_data_uri(chuong, muc['mo_khoa'])}') center/contain no-repeat;"></div>{sao}</div>
           <div style="color:{mau_chu};font-weight:800;font-size:13px;line-height:1.2;">{chuong}</div>
           <div style="height:6px;background:rgba(148,163,184,0.25);border-radius:99px;margin:6px 8px 4px 8px;overflow:hidden;">
             <div style="width:{pt}%;height:100%;background:{sang};"></div></div>
