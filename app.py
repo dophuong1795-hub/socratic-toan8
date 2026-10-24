@@ -2648,36 +2648,145 @@ with tab4:
 
         st.write("")
 # ================= TAB 5: BẢNG ĐIỂM LỚP (ĐỔI SANG with tab5) =================
+# ================= TAB 5: BẢNG ĐIỂM LỚP & CHẨN ĐOÁN LỖI SAI CẢ LỚP =================
 with tab5:
-    st.markdown("### 🔒 Trạm Bảo Mật Sổ Điểm Giáo Viên")
-    st.caption("Dữ liệu hạm đội học sinh được mã hóa bảo mật.")
+    st.markdown("### 🔒 Trạm Bảo Mật Sổ Điểm & Chẩn Đoán Học Tập")
+    st.caption("Khu vực quản trị dành riêng cho Giáo viên - Dữ liệu học sinh được mã hóa bảo mật.")
 
-    teacher_password = st.text_input("🔑 Nhập mật khẩu hạm đội để mở sổ điểm:", type="password", key="teacher_pass_tab5")
+    teacher_password = st.text_input("🔑 Nhập mật khẩu giáo viên để mở trạm quản trị:", type="password", key="teacher_pass_tab5")
     ADMIN_PASS = get_secret("TEACHER_PASSWORD", "Maiphuong2026")
 
     if teacher_password:
         if hmac.compare_digest(teacher_password.encode(), str(ADMIN_PASS).encode()):
-            st.success("🔓 Xác thực trạm thành công! Chào cô Mai Phương.")
-            st.caption("Bảng dưới gồm bài nộp ở Tab 2 kể từ lần khởi động app gần nhất. Điểm game Vượt Ải Không Gian và bản lưu lâu dài nằm trong Google Sheets.")
+            st.success("🔓 Xác thực trạm thành công! Chào mừng cô Mai Phương.")
+            st.caption("Bảng bên dưới tổng hợp các bài nộp viết tay được AI chấm theo Rubric. Dữ liệu dài hạn được lưu đồng thời trên Google Sheets.")
 
+            # --- PHẦN 1: BẢNG ĐIỂM & XUẤT CSV ---
             if len(submission_history) == 0:
-                st.info("Chưa có phi hành gia nào truyền bài nộp kể từ khi app khởi động.")
+                st.info("Chưa có phi hành gia nào nộp bài kể từ khi khởi động ứng dụng.")
             else:
                 df = pd.DataFrame(list(submission_history))
                 st.dataframe(df, use_container_width=True)
 
                 csv_data = df.to_csv(index=False).encode("utf-8-sig")
 
-                st.write("---")
                 st.download_button(
-                    label="📗 Tải file bảng điểm Vũ Trụ (.CSV cho Google Sheets)",
+                    label="📗 Tải file bảng điểm Vũ Trụ (.CSV cho Google Sheets/Excel)",
                     data=csv_data,
                     file_name=f"Bang_Diem_VuTru_Toan8_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                     mime="text/csv",
-                    type="primary",
+                    type="secondary",
                     use_container_width=True
                 )
+
+                # --- PHẦN 2: TỰ TỔNG HỢP & CHẨN ĐOÁN LỖI SAI PHỔ BIẾN CẢ LỚP ---
+                st.write("---")
+                st.markdown("### 🧠 Trạm Chẩn Đoán Lỗ Hổng Kiến Thức & Lỗi Sai Cả Lớp")
+                st.caption("AI tự động quét toàn bộ nhận xét bài làm, gom cụm các lỗi sai điển hình (Toán Số & Toán Hình) và gợi ý can thiệp sư phạm.")
+
+                col_f1, col_f2 = st.columns(2)
+                with col_f1:
+                    filter_class = st.selectbox("Lọc phân tích theo lớp:", ["Tất cả"] + sorted(list(df["Lớp"].unique())))
+                with col_f2:
+                    filter_topic = st.selectbox("Lọc phân tích theo chuyên đề:", ["Tất cả"] + sorted(list(df["Bài tập"].unique())))
+
+                df_filtered = df.copy()
+                if filter_class != "Tất cả":
+                    df_filtered = df_filtered[df_filtered["Lớp"] == filter_class]
+                if filter_topic != "Tất cả":
+                    df_filtered = df_filtered[df_filtered["Bài tập"] == filter_topic]
+
+                st.write(f"📊 Đang có **{len(df_filtered)} bài nộp** trong danh sách phân tích.")
+
+                if st.button("🔍 Khởi động AI phân tích lỗi sai toàn lớp", type="primary", use_container_width=True):
+                    with st.spinner("Phi hành đoàn AI đang tổng hợp các nhận xét, phân loại lỗi sai và tính toán tỷ lệ..."):
+                        try:
+                            feedbacks_corpus = []
+                            for _, row in df_filtered.iterrows():
+                                feedbacks_corpus.append(
+                                    f"- Học sinh: {row['Họ và tên']} (Lớp {row['Lớp']}, Điểm: {row['Điểm số']}/10) | "
+                                    f"Chuyên đề: {row['Bài tập']} | Nhận xét AI: {row['Nhận xét của AI']}"
+                                )
+                            corpus_text = "\n".join(feedbacks_corpus)
+
+                            DIAGNOSIS_PROMPT = """
+Bạn là Chuyên gia Đánh giá Đo lường Giáo dục môn Toán THCS (Chương trình GDPT 2018).
+Dưới đây là nhật ký bài chấm và nhận xét chi tiết của học sinh:
+
+HÃY QUÉT VÀ TỔNG HỢP CÁC LỖI SAI PHỔ BIẾN, ĐẶC BIỆT CHÚ Ý CÁC LỖI:
+1. ĐẠI SỐ (TOÁN SỐ):
+   - Sai dấu (khi chuyển vế, bỏ ngoặc có dấu trừ đằng trước, nhân chia số âm)
+   - Thiếu dấu ngoặc (khi nhân đa thức với đa thức, nâng lên lũy thừa, đặt dấu trừ trước phân thức)
+   - Sót hạng tử (khi nhân phân phối, khi thu gọn các đơn thức đồng dạng)
+   - Thiếu mũ / nhầm số mũ (khi nhân chia lũy thừa cùng cơ số, tính bậc của đa thức)
+   - Sai hệ số (cộng trừ nhầm hệ số tự do, nhân sai hệ số đơn thức)
+   - Khai triển sai hằng đẳng thức đáng nhớ (nhầm dấu giữa (a-b)² và (a+b)², thiếu số 2ab, nhầm hằng đẳng thức bậc 3)
+   - Quên hoặc sai điều kiện xác định (điều kiện mẫu thức khác 0, điều kiện ẩn của bài toán thực tế)
+2. HÌNH HỌC (TOÁN HÌNH):
+   - Vẽ hình sai / thiếu ký hiệu góc vuông, ký hiệu cạnh bằng nhau
+   - Lập luận thiếu bước, ngộ nhận tính chất khi chưa chứng minh
+   - Nhầm lẫn giữa dấu hiệu nhận biết và tính chất (hình thang cân, bình hành, chữ nhật, thoi, vuông)
+
+TRẢ VỀ KẾT QUẢ ĐÚNG ĐỊNH DẠNG JSON SAU:
+{
+  "total_analyzed": [Số bài nộp đã phân tích],
+  "common_errors": [
+    {
+      "error_group": "Tên nhóm lỗi ngắn gọn (ví dụ: Sai dấu khi bỏ dấu ngoặc, Khai triển sai Hằng đẳng thức, Thiếu điều kiện xác định...)",
+      "category": "Toán Số (Đại số)" HOẶC "Toán Hình (Hình học)" HOẶC "Kỹ năng Trình bày",
+      "count": [Ước lượng số HS mắc lỗi],
+      "percentage": [Tỷ lệ % HS mắc lỗi, từ 1 đến 100],
+      "severity": "Nghiêm trọng" HOẶC "Trung bình" HOẶC "Nhẹ",
+      "example_mistake": "Trích dẫn 1 câu mô tả ngắn lỗi sai cụ thể của học sinh",
+      "remedy": "Lời khuyên sư phạm trực tiếp để cô Mai Phương lưu ý nhắc nhở/giảng chữa trên lớp"
+    }
+  ],
+  "teacher_recommendation": "Đoạn văn 2-3 câu tổng kết mức độ hiểu bài của cả lớp và định hướng cho tiết học tiếp theo."
+}
+Quy tắc: Không dùng mã LaTeX. Sử dụng ký hiệu Unicode tự nhiên: ², ³, ∛, √, ∠, ⊥, //, Δ, °.
+"""
+                            analysis_result = execute_gemini_request([corpus_text, DIAGNOSIS_PROMPT], is_json=True)
+                            st.session_state["last_analysis"] = analysis_result
+                            st.success("✅ Đã hoàn tất chẩn đoán dữ liệu lỗi sai của lớp!")
+                        except Exception as e:
+                            st.error(f"Lỗi trong quá trình phân tích: {e}")
+
+                # Hiển thị kết quả phân tích
+                if "last_analysis" in st.session_state and st.session_state["last_analysis"]:
+                    res = st.session_state["last_analysis"]
+                    st.markdown("#### 📑 BẢNG CHẨN ĐOÁN LỖI SAI PHỔ BIẾN TOÀN LỚP")
+
+                    errors = res.get("common_errors", [])
+                    if errors:
+                        # 1. Biểu đồ thanh ngang tỷ lệ % mắc lỗi
+                        chart_df = pd.DataFrame([
+                            {"Nhóm lỗi": e["error_group"], "Tỷ lệ (%)": to_int(e.get("percentage", 0), 0)}
+                            for e in errors
+                        ]).set_index("Nhóm lỗi")
+
+                        st.bar_chart(chart_df)
+
+                        # 2. Danh sách thẻ chi tiết từng lỗi
+                        for e in errors:
+                            sev = e.get("severity", "Trung bình")
+                            color = "#ef4444" if sev == "Nghiêm trọng" else ("#f59e0b" if sev == "Trung bình" else "#38bdf8")
+                            st.markdown(f"""
+                            <div style="background: rgba(15, 23, 42, 0.85); border-left: 4px solid {color}; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; border-top: 1px solid rgba(255,255,255,0.08); border-right: 1px solid rgba(255,255,255,0.08); border-bottom: 1px solid rgba(255,255,255,0.08);">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="color: #fef08a; font-weight: 800; font-size: 14px;">⚠️ {e.get('error_group')}</span>
+                                    <span style="background: rgba(255,255,255,0.1); color: {color}; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700;">{e.get('percentage')}% HS mắc lỗi</span>
+                                </div>
+                                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1;"><b>Phân loại:</b> {e.get('category')} | <b>Mức độ:</b> {e.get('severity')}</p>
+                                <p style="margin: 3px 0; font-size: 11px; color: #fda4af;"><i>"Ví dụ: {e.get('example_mistake')}"</i></p>
+                                <p style="margin: 6px 0 0 0; font-size: 11px; color: #6ee7b7; background: rgba(16, 185, 129, 0.1); padding: 6px 10px; border-radius: 6px;">💡 <b>Hướng can thiệp cho cô:</b> {e.get('remedy')}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        # 3. Lời khuyên tổng quan
+                        rec = res.get("teacher_recommendation", "")
+                        if rec:
+                            st.info(f"👩‍🏫 **Đánh giá tổng quan từ Trợ lý Sư phạm:**\n\n{rec}")
         else:
             st.error("⛔ Mật khẩu không chính xác! Khu vực hạn chế truy cập.")
     else:
-        st.info("👉 Vui lòng nhập mật khẩu bảo mật để mở trạm theo dõi điểm.")
+        st.info("👉 Vui lòng nhập mật khẩu bảo mật của giáo viên để mở khóa sổ theo dõi điểm và công cụ chẩn đoán.")
