@@ -860,10 +860,53 @@ def format_math(text: str) -> str:
     text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
 
+# ===== HIỂN THỊ LaTeX CHO PHẦN SỐ, UNICODE CHO PHẦN HÌNH =====
+# AI viết biểu thức đại số trong $...$ (Streamlit tự vẽ bằng KaTeX); ký hiệu hình học viết Unicode ngoài $.
+_RE_KHOI_TOAN = re.compile(r"\$\$[\s\S]+?\$\$|\$[^$\n]+?\$")
+def _tach_khoi_toan(text: str):
+    """Thay các khối $...$ bằng mã giữ chỗ để bộ lọc Unicode không làm hỏng công thức."""
+    khoi = []
+
+    def giu(m):
+        khoi.append(m.group(0))
+        return f"\u0000{len(khoi) - 1}\u0000"
+    return _RE_KHOI_TOAN.sub(giu, text), khoi
+
+
+def _ghep_khoi_toan(text: str, khoi) -> str:
+    return re.sub("\u0000(\\d+)\u0000", lambda m: khoi[int(m.group(1))], text)
+
+
+def _chuan_khoi(k: str) -> str:
+    """Trong một khối $...$: bỏ khoảng trắng sát dấu $ (KaTeX của Streamlit cần vậy), đổi lệnh hình về Unicode."""
+    hai = k.startswith("$$")
+    ruot = (k[2:-2] if hai else k[1:-1]).strip()
+    # Khối chứa ký hiệu hình học (góc, tam giác, độ, vuông góc, song song) thì trả về Unicode như cũ
+    if re.search(r"\\(?:widehat|hat|angle|triangle|perp|parallel|circ|degree)(?![a-zA-Z])|[∠Δ°⊥]", ruot):
+        return format_math(ruot)
+    return f"$${ruot}$$" if hai else f"${ruot}$"
+
+
+def format_math_latex(text: str) -> str:
+    """Giữ nguyên LaTeX của phần số trong $...$, chuẩn hóa phần còn lại về Unicode như cũ.
+    Nếu số dấu $ lẻ (AI viết lỗi hoặc đề có tiền đô) thì đổi hết về Unicode để không vỡ chữ."""
+    if not text or not isinstance(text, str):
+        return ""
+    text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE)
+    if text.count("$") % 2 == 1:
+        return format_math(text)
+    ngoai, khoi = _tach_khoi_toan(text)
+    ngoai = format_math(ngoai)
+    return _ghep_khoi_toan(ngoai, [_chuan_khoi(k) for k in khoi])
+
+
 def format_solution_step_by_step(raw_text: str) -> str:
     if not raw_text:
         return ""
     text = raw_text.replace("Lời giải chi tiết:", "").replace("Bài giải chi tiết:", "").strip()
+    if text.count("$") % 2 == 1:
+        text = text.replace("$", "")
+    text, khoi_toan = _tach_khoi_toan(text)
     text = re.sub(r"(?m)^\s*([a-d]\))\s*", r"\n\n### **\1** ", text)
     text = re.sub(r"(?m)^\s*(Câu\s+\d+[\:\.]?)\s*", r"\n\n### **\1** ", text)
 
@@ -885,7 +928,7 @@ def format_solution_step_by_step(raw_text: str) -> str:
             l = re.sub(r"\${2,}", "", l)
             l = re.sub(r"\$\s*\$", "", l)
             cleaned_lines.append(l)
-    return "\n\n".join(cleaned_lines)
+    return _ghep_khoi_toan("\n\n".join(cleaned_lines), [_chuan_khoi(k) for k in khoi_toan])
 
 GAME_PROMPT = """
 Bạn là Trợ lý Sư phạm Toán 8 của Cô Mai Phương theo chuẩn chương trình GDPT 2018 (Kết nối tri thức).
@@ -895,7 +938,12 @@ QUY TẮC BẮT BUỘC TUÂN THỦ VỀ KIẾN THỨC TOÁN 8:
 3. ĐỐI VỚI is_finished = true:
    - full_solution: Bài giải chi tiết chuẩn mực đúng tiến độ SGK 8.
    - ggb_commands: Mảng các chuỗi lệnh GeoGebra (tiếng Anh) để tự động dựng hình chính xác đúng với đề bài trong ảnh (Ví dụ: ["A = (0, 4)", "B = (-3, 0)", "C = (3, 0)", "Polygon(A, B, C)", "H = (0, 1)"]).
-4. KHÔNG dùng LaTeX (không viết \\frac, \\sqrt, $...$). Viết ký hiệu Unicode: ∠A, Δ ABC, √, ², ⊥, //, °.
+4. QUY TẮC VIẾT KÝ HIỆU:
+   - Phần SỐ / ĐẠI SỐ (phân số, căn, lũy thừa, đa thức, phân thức, phương trình, hàm số) viết LaTeX trong $...$,
+     ví dụ: $\\frac{x+1}{x-2}$, $(a+b)^2 = a^2 + 2ab + b^2$, $\\sqrt{5}$, $2x - 3 = 0$, $x \\neq 2$.
+   - Phần HÌNH HỌC viết Unicode, KHÔNG đặt trong $: ∠ABC, Δ ABC, AB ⊥ CD, AB // CD, 90°.
+   - Không dùng dấu $ cho đơn vị tiền tệ.
+   - Trong JSON mỗi dấu \\ của LaTeX phải viết thành \\\\ (ví dụ "$\\\\frac{1}{2}$").
 
 TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
 {
@@ -922,7 +970,9 @@ TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
 LATEX_IN_JSON = re.compile(
     r"(?<!\\)\\(?=(?:dfrac|frac|sqrt|times|cdot|circ|degree|angle|widehat|hat|triangle|Delta|perp|parallel"
     r"|leq|le|geq|ge|neq|ne|pm|notin|in|Rightarrow|Leftrightarrow|rightarrow|leftrightarrow|implies|iff"
-    r"|left|right|text|alpha|beta|pi|infty)(?![a-zA-Z]))"
+    r"|left|right|text|alpha|beta|pi|infty|theta|tau|rho|nu|lambda|mu|varphi|phi|omega"
+    r"|begin|end|cases|quad|qquad|overline|bar|underline|approx|equiv|subset|cup|cap|mathbb|mathrm"
+    r"|varnothing|emptyset|forall|exists|ldots|cdots|dots|div|mid|nmid|boxed|displaystyle|tfrac|binom)(?![a-zA-Z]))"
 )
 
 
@@ -1134,7 +1184,7 @@ with tab1:
         if fb:
             st.info(f"💡 {fb}")
 
-        st.markdown(f"#### 🎯 {format_math(card.get('question', ''))}")
+        st.markdown(f"#### 🎯 {format_math_latex(card.get('question', ''))}")
         st.write("")
 
         opts = card.get("options", [])
@@ -1147,28 +1197,33 @@ with tab1:
         if not st.session_state.answered:
             st.markdown("**👉 Phi hành gia hãy chọn một tọa độ đáp án đúng nhất:**")
             for idx, opt in enumerate(opts):
-                clean_opt = format_math(str(opt))
+                clean_opt = format_math_latex(str(opt))
                 clean_opt = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", clean_opt)
-                label = f"{chr(65+idx)}. {clean_opt}"
-                if st.button(label, key=f"btn_choice_{idx}", use_container_width=True):
+                # Nút bấm không vẽ được công thức: nút ghi chữ cái, nội dung đáp án hiện bên cạnh
+                c_nut, c_nd = st.columns([1, 6])
+                with c_nut:
+                    bam = st.button(chr(65 + idx), key=f"btn_choice_{idx}", use_container_width=True)
+                with c_nd:
+                    st.markdown(clean_opt)
+                if bam:
                     st.session_state.answered = True
                     st.session_state.selected_idx = idx
                     st.rerun()
         else:
             sel = st.session_state.selected_idx
-            sel_text = format_math(str(opts[sel])) if (sel is not None and sel < len(opts)) else ""
+            sel_text = format_math_latex(str(opts[sel])) if (sel is not None and sel < len(opts)) else ""
             sel_text = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", sel_text)
 
-            correct_text = format_math(str(opts[correct])) if correct < len(opts) else ""
+            correct_text = format_math_latex(str(opts[correct])) if correct < len(opts) else ""
             correct_text = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", correct_text)
 
             if sel == correct:
                 st.success("🎉 **Chính xác!** Quỹ đạo tư duy chuẩn xác.")
             else:
                 st.error("❌ **Chệch quỹ đạo.**")
-                st.markdown(f"Đáp án chuẩn: **{chr(65+correct)}. {correct_text}**")
+                st.markdown(f"Đáp án chuẩn: **{chr(65+correct)}.** {correct_text}")
 
-            st.markdown(f"**💡 Trạm phân tích:** {format_math(card.get('explanation', ''))}")
+            st.markdown(f"**💡 Trạm phân tích:** {format_math_latex(card.get('explanation', ''))}")
 
             is_finish = card.get("is_finished") is True or (curr >= total)
 
@@ -1183,7 +1238,7 @@ with tab1:
                     if (not sol or not ggb_cmds) and st.session_state.img_data:
                         with st.spinner("Đang mở khóa kho báu lời giải và trạm hình học GeoGebra không gian..."):
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh đúng chuẩn kiến thức SGK Toán 8 (Kết nối tri thức).
-                            TUYỆT ĐỐI KHÔNG dùng kiến thức đường tròn. KHÔNG dùng LaTeX, viết ký hiệu Unicode.
+                            TUYỆT ĐỐI KHÔNG dùng kiến thức đường tròn. Phần số/đại số viết LaTeX trong $...$; ký hiệu hình học viết Unicode (∠ABC, Δ ABC, ⊥, //, 90°).
                             Nếu là Toán Hình: BẮT BUỘC sinh mảng ggb_commands chứa các lệnh GeoGebra tiếng Anh để dựng đúng hình của đề bài.
                             Trả về JSON: {"full_solution": "...", "ggb_commands": ["..."]}"""
                             try:
@@ -1346,7 +1401,7 @@ Nếu ảnh đạt yêu cầu thì đánh giá theo Rubric thang điểm 10 đú
     - Bài hình học không có hình vẽ thì mục 1 được 0 điểm.
     - Chỉ trừ điểm cho lỗi thực sự nhìn thấy trong ảnh, mỗi lỗi ghi rõ số điểm bị trừ.
     - Lời giải gợi ý (nếu có) không được dùng chính điều cần chứng minh làm căn cứ.
-    KHÔNG dùng LaTeX, viết ký hiệu Unicode.
+    Phần số/đại số viết LaTeX trong $...$ (ví dụ $\\frac{{x+1}}{{2}}$, $x^2 - 4$); ký hiệu hình học viết Unicode ngoài $ (∠ABC, Δ ABC, ⊥, //, 90°).
 
     ĐỊNH DẠNG BẮT BUỘC TRẢ VỀ:
     - Tổng điểm: [Điểm số]/10
@@ -1361,7 +1416,8 @@ Nếu ảnh đạt yêu cầu thì đánh giá theo Rubric thang điểm 10 đú
        - Hạn chế: ...
     """
                         score_res = execute_gemini_request([hw_img, RUBRIC])
-                        score_res_clean = format_math(score_res)
+                        score_res_clean = format_math(score_res)          # Unicode: lưu Sheet, đếm lỗi, tách điểm
+                        score_res_hien_thi = format_math_latex(score_res) # LaTeX phần số: hiển thị trong app
                         st.session_state.hw_chat = []
 
                         anh_loi = re.search(r"ANH_CHUA_DAT\s*:?\s*(.*)", score_res_clean)
@@ -1419,7 +1475,7 @@ Nếu ảnh đạt yêu cầu thì đánh giá theo Rubric thang điểm 10 đú
                             img_nho.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
                             st.session_state.hw_result = {
                                 "name": s_name, "class": s_class, "topic": topic, "score": extracted_score,
-                                "text": score_res_clean, "img": img_nho, "sheet_ok": sheet_ok, "sheet_err": sheet_err,
+                                "text": score_res_hien_thi, "img": img_nho, "sheet_ok": sheet_ok, "sheet_err": sheet_err,
                             }
                     except Exception as err:
                         st.error(f"Lỗi truyền tín hiệu: {err}")
@@ -1496,11 +1552,11 @@ YÊU CẦU TRẢ LỜI:
 - Nếu ảnh không đọc rõ chỗ em hỏi, nói thật là cô chưa đọc rõ, không đoán.
 - Kết thúc bằng 1 câu hỏi gợi mở ngắn để em tự kiểm tra lại hiểu biết.
 - Câu hỏi không liên quan đến bài: nhẹ nhàng hướng em quay lại bài làm.
-- KHÔNG dùng LaTeX, viết ký hiệu Unicode: ∠A, Δ ABC, ⊥, //, °, ².
+- Phần số/đại số viết LaTeX trong $...$ (ví dụ $\\frac{{x+1}}{{2}}$, $(a-b)^2$); ký hiệu hình học viết Unicode ngoài $: ∠A, Δ ABC, ⊥, //, 90°.
 """
                 with st.spinner("Cô đang đọc lại bài của em..."):
                     try:
-                        tra_loi = format_math(execute_gemini_request([hw_res["img"], CHAT_PROMPT]))
+                        tra_loi = format_math_latex(execute_gemini_request([hw_res["img"], CHAT_PROMPT]))
                     except Exception as e:
                         tra_loi = f"Trạm đàm thoại đang bận, em thử lại sau ít phút nhé. ({e})"
                 st.session_state.hw_chat.append({"role": "hs", "text": cau_hoi.strip()})
