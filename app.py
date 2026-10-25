@@ -881,6 +881,8 @@ def _chuan_khoi(k: str) -> str:
     """Trong một khối $...$: bỏ khoảng trắng sát dấu $ (KaTeX của Streamlit cần vậy), đổi lệnh hình về Unicode."""
     hai = k.startswith("$$")
     ruot = (k[2:-2] if hai else k[1:-1]).strip()
+    if hai:
+        ruot = re.sub(r"\n\s*\n", "\n", ruot)
     # Khối chứa ký hiệu hình học (góc, tam giác, độ, vuông góc, song song) thì trả về Unicode như cũ
     if re.search(r"\\(?:widehat|hat|angle|triangle|perp|parallel|circ|degree)(?![a-zA-Z])|[∠Δ°⊥]", ruot):
         return format_math(ruot)
@@ -898,6 +900,35 @@ def format_math_latex(text: str) -> str:
     ngoai, khoi = _tach_khoi_toan(text)
     ngoai = format_math(ngoai)
     return _ghep_khoi_toan(ngoai, [_chuan_khoi(k) for k in khoi])
+
+
+_RE_KHOI_RIENG = re.compile(r"\$\$([\s\S]+?)\$\$")
+
+
+def hien_thi_toan(text: str):
+    """Hiển thị nội dung có công thức. Công thức nhiều dòng ($$...$$, \begin{aligned}, xuống dòng \\)
+    đưa vào st.latex vì st.markdown hay hiện thành mã thô; phần còn lại dùng st.markdown."""
+    if not text:
+        return
+    vi_tri = 0
+    for m in _RE_KHOI_RIENG.finditer(text):
+        doan = text[vi_tri:m.start()].strip()
+        if doan:
+            st.markdown(doan)
+        cong_thuc = m.group(1).strip()
+        # Dấu xuống dòng "\\" bị mất một gạch (thành "\ &=") thì nối lại
+        cong_thuc = re.sub(r"(?<!\\)\\(?![\\a-zA-Z{}\[\](),;:!])(?=\s*&)", r"\\\\", cong_thuc)
+        co_moi_truong = re.search(r"\\begin\{", cong_thuc)
+        if not co_moi_truong and ("\\\\" in cong_thuc or "&" in cong_thuc):
+            cong_thuc = "\\begin{aligned}" + cong_thuc + "\\end{aligned}"
+        try:
+            st.latex(cong_thuc)
+        except Exception:
+            st.markdown(format_math(cong_thuc))
+        vi_tri = m.end()
+    doan = text[vi_tri:].strip()
+    if doan:
+        st.markdown(doan)
 
 
 def format_solution_step_by_step(raw_text: str) -> str:
@@ -943,6 +974,7 @@ QUY TẮC BẮT BUỘC TUÂN THỦ VỀ KIẾN THỨC TOÁN 8:
      ví dụ: $\\frac{x+1}{x-2}$, $(a+b)^2 = a^2 + 2ab + b^2$, $\\sqrt{5}$, $2x - 3 = 0$, $x \\neq 2$.
    - Phần HÌNH HỌC viết Unicode, KHÔNG đặt trong $: ∠ABC, Δ ABC, AB ⊥ CD, AB // CD, 90°.
    - Không dùng dấu $ cho đơn vị tiền tệ.
+   - Biến đổi nhiều bước: mỗi bước một dòng riêng, mỗi dòng một công thức $...$ (không dùng \\begin{aligned}).
    - Trong JSON mỗi dấu \\ của LaTeX phải viết thành \\\\ (ví dụ "$\\\\frac{1}{2}$").
 
 TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
@@ -974,6 +1006,20 @@ LATEX_IN_JSON = re.compile(
     r"|begin|end|cases|quad|qquad|overline|bar|underline|approx|equiv|subset|cup|cap|mathbb|mathrm"
     r"|varnothing|emptyset|forall|exists|ldots|cdots|dots|div|mid|nmid|boxed|displaystyle|tfrac|binom)(?![a-zA-Z]))"
 )
+
+
+_DIEU_KHIEN = {"\b": "\\b", "\f": "\\f", "\t": "\\t", "\r": "\\r", "\v": "\\v"}
+
+
+def sua_ky_tu_dieu_khien(x):
+    """'\begin' trong JSON bị hiểu thành ký tự lùi + 'egin'... Đổi lại thành dấu \\ khi đứng trước chữ cái."""
+    if isinstance(x, str):
+        return re.sub(r"[\b\f\t\r\v](?=[a-zA-Z])", lambda m: _DIEU_KHIEN[m.group(0)], x)
+    if isinstance(x, list):
+        return [sua_ky_tu_dieu_khien(i) for i in x]
+    if isinstance(x, dict):
+        return {k: sua_ky_tu_dieu_khien(v) for k, v in x.items()}
+    return x
 
 
 def execute_gemini_request(inputs, system_prompt=None, is_json=False):
@@ -1023,6 +1069,7 @@ def execute_gemini_request(inputs, system_prompt=None, is_json=False):
 
         if not isinstance(data, dict):
             raise Exception("AI trả về sai định dạng, vui lòng thử lại!")
+        data = sua_ky_tu_dieu_khien(data)
 
         if "options" in data and isinstance(data["options"], list) and len(data["options"]) > 1:
             opts = data["options"]
@@ -1223,7 +1270,7 @@ with tab1:
                 st.error("❌ **Chệch quỹ đạo.**")
                 st.markdown(f"Đáp án chuẩn: **{chr(65+correct)}.** {correct_text}")
 
-            st.markdown(f"**💡 Trạm phân tích:** {format_math_latex(card.get('explanation', ''))}")
+            hien_thi_toan(f"**💡 Trạm phân tích:** {format_math_latex(card.get('explanation', ''))}")
 
             is_finish = card.get("is_finished") is True or (curr >= total)
 
@@ -1239,6 +1286,7 @@ with tab1:
                         with st.spinner("Đang mở khóa kho báu lời giải và trạm hình học GeoGebra không gian..."):
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh đúng chuẩn kiến thức SGK Toán 8 (Kết nối tri thức).
                             TUYỆT ĐỐI KHÔNG dùng kiến thức đường tròn. Phần số/đại số viết LaTeX trong $...$; ký hiệu hình học viết Unicode (∠ABC, Δ ABC, ⊥, //, 90°).
+                            Biến đổi nhiều bước: mỗi bước viết một dòng riêng (ký tự xuống dòng \\n), mỗi dòng một công thức $...$, không dùng \\begin{aligned}.
                             Nếu là Toán Hình: BẮT BUỘC sinh mảng ggb_commands chứa các lệnh GeoGebra tiếng Anh để dựng đúng hình của đề bài.
                             Trả về JSON: {"full_solution": "...", "ggb_commands": ["..."]}"""
                             try:
@@ -1288,7 +1336,7 @@ with tab1:
 
                 st.markdown("#### 📝 Lời giải chi tiết:")
                 formatted_solution = format_solution_step_by_step(st.session_state.reward or "")
-                st.markdown(formatted_solution)
+                hien_thi_toan(formatted_solution)
 
                 st.write("")
                 st.success("📝 **Bước tiếp theo:** Hãy chuyển sang tab **'Nộp Bài Tập'** để truyền tín hiệu bài làm về trạm điều khiển của cô nhé!")
@@ -1506,7 +1554,7 @@ Nếu ảnh đạt yêu cầu thì đánh giá theo Rubric thang điểm 10 đú
         if ten_vo:
             st.error(f"⚠️ Tên viết trên vở (**{ten_vo.group(1).strip()}**) không khớp với tên em nhập. Bài vẫn được ghi điểm nhưng cô sẽ kiểm tra lại.")
         st.markdown(f"### Kết quả của phi hành gia: **{hw_res['name']}** - Hạm đội **{hw_res['class']}**")
-        st.markdown(re.sub(r"TEN_KHONG_KHOP[^\n]*\n?", "", hw_res["text"]))
+        hien_thi_toan(re.sub(r"TEN_KHONG_KHOP[^\n]*\n?", "", hw_res["text"]))
 
         # ---------- TRẠM ĐÀM THOẠI: HỎI LẠI CÔ VỀ BÀI VỪA CHẤM ----------
         st.write("---")
@@ -1517,7 +1565,7 @@ Nếu ảnh đạt yêu cầu thì đánh giá theo Rubric thang điểm 10 đú
             st.session_state.hw_chat = []
         for msg in st.session_state.hw_chat:
             with st.chat_message("user" if msg["role"] == "hs" else "assistant", avatar="🧑‍🚀" if msg["role"] == "hs" else "👩‍🏫"):
-                st.markdown(msg["text"])
+                hien_thi_toan(msg["text"])
 
         SO_CAU_TOI_DA = 8
         so_cau_da_hoi = sum(1 for m in st.session_state.hw_chat if m["role"] == "hs")
