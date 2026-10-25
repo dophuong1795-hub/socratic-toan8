@@ -1,5 +1,7 @@
-streamlit>=1.32.0
+streamlit==1.66.1
 google-genai
-Pillow
 pandas
+pillow
 requests
+openpyxl
+
