@@ -1242,7 +1242,7 @@ with tab2:
 - **Trang vở:** viết tay **Họ tên + Lớp** ở dòng đầu tiên trước khi giải.
 - **Chụp ảnh:** chụp thẳng từ trên xuống, đủ sáng, rõ từng dòng chữ và ký hiệu toán học.
 - **Số lượng:** mỗi lần nộp chỉ **01 ảnh** cho một bài.
-- **Trung thực:** hệ thống nhận diện ảnh đã từng nộp. Không nộp lại ảnh cũ khi chưa sửa bài, không dùng ảnh của bạn.
+- **Trung thực:** hệ thống nhận diện ảnh đã từng nộp. Không nộp lại ảnh cũ khi chưa sửa bài.
 """)
 
     c1, c2 = st.columns(2)
