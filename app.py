@@ -814,6 +814,14 @@ def thong_ke_loi(bt: pd.DataFrame) -> pd.DataFrame:
 
 
 # ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC TOÁN 8 =================
+def _phan_so_unicode(m) -> str:
+    """\\frac{a+b}{c} -> (a+b)/c : chỉ thêm ngoặc khi tử hoặc mẫu có nhiều số hạng."""
+    def boc(x):
+        x = x.strip()
+        return f"({x})" if re.search(r"[+\-−·\s]", x) else x
+    return f"{boc(m.group(1))}/{boc(m.group(2))}"
+
+
 def format_math(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
@@ -827,6 +835,7 @@ def format_math(text: str) -> str:
     text = re.sub(r"\\(?:left|right)(?![a-zA-Z])", "", text)
     text = re.sub(r"\\(?:widehat|hat)\s*[\{\[]\s*([A-Za-z0-9]{1,3})\s*[\}\]]", r"∠\1", text)
     text = re.sub(r"\\(?:angle)\s+([A-Za-z0-9]{1,3})\b", r"∠\1", text)
+    text = re.sub(r"\\(?:widehat|hat)\s+([A-Za-z])", r"∠\1", text)
     text = re.sub(r"\\(?:Delta|triangle)\s*([A-Za-z]{3})", r"Δ \1", text)
     text = re.sub(r"Δ([A-Za-z]{3})", r"Δ \1", text)
 
@@ -857,7 +866,7 @@ def format_math(text: str) -> str:
         return "".join(super_digits.get(c, c) for c in power_str)
 
     text = re.sub(r"\^([0-9n]+)|\^\(([^)]+)\)|\^\{([^}]+)\}", replace_power, text)
-    text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1 / \2)", text)
+    text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", _phan_so_unicode, text)
 
     text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
@@ -887,7 +896,11 @@ def _chuan_khoi(k: str) -> str:
         ruot = re.sub(r"\n\s*\n", "\n", ruot)
     # Khối chứa ký hiệu hình học (góc, tam giác, độ, vuông góc, song song) thì trả về Unicode như cũ
     if re.search(r"\\(?:widehat|hat|angle|triangle|perp|parallel|circ|degree)(?![a-zA-Z])|[∠Δ°⊥]", ruot):
-        return format_math(ruot)
+        if not re.search(r"\\(?:d?frac|sqrt)(?![a-zA-Z])", ruot):
+            return format_math(ruot)
+        # Có phân số/căn chứa góc (ví dụ Â/1 = B̂/2): giữ LaTeX để phân số hiển thị đúng, đổi ký hiệu góc sang \angle
+        ruot = re.sub(r"\\(?:widehat|hat)\s*\{\s*([A-Za-z]{1,3})\s*\}|\\(?:widehat|hat)\s*([A-Za-z])", lambda m: "\\angle " + (m.group(1) or m.group(2)), ruot)
+        ruot = ruot.replace("∠", "\\angle ").replace("°", "^\\circ").replace("Δ", "\\triangle ").replace("⊥", "\\perp ")
     return f"$${ruot}$$" if hai else f"${ruot}$"
 
 
@@ -946,7 +959,7 @@ def format_solution_step_by_step(raw_text: str) -> str:
     super_digits = {"0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "n": "ⁿ"}
     text = re.sub(r"\^([0-9n]+)|\^\(([^)]+)\)|\^\{([^}]+)\}", lambda m: "".join(super_digits.get(c, c) for c in (m.group(1) or m.group(2) or m.group(3))), text)
 
-    text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1 / \2)", text)
+    text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", _phan_so_unicode, text)
     text = re.sub(r"Δ\s*([A-Za-z]{3})", r"Δ \1", text)
     text = re.sub(r"\\(?:widehat|hat)\s*[\{\[]\s*([A-Za-z0-9]{1,3})\s*[\}\]]", r"∠\1", text)
     text = re.sub(r"(?<=\.)\s*-\s*", r"\n- ", text)
@@ -978,6 +991,8 @@ QUY TẮC BẮT BUỘC TUÂN THỦ VỀ KIẾN THỨC TOÁN 8:
    - Không dùng dấu $ cho đơn vị tiền tệ.
    - Biến đổi nhiều bước: mỗi bước một dòng riêng, mỗi dòng một công thức $...$ (không dùng \\begin{aligned}).
    - Trong JSON mỗi dấu \\ của LaTeX phải viết thành \\\\ (ví dụ "$\\\\frac{1}{2}$").
+
+5. Xưng "cô", gọi học sinh là "em" (không gọi "con", "bạn").
 
 TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
 {
@@ -1248,13 +1263,8 @@ with tab1:
             for idx, opt in enumerate(opts):
                 clean_opt = format_math_latex(str(opt))
                 clean_opt = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", clean_opt)
-                # Nút bấm không vẽ được công thức: nút ghi chữ cái, nội dung đáp án hiện bên cạnh
-                c_nut, c_nd = st.columns([1, 6])
-                with c_nut:
-                    bam = st.button(chr(65 + idx), key=f"btn_choice_{idx}", use_container_width=True)
-                with c_nd:
-                    st.markdown(clean_opt)
-                if bam:
+                # Nhãn nút của Streamlit vẽ được công thức $...$ trên một dòng
+                if st.button(f"{chr(65 + idx)}. {clean_opt}", key=f"btn_choice_{idx}", use_container_width=True):
                     st.session_state.answered = True
                     st.session_state.selected_idx = idx
                     st.rerun()
