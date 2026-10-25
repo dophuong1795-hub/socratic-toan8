@@ -336,6 +336,8 @@ SHEET_ID = get_secret("GOOGLE_SHEET_ID", "1lYGh3jYv5XfpghUOSGXz92UM4fLarD_0xhP0G
 SHEET_BAITAP = "Bảng điểm"   # bài nộp Tab 2
 SHEET_GAME = "Minigame"      # lượt chơi Tab 3
 WEBHOOK_URL = get_secret("GOOGLE_SHEET_WEBHOOK_URL", DEFAULT_WEBHOOK) or DEFAULT_WEBHOOK
+# Khóa đọc điểm (tùy chọn): trùng với READ_KEY trong Apps Script thì người ngoài không xem được sổ điểm
+SHEET_READ_KEY = get_secret("SHEET_READ_KEY", "") or ""
 
 
 def gon_html(s: str) -> str:
@@ -368,13 +370,16 @@ def doc_so(x):
 
 
 def doc_thoi_gian(x):
+    if isinstance(x, datetime):
+        return x
     s = str(x or "").strip()
     for fmt in ("%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%H:%M:%S %d/%m/%Y", "%H:%M %d/%m/%Y", "%H:%M:%S, %d/%m/%Y"):
         try:
             return datetime.strptime(s, fmt)
         except ValueError:
             pass
-    return pd.to_datetime(s, dayfirst=True, errors="coerce")
+    # Chuỗi ISO (2026-10-23T12:45:00) đọc thẳng; dạng ngày/tháng mới cần dayfirst
+    return pd.to_datetime(s, dayfirst="/" in s, errors="coerce")
 
 
 def chuan_hoa_cot(df: pd.DataFrame) -> pd.DataFrame:
@@ -409,7 +414,7 @@ def doc_sheet(sheet_name: str) -> pd.DataFrame:
     """Đọc 1 trang tính: ưu tiên qua Web App (không cần chia sẻ công khai), dự phòng qua link CSV."""
     loi = ""
     try:
-        resp = requests.get(WEBHOOK_URL, params={"sheet": sheet_name}, timeout=25)
+        resp = requests.get(WEBHOOK_URL, params={"sheet": sheet_name, "key": SHEET_READ_KEY}, timeout=25)
         data = resp.json()
         if data.get("status") == "ok":
             return pd.DataFrame(data.get("data", []))
@@ -431,6 +436,9 @@ def them_cot_phu(df: pd.DataFrame) -> pd.DataFrame:
     df["_lop"] = df["Lớp"].map(chuan_lop)
     df["_diem"] = df["Điểm số"].map(doc_so)
     df["_tg"] = pd.to_datetime(df["Thời gian"].map(doc_thoi_gian), errors="coerce")
+    # Cột hiển thị lẫn số và chữ ("8.0", 400, "Chưa xác định") -> đưa hết về chữ để bảng hiển thị không lỗi
+    for c in ["Thời gian", "Lớp", "Bài tập", "Điểm số", "Nhận xét của AI", "Mã đề"]:
+        df[c] = df[c].fillna("").astype(str)
     return df
 
 
@@ -461,7 +469,13 @@ def loc_luot_game_trung(df_gm: pd.DataFrame, giay=120) -> pd.DataFrame:
 def lay_du_lieu_lop():
     """Trả về (bảng bài tập, bảng minigame) đã chuẩn hóa từ 2 trang tính."""
     bt = them_cot_phu(doc_sheet(SHEET_BAITAP))
-    gm = them_cot_phu(doc_sheet(SHEET_GAME))
+    try:
+        gm = them_cot_phu(doc_sheet(SHEET_GAME))
+    except Exception:
+        # Chưa có trang tính Minigame (game đang ghi chung vào Bảng điểm) thì vẫn chạy bình thường
+        gm = them_cot_phu(pd.DataFrame())
+    # Link CSV dự phòng trả về trang tính đầu tiên khi chưa có trang Minigame: chỉ giữ đúng dòng của game
+    _, gm = tach_bai_tap_game(gm)
     bt, gm_lac = tach_bai_tap_game(bt)          # lượt game cũ lỡ ghi vào Bảng điểm
     gm = pd.concat([gm, gm_lac], ignore_index=True)
     gm["_win"] = gm["Nhận xét của AI"].astype(str).str.contains("Hạ gục", case=False, na=False)
@@ -680,7 +694,8 @@ def goi_y_lo_trinh(ket_qua) -> str:
         return f"Hành tinh **{chuong}** mới đạt {muc['phan_tram']}%. Em hãy luyện thêm một bài để nâng độ thành thạo."
     chua_mo = [c for c in CAC_CHUONG if not ket_qua[c]["mo_khoa"]]
     if len(chua_mo) == len(CAC_CHUONG):
-        return f"Em chưa có bài nộp nào thuộc 6 hành tinh. Hãy bắt đầu với hành tinh **{chua_mo[0]}** ở tab Nộp Bài Tập nhé!"
+        return (f"Em chưa có bài nộp nào thuộc 6 hành tinh. Hãy bắt đầu từ hành tinh **{chua_mo[0]}**: "
+                "vào tab **Nộp Bài Tập**, chọn chuyên đề của hành tinh này và nộp bài đầu tiên nhé!")
     if chua_mo:
         return f"Các hành tinh đã mở đều vững vàng. Chặng tiếp theo: hành tinh **{chua_mo[0]}**."
     return "Em đã chinh phục cả 6 hành tinh với độ thành thạo từ 80% trở lên. Xuất sắc!"
@@ -814,14 +829,6 @@ def thong_ke_loi(bt: pd.DataFrame) -> pd.DataFrame:
 
 
 # ================= BỘ LỌC CHUẨN HÓA KÝ HIỆU TOÁN HỌC TOÁN 8 =================
-def _phan_so_unicode(m) -> str:
-    """\\frac{a+b}{c} -> (a+b)/c : chỉ thêm ngoặc khi tử hoặc mẫu có nhiều số hạng."""
-    def boc(x):
-        x = x.strip()
-        return f"({x})" if re.search(r"[+\-−·\s]", x) else x
-    return f"{boc(m.group(1))}/{boc(m.group(2))}"
-
-
 def format_math(text: str) -> str:
     if not text or not isinstance(text, str):
         return ""
@@ -835,7 +842,6 @@ def format_math(text: str) -> str:
     text = re.sub(r"\\(?:left|right)(?![a-zA-Z])", "", text)
     text = re.sub(r"\\(?:widehat|hat)\s*[\{\[]\s*([A-Za-z0-9]{1,3})\s*[\}\]]", r"∠\1", text)
     text = re.sub(r"\\(?:angle)\s+([A-Za-z0-9]{1,3})\b", r"∠\1", text)
-    text = re.sub(r"\\(?:widehat|hat)\s+([A-Za-z])", r"∠\1", text)
     text = re.sub(r"\\(?:Delta|triangle)\s*([A-Za-z]{3})", r"Δ \1", text)
     text = re.sub(r"Δ([A-Za-z]{3})", r"Δ \1", text)
 
@@ -866,7 +872,7 @@ def format_math(text: str) -> str:
         return "".join(super_digits.get(c, c) for c in power_str)
 
     text = re.sub(r"\^([0-9n]+)|\^\(([^)]+)\)|\^\{([^}]+)\}", replace_power, text)
-    text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", _phan_so_unicode, text)
+    text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1 / \2)", text)
 
     text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
@@ -896,11 +902,7 @@ def _chuan_khoi(k: str) -> str:
         ruot = re.sub(r"\n\s*\n", "\n", ruot)
     # Khối chứa ký hiệu hình học (góc, tam giác, độ, vuông góc, song song) thì trả về Unicode như cũ
     if re.search(r"\\(?:widehat|hat|angle|triangle|perp|parallel|circ|degree)(?![a-zA-Z])|[∠Δ°⊥]", ruot):
-        if not re.search(r"\\(?:d?frac|sqrt)(?![a-zA-Z])", ruot):
-            return format_math(ruot)
-        # Có phân số/căn chứa góc (ví dụ Â/1 = B̂/2): giữ LaTeX để phân số hiển thị đúng, đổi ký hiệu góc sang \angle
-        ruot = re.sub(r"\\(?:widehat|hat)\s*\{\s*([A-Za-z]{1,3})\s*\}|\\(?:widehat|hat)\s*([A-Za-z])", lambda m: "\\angle " + (m.group(1) or m.group(2)), ruot)
-        ruot = ruot.replace("∠", "\\angle ").replace("°", "^\\circ").replace("Δ", "\\triangle ").replace("⊥", "\\perp ")
+        return format_math(ruot)
     return f"$${ruot}$$" if hai else f"${ruot}$"
 
 
@@ -959,7 +961,7 @@ def format_solution_step_by_step(raw_text: str) -> str:
     super_digits = {"0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "n": "ⁿ"}
     text = re.sub(r"\^([0-9n]+)|\^\(([^)]+)\)|\^\{([^}]+)\}", lambda m: "".join(super_digits.get(c, c) for c in (m.group(1) or m.group(2) or m.group(3))), text)
 
-    text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", _phan_so_unicode, text)
+    text = re.sub(r"\\d?frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1 / \2)", text)
     text = re.sub(r"Δ\s*([A-Za-z]{3})", r"Δ \1", text)
     text = re.sub(r"\\(?:widehat|hat)\s*[\{\[]\s*([A-Za-z0-9]{1,3})\s*[\}\]]", r"∠\1", text)
     text = re.sub(r"(?<=\.)\s*-\s*", r"\n- ", text)
@@ -983,7 +985,7 @@ QUY TẮC BẮT BUỘC TUÂN THỦ VỀ KIẾN THỨC TOÁN 8:
 2. ĐỐI VỚI HÌNH HỌC: Chỉ sử dụng định nghĩa, tính chất tứ giác, hình bình hành, hình chữ nhật, hình thoi, hình vuông, định lý Pythagore hoặc tam giác đồng dạng.
 3. ĐỐI VỚI is_finished = true:
    - full_solution: Bài giải chi tiết chuẩn mực đúng tiến độ SGK 8.
-   - ggb_commands: Mảng các chuỗi lệnh GeoGebra (tiếng Anh) để tự động dựng hình chính xác đúng với đề bài trong ảnh (Ví dụ: ["A = (0, 4)", "B = (-3, 0)", "C = (3, 0)", "Polygon(A, B, C)", "H = (0, 1)"]). Chỉ dùng điểm (tọa độ hoặc Intersect), Segment, Polygon; KHÔNG dùng Line, Ray, AngleBisector (đường vô hạn làm rối hình); điểm trên cạnh (chân phân giác, trung điểm...) tính tọa độ rồi nối bằng Segment.
+   - ggb_commands: Mảng các chuỗi lệnh GeoGebra (tiếng Anh) để tự động dựng hình chính xác đúng với đề bài trong ảnh (Ví dụ: ["A = (0, 4)", "B = (-3, 0)", "C = (3, 0)", "Polygon(A, B, C)", "H = (0, 1)"]).
 4. QUY TẮC VIẾT KÝ HIỆU:
    - Phần SỐ / ĐẠI SỐ (phân số, căn, lũy thừa, đa thức, phân thức, phương trình, hàm số) viết LaTeX trong $...$,
      ví dụ: $\\frac{x+1}{x-2}$, $(a+b)^2 = a^2 + 2ab + b^2$, $\\sqrt{5}$, $2x - 3 = 0$, $x \\neq 2$.
@@ -991,8 +993,6 @@ QUY TẮC BẮT BUỘC TUÂN THỦ VỀ KIẾN THỨC TOÁN 8:
    - Không dùng dấu $ cho đơn vị tiền tệ.
    - Biến đổi nhiều bước: mỗi bước một dòng riêng, mỗi dòng một công thức $...$ (không dùng \\begin{aligned}).
    - Trong JSON mỗi dấu \\ của LaTeX phải viết thành \\\\ (ví dụ "$\\\\frac{1}{2}$").
-
-5. Xưng "cô", gọi học sinh là "em" (không gọi "con", "bạn").
 
 TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON:
 {
@@ -1157,7 +1157,7 @@ with st.expander("🧑‍🚀 Hồ sơ Phi hành gia: Bản đồ năng lực 6 
                 st.caption("Hành tinh mở khóa khi em có bài nộp thuộc chương đó. Khi đủ 3 bài: từ 60% thì phát sáng, từ 80% được gắn sao vàng. Độ thành thạo = điểm trung bình các bài của chương x 10 (trung bình 9,2 điểm là 92%).")
                 st.success(f"🧭 **Lộ trình gợi ý cho em:** {goi_y_lo_trinh(ket_qua)}")
 
-                with st.expander("📜 Nhật ký các chuyên đề đã chinh phục"):
+                if st.toggle("📜 Xem nhật ký các chuyên đề đã chinh phục", key="hoso_nhatky"):
                     for chuong in CAC_CHUONG:
                         muc = ket_qua[chuong]
                         if not muc["mo_khoa"]:
@@ -1167,8 +1167,7 @@ with st.expander("🧑‍🚀 Hồ sơ Phi hành gia: Bản đồ năng lực 6 
                             st.markdown(f"- {cd}: " + ("chưa làm" if d is None else f"điểm cao nhất **{d:g}**/10"))
         except Exception as e:
             st.warning("Trạm điều khiển đang bận, chưa tải được hồ sơ. Em thử lại sau ít phút nhé!")
-            with st.expander("Chi tiết lỗi (dành cho cô)"):
-                st.code(str(e))
+            st.caption(f"Chi tiết lỗi (dành cho cô): {e}")
 
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -1263,8 +1262,13 @@ with tab1:
             for idx, opt in enumerate(opts):
                 clean_opt = format_math_latex(str(opt))
                 clean_opt = re.sub(r"^[A-D]\s*[\.\:\)]\s*", "", clean_opt)
-                # Nhãn nút của Streamlit vẽ được công thức $...$ trên một dòng
-                if st.button(f"{chr(65 + idx)}. {clean_opt}", key=f"btn_choice_{idx}", use_container_width=True):
+                # Nút bấm không vẽ được công thức: nút ghi chữ cái, nội dung đáp án hiện bên cạnh
+                c_nut, c_nd = st.columns([1, 6])
+                with c_nut:
+                    bam = st.button(chr(65 + idx), key=f"btn_choice_{idx}", use_container_width=True)
+                with c_nd:
+                    st.markdown(clean_opt)
+                if bam:
                     st.session_state.answered = True
                     st.session_state.selected_idx = idx
                     st.rerun()
@@ -1287,7 +1291,8 @@ with tab1:
             is_finish = card.get("is_finished") is True or (curr >= total)
 
             if is_finish:
-                st.balloons()
+                if st.session_state.reward is None:
+                    st.balloons()   # chỉ bay 1 lần lúc vừa hoàn thành, không bay lại mỗi lần trang tải lại
                 st.success("🏆 **HOÀN THÀNH XUẤT SẮC! Chinh phục trọn vẹn hành tinh toán học!**")
 
                 # Chỉ gọi AI 1 lần (trước đây lời giải rỗng sẽ gọi lại AI ở mỗi lần trang tải lại)
@@ -1299,7 +1304,7 @@ with tab1:
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh đúng chuẩn kiến thức SGK Toán 8 (Kết nối tri thức).
                             TUYỆT ĐỐI KHÔNG dùng kiến thức đường tròn. Phần số/đại số viết LaTeX trong $...$; ký hiệu hình học viết Unicode (∠ABC, Δ ABC, ⊥, //, 90°).
                             Biến đổi nhiều bước: mỗi bước viết một dòng riêng (ký tự xuống dòng \\n), mỗi dòng một công thức $...$, không dùng \\begin{aligned}.
-                            Nếu là Toán Hình: BẮT BUỘC sinh mảng ggb_commands chứa các lệnh GeoGebra tiếng Anh để dựng đúng hình của đề bài. Chỉ dùng điểm, Segment, Polygon; KHÔNG dùng Line, Ray, AngleBisector.
+                            Nếu là Toán Hình: BẮT BUỘC sinh mảng ggb_commands chứa các lệnh GeoGebra tiếng Anh để dựng đúng hình của đề bài.
                             Trả về JSON: {"full_solution": "...", "ggb_commands": ["..."]}"""
                             try:
                                 res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
@@ -1321,27 +1326,7 @@ with tab1:
                     st.markdown("#### 📐 Trạm Hình học không gian động GeoGebra:")
                     cmds = st.session_state.reward_ggb or ["A = (0, 4)", "B = (-3, 0)", "C = (3, 0)", "Polygon(A, B, C)"]
                     # json.dumps để lệnh có dấu " hoặc \ không làm hỏng mã JavaScript
-                    # Line(A, B) qua hai điểm -> Segment(A, B) để hình gọn, không kéo dài vô hạn
-                    cmds = [re.sub(r"\bLine\(\s*([A-Z]\w*)\s*,\s*([A-Z]\w*)\s*\)", r"Segment(\1, \2)", c) for c in cmds]
                     commands_js = "".join(f"try {{ api.evalCommand({json.dumps(cmd)}); }} catch(e) {{}}\n" for cmd in cmds)
-                    # Sau khi dựng: chỉ hiện vùng vẽ, ẩn trục/lưới, ẩn đường vô hạn, căn khung vừa hình (giữ đúng tỉ lệ)
-                    commands_js += """
-                    try {
-                      api.setPerspective("G"); api.setAxesVisible(false, false); api.setGridVisible(false);
-                      var ten = api.getAllObjectNames(), xs = [], ys = [];
-                      for (var i = 0; i < ten.length; i++) {
-                        var t = api.getObjectType(ten[i]);
-                        if (t === "line" || t === "ray") api.setVisible(ten[i], false);
-                        if (t === "point" && api.isDefined(ten[i])) { xs.push(api.getXcoord(ten[i])); ys.push(api.getYcoord(ten[i])); api.setLabelVisible(ten[i], true); }
-                      }
-                      if (xs.length > 1) {
-                        var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
-                        var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-                        var w = Math.max((x1 - x0) / 2, (y1 - y0) / 2 * 1.6) * 1.25 + 0.5, h = w / 1.6;
-                        api.setCoordSystem(cx - w, cx + w, cy - h, cy + h);
-                      }
-                    } catch(e) {}
-                    """
 
                     geogebra_html = f"""
                     <div style="display:flex;justify-content:center;align-items:center;background:#0f172a;border:2px solid rgba(56,189,248,0.7);border-radius:16px;padding:12px;">
@@ -3245,7 +3230,12 @@ with tab4:
 
   ADMIN_PASS = get_secret("TEACHER_PASSWORD", "Maiphuong2026")
   TOPIC_LIST = [
-      "Chương III: Tứ giác (Hình bình hành, chữ nhật, thoi, vuông)"
+      "Chương III: Tứ giác (Hình bình hành, chữ nhật, thoi, vuông)",
+      "Chương I-II: Đa thức và hằng đẳng thức đáng nhớ",
+      "Chương IV: Định lý Thalès",
+      "Chương VI: Phân thức đại số",
+      "Chương VII: Phương trình bậc nhất và hàm số bậc nhất",
+      "Khác (dự án, sản phẩm sáng tạo)",
       # Thêm các chủ đề sau này tại đây
   ]
 
@@ -3406,9 +3396,9 @@ with tab4:
         st.markdown(
             f"""
                 <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 16px; padding: 12px; margin-bottom: 8px;">
-                    <span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(56, 189, 248, 0.4);">{item['topic']}</span>
-                    <h4 style="color: #fef08a; margin: 8px 0 2px 0;">{item['title']}</h4>
-                    <p style="color: #94a3b8; font-size: 12px; margin: 0;">Tác giả: <b style="color: #ffffff;">{item['author']}</b> ({item['class']}) • <span style="font-size: 11px;">{item['time']}</span></p>
+                    <span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(56, 189, 248, 0.4);">{html.escape(str(item['topic']))}</span>
+                    <h4 style="color: #fef08a; margin: 8px 0 2px 0;">{html.escape(str(item['title']))}</h4>
+                    <p style="color: #94a3b8; font-size: 12px; margin: 0;">Tác giả: <b style="color: #ffffff;">{html.escape(str(item['author']))}</b> ({html.escape(str(item['class']))}) • <span style="font-size: 11px;">{html.escape(str(item['time']))}</span></p>
                 </div>
                 """,
             unsafe_allow_html=True,
@@ -3577,7 +3567,7 @@ with tab5:
                     with st.spinner("Đang đọc trang tính Bảng điểm và Minigame..."):
                         bt_all, gm_all = lay_du_lieu_lop()
                     with c_ns1:
-                        st.success(f"✅ Đã đọc **{len(bt_all)} bài nộp** (sheet {SHEET_BAITAP}) và **{len(gm_all)} lượt chơi** (sheet {SHEET_GAME}).")
+                        st.success(f"✅ Đã đọc **{len(bt_all)} bài nộp** (sheet {SHEET_BAITAP}) và **{len(gm_all)} lượt chơi** game (sheet {SHEET_GAME} và các lượt ghi trong {SHEET_BAITAP}).")
                 except Exception as e:
                     st.error(f"Chưa đọc được dữ liệu: {e}")
 
@@ -3587,10 +3577,13 @@ with tab5:
                     uploaded_sheet_file = st.file_uploader("Tải file bảng điểm xuất từ Google Sheets:", type=["csv", "xlsx"])
                     if uploaded_sheet_file:
                         try:
-                            if uploaded_sheet_file.name.endswith(".csv"):
+                            if uploaded_sheet_file.name.lower().endswith(".csv"):
                                 df_raw = pd.read_csv(uploaded_sheet_file)
                             else:
-                                df_raw = pd.read_excel(uploaded_sheet_file)
+                                # File tải từ Google Sheets có nhiều trang: lấy trang Bảng điểm (+ Minigame), không có thì lấy trang đầu
+                                cac_trang = pd.read_excel(uploaded_sheet_file, sheet_name=None)
+                                chon = [df for ten, df in cac_trang.items() if ten.strip() in (SHEET_BAITAP, SHEET_GAME)]
+                                df_raw = pd.concat([chuan_hoa_cot(df) for df in chon], ignore_index=True) if chon else next(iter(cac_trang.values()))
                             st.success(f"✅ Đã đọc thành công **{len(df_raw)} dòng dữ liệu** từ file!")
                         except Exception as e:
                             st.error(f"Lỗi đọc file: {e}")
