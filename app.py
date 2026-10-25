@@ -983,7 +983,7 @@ QUY TẮC BẮT BUỘC TUÂN THỦ VỀ KIẾN THỨC TOÁN 8:
 2. ĐỐI VỚI HÌNH HỌC: Chỉ sử dụng định nghĩa, tính chất tứ giác, hình bình hành, hình chữ nhật, hình thoi, hình vuông, định lý Pythagore hoặc tam giác đồng dạng.
 3. ĐỐI VỚI is_finished = true:
    - full_solution: Bài giải chi tiết chuẩn mực đúng tiến độ SGK 8.
-   - ggb_commands: Mảng các chuỗi lệnh GeoGebra (tiếng Anh) để tự động dựng hình chính xác đúng với đề bài trong ảnh (Ví dụ: ["A = (0, 4)", "B = (-3, 0)", "C = (3, 0)", "Polygon(A, B, C)", "H = (0, 1)"]).
+   - ggb_commands: Mảng các chuỗi lệnh GeoGebra (tiếng Anh) để tự động dựng hình chính xác đúng với đề bài trong ảnh (Ví dụ: ["A = (0, 4)", "B = (-3, 0)", "C = (3, 0)", "Polygon(A, B, C)", "H = (0, 1)"]). Chỉ dùng điểm (tọa độ hoặc Intersect), Segment, Polygon; KHÔNG dùng Line, Ray, AngleBisector (đường vô hạn làm rối hình); điểm trên cạnh (chân phân giác, trung điểm...) tính tọa độ rồi nối bằng Segment.
 4. QUY TẮC VIẾT KÝ HIỆU:
    - Phần SỐ / ĐẠI SỐ (phân số, căn, lũy thừa, đa thức, phân thức, phương trình, hàm số) viết LaTeX trong $...$,
      ví dụ: $\\frac{x+1}{x-2}$, $(a+b)^2 = a^2 + 2ab + b^2$, $\\sqrt{5}$, $2x - 3 = 0$, $x \\neq 2$.
@@ -1299,7 +1299,7 @@ with tab1:
                             p_sol = """Hãy viết bài giải mẫu mực hoàn chỉnh đúng chuẩn kiến thức SGK Toán 8 (Kết nối tri thức).
                             TUYỆT ĐỐI KHÔNG dùng kiến thức đường tròn. Phần số/đại số viết LaTeX trong $...$; ký hiệu hình học viết Unicode (∠ABC, Δ ABC, ⊥, //, 90°).
                             Biến đổi nhiều bước: mỗi bước viết một dòng riêng (ký tự xuống dòng \\n), mỗi dòng một công thức $...$, không dùng \\begin{aligned}.
-                            Nếu là Toán Hình: BẮT BUỘC sinh mảng ggb_commands chứa các lệnh GeoGebra tiếng Anh để dựng đúng hình của đề bài.
+                            Nếu là Toán Hình: BẮT BUỘC sinh mảng ggb_commands chứa các lệnh GeoGebra tiếng Anh để dựng đúng hình của đề bài. Chỉ dùng điểm, Segment, Polygon; KHÔNG dùng Line, Ray, AngleBisector.
                             Trả về JSON: {"full_solution": "...", "ggb_commands": ["..."]}"""
                             try:
                                 res_final = execute_gemini_request([st.session_state.img_data, p_sol], is_json=True)
@@ -1321,7 +1321,27 @@ with tab1:
                     st.markdown("#### 📐 Trạm Hình học không gian động GeoGebra:")
                     cmds = st.session_state.reward_ggb or ["A = (0, 4)", "B = (-3, 0)", "C = (3, 0)", "Polygon(A, B, C)"]
                     # json.dumps để lệnh có dấu " hoặc \ không làm hỏng mã JavaScript
+                    # Line(A, B) qua hai điểm -> Segment(A, B) để hình gọn, không kéo dài vô hạn
+                    cmds = [re.sub(r"\bLine\(\s*([A-Z]\w*)\s*,\s*([A-Z]\w*)\s*\)", r"Segment(\1, \2)", c) for c in cmds]
                     commands_js = "".join(f"try {{ api.evalCommand({json.dumps(cmd)}); }} catch(e) {{}}\n" for cmd in cmds)
+                    # Sau khi dựng: chỉ hiện vùng vẽ, ẩn trục/lưới, ẩn đường vô hạn, căn khung vừa hình (giữ đúng tỉ lệ)
+                    commands_js += """
+                    try {
+                      api.setPerspective("G"); api.setAxesVisible(false, false); api.setGridVisible(false);
+                      var ten = api.getAllObjectNames(), xs = [], ys = [];
+                      for (var i = 0; i < ten.length; i++) {
+                        var t = api.getObjectType(ten[i]);
+                        if (t === "line" || t === "ray") api.setVisible(ten[i], false);
+                        if (t === "point" && api.isDefined(ten[i])) { xs.push(api.getXcoord(ten[i])); ys.push(api.getYcoord(ten[i])); api.setLabelVisible(ten[i], true); }
+                      }
+                      if (xs.length > 1) {
+                        var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+                        var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+                        var w = Math.max((x1 - x0) / 2, (y1 - y0) / 2 * 1.6) * 1.25 + 0.5, h = w / 1.6;
+                        api.setCoordSystem(cx - w, cx + w, cy - h, cy + h);
+                      }
+                    } catch(e) {}
+                    """
 
                     geogebra_html = f"""
                     <div style="display:flex;justify-content:center;align-items:center;background:#0f172a;border:2px solid rgba(56,189,248,0.7);border-radius:16px;padding:12px;">
