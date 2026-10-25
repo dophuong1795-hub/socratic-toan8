@@ -679,6 +679,8 @@ def goi_y_lo_trinh(ket_qua) -> str:
             return f"Hành tinh **{chuong}** mới đạt {muc['phan_tram']}%. Em hãy làm lại chuyên đề **{yeu[0]}** và cố gắng đạt từ 8 điểm."
         return f"Hành tinh **{chuong}** mới đạt {muc['phan_tram']}%. Em hãy luyện thêm một bài để nâng độ thành thạo."
     chua_mo = [c for c in CAC_CHUONG if not ket_qua[c]["mo_khoa"]]
+    if len(chua_mo) == len(CAC_CHUONG):
+        return f"Em chưa có bài nộp nào thuộc 6 hành tinh. Hãy bắt đầu với hành tinh **{chua_mo[0]}** ở tab Nộp Bài Tập nhé!"
     if chua_mo:
         return f"Các hành tinh đã mở đều vững vàng. Chặng tiếp theo: hành tinh **{chua_mo[0]}**."
     return "Em đã chinh phục cả 6 hành tinh với độ thành thạo từ 80% trở lên. Xuất sắc!"
