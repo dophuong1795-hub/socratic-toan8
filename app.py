@@ -341,7 +341,8 @@ WEBHOOK_URL = get_secret("GOOGLE_SHEET_WEBHOOK_URL", DEFAULT_WEBHOOK) or DEFAULT
 def gon_html(s: str) -> str:
     """Bỏ xuống dòng và thụt lề trong HTML. Nếu để nguyên, Markdown hiểu dòng thụt lề là đoạn mã
     và in cả thẻ HTML ra màn hình thay vì vẽ giao diện."""
-    return re.sub(r"\n\s*", "", s).strip()
+    s = re.sub(r">\s*\n\s*<", "><", s)       # giữa hai thẻ: bỏ hẳn
+    return re.sub(r"\s*\n\s*", " ", s).strip()  # trong một thẻ: giữ 1 khoảng trắng giữa các thuộc tính
 
 
 def bo_dau(s) -> str:
@@ -542,21 +543,54 @@ def tong_hop_hoc_sinh(bt: pd.DataFrame, gm: pd.DataFrame) -> pd.DataFrame:
     return out[cols]
 
 
+# Huy chương top 3: (màu sáng, màu giữa, màu tối, màu viền dòng)
+HUY_CHUONG = {
+    1: ("#fff7c2", "#facc15", "#b45309", "rgba(250,204,21,0.6)"),   # vàng
+    2: ("#ffffff", "#cbd5e1", "#64748b", "rgba(203,213,225,0.55)"), # bạc
+    3: ("#ffe0c2", "#f59e0b", "#9a3412", "rgba(245,158,11,0.55)"),  # đồng
+}
+
+
+def huy_hieu_sao(hang: int) -> str:
+    """Ngôi sao màu kim loại có số thứ hạng nổi ở giữa (SVG)."""
+    sang, giua, toi, _ = HUY_CHUONG[hang]
+    gid = f"sao{hang}"
+    return f"""
+    <svg width="38" height="38" viewBox="0 0 40 40" style="flex:0 0 38px;filter:drop-shadow(0 0 6px {giua});">
+      <defs><linearGradient id="{gid}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="{sang}"/><stop offset="55%" stop-color="{giua}"/><stop offset="100%" stop-color="{toi}"/>
+      </linearGradient></defs>
+      <polygon points="20,2 25.3,13.3 37.6,14.6 28.4,23 31,35.2 20,29 9,35.2 11.6,23 2.4,14.6 14.7,13.3"
+               fill="url(#{gid})" stroke="{toi}" stroke-width="1.2" stroke-linejoin="round"/>
+      <text x="20" y="25.5" text-anchor="middle" font-size="13" font-weight="900" fill="{toi}" opacity="0.55" dx="0.8" dy="0.8">{hang}</text>
+      <text x="20" y="25.5" text-anchor="middle" font-size="13" font-weight="900" fill="#ffffff"
+            stroke="{toi}" stroke-width="0.6" paint-order="stroke">{hang}</text>
+    </svg>"""
+
+
 def html_bang_xep_hang(dong_du_lieu, don_vi: str, mau: str) -> str:
-    """Danh sách xếp hạng dạng HTML. dong_du_lieu: list (họ tên, lớp, giá trị)."""
-    huy_chuong = {1: "#facc15", 2: "#cbd5e1", 3: "#f59e0b"}
+    """Danh sách xếp hạng dạng HTML. dong_du_lieu: list (họ tên, lớp, giá trị). Top 3 có sao vàng, bạc, đồng."""
     dong = []
     for i, (ten, lop, gia_tri) in enumerate(dong_du_lieu, start=1):
-        nen = huy_chuong.get(i, "rgba(56,189,248,0.25)")
-        mau_chu = "#0f172a" if i <= 3 else "#e0f2fe"
+        if i in HUY_CHUONG:
+            sang, giua, _, vien = HUY_CHUONG[i]
+            huy_hieu = huy_hieu_sao(i)
+            khung = f"background:linear-gradient(90deg, {vien.replace('0.6', '0.18').replace('0.55', '0.16')}, rgba(15,23,42,0.85) 60%);border:1px solid {vien};"
+            chu_ten = f"color:#ffffff;font-weight:800;font-size:15px;text-shadow:0 1px 0 rgba(0,0,0,0.6),0 0 8px {giua};"
+            chu_diem = f"color:{sang};font-weight:900;font-size:16px;text-shadow:0 1px 0 rgba(0,0,0,0.7),0 0 10px {giua};"
+        else:
+            huy_hieu = ('<span style="flex:0 0 38px;height:28px;display:flex;align-items:center;justify-content:center;">'
+                        '<span style="width:28px;height:28px;border-radius:50%;background:rgba(56,189,248,0.25);color:#e0f2fe;'
+                        f'display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;">{i}</span></span>')
+            khung = "background:rgba(15,23,42,0.85);border:1px solid rgba(56,189,248,0.25);"
+            chu_ten = "color:#f8fafc;font-weight:700;font-size:14px;"
+            chu_diem = f"color:{mau};font-weight:800;font-size:15px;"
         dong.append(f"""
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;border-radius:12px;
-                    background:rgba(15,23,42,0.85);border:1px solid rgba(56,189,248,0.25);">
-          <span style="min-width:28px;height:28px;border-radius:50%;background:{nen};color:{mau_chu};
-                       display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;">{i}</span>
-          <span style="flex:1;color:#f8fafc;font-weight:700;font-size:14px;">{html.escape(str(ten))}
-            <span style="color:#94a3b8;font-weight:600;font-size:12px;"> · {html.escape(str(lop))}</span></span>
-          <span style="color:{mau};font-weight:800;font-size:15px;white-space:nowrap;">{gia_tri} {don_vi}</span>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;border-radius:12px;{khung}">
+          {huy_hieu}
+          <span style="flex:1;{chu_ten}">{html.escape(str(ten))}
+            <span style="color:#94a3b8;font-weight:600;font-size:12px;text-shadow:none;"> · {html.escape(str(lop))}</span></span>
+          <span style="white-space:nowrap;{chu_diem}">{gia_tri} {don_vi}</span>
         </div>""")
     return gon_html("".join(dong)) or '<p style="color:#cbd5e1;">Chưa có dữ liệu.</p>'
 
@@ -1242,7 +1276,7 @@ with tab2:
 - **Trang vở:** viết tay **Họ tên + Lớp** ở dòng đầu tiên trước khi giải.
 - **Chụp ảnh:** chụp thẳng từ trên xuống, đủ sáng, rõ từng dòng chữ và ký hiệu toán học.
 - **Số lượng:** mỗi lần nộp chỉ **01 ảnh** cho một bài.
-- **Trung thực:** hệ thống nhận diện ảnh đã từng nộp. Không nộp lại ảnh cũ khi chưa sửa bài.
+- **Trung thực:** hệ thống nhận diện ảnh đã từng nộp. Không nộp lại ảnh cũ khi chưa sửa bài, không dùng ảnh của bạn.
 """)
 
     c1, c2 = st.columns(2)
